@@ -3,6 +3,12 @@ const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const fs      = require('fs');
 const path    = require('path');
+const { Resend } = require('resend');
+const { nanoid } = require('nanoid');
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
+const BASE_URL   = process.env.BASE_URL || 'http://localhost:3000';
 
 const DATA_FILE = path.join(__dirname, 'data.json');
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
