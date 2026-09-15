@@ -252,6 +252,7 @@ function isCorrect(student, correct, tol = 1e-6) {
   if (s === c) return true;
   const sn = Number(s), cn = Number(c);
   if (isFinite(sn) && isFinite(cn)) return Math.abs(sn - cn) <= tol;
+  if (nerdamer) {
   try {
     if (nerdamer('simplify((' + s + ')-(' + c + '))').toString() === '0') return true;
   } catch (e) {}
@@ -260,6 +261,7 @@ function isCorrect(student, correct, tol = 1e-6) {
     const b = Number(nerdamer(c).evaluate().text('decimals'));
     if (isFinite(a) && isFinite(b)) return Math.abs(a - b) <= Math.max(tol, 1e-6);
   } catch (e) {}
+}
   return false;
 }
 
