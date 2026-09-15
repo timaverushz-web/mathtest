@@ -56,17 +56,50 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Заполните все поля' });
   if (password.length < 6)
     return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+
   const e = email.toLowerCase();
   if (db.users.some(u => u.email === e))
     return res.status(409).json({ error: 'Email уже занят' });
 
+  const verifyToken = nanoid(32);
   const user = {
     id: uid(), name: name.trim(), email: e, role,
-    pass: await bcrypt.hash(password, 10), createdAt: Date.now()
+    pass: await bcrypt.hash(password, 10),
+    verified: false,
+    verifyToken,
+    createdAt: Date.now()
   };
   db.users.push(user); save();
-  const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
-  res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+
+  // отправляем письмо
+  if (resend) {
+    const link = BASE_URL + '/verify?token=' + verifyToken;
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: e,
+        subject: 'Подтверждение почты — MathTest',
+        html: `
+          <h2>Здравствуйте, ${name}!</h2>
+          <p>Вы зарегистрировались на MathTest.</p>
+          <p>Чтобы активировать аккаунт, перейдите по ссылке:</p>
+          <p><a href="${link}" style="display:inline-block;padding:10px 18px;
+             background:#4c8dff;color:#fff;text-decoration:none;border-radius:8px">
+             Подтвердить почту</a></p>
+          <p>Если кнопка не работает, скопируйте ссылку:</p>
+          <p>${link}</p>
+          <p>Если вы не регистрировались — просто игнорируйте письмо.</p>
+        `
+      });
+    } catch (err) {
+      console.error('Ошибка отправки письма:', err);
+    }
+  }
+
+  res.json({
+    ok: true,
+    message: 'Проверьте почту — мы отправили ссылку для подтверждения.'
+  });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -74,8 +107,50 @@ app.post('/api/auth/login', async (req, res) => {
   const u = db.users.find(x => x.email === (email || '').toLowerCase());
   if (!u || !(await bcrypt.compare(password || '', u.pass)))
     return res.status(401).json({ error: 'Неверный email или пароль' });
+
+  if (!u.verified)
+    return res.status(403).json({ error: 'Подтвердите почту. Проверьте входящие письма.' });
+
   const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: u.id, name: u.name, role: u.role } });
+});
+app.get('/verify', (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.redirect('/?verify=invalid');
+
+  const u = db.users.find(x => x.verifyToken === token);
+  if (!u) return res.redirect('/?verify=invalid');
+
+  u.verified = true;
+  u.verifyToken = null;
+  save();
+  res.redirect('/?verify=ok');
+});
+
+// повторная отправка письма
+app.post('/api/auth/resend', async (req, res) => {
+  const { email } = req.body || {};
+  const u = db.users.find(x => x.email === (email || '').toLowerCase());
+  if (!u) return res.status(404).json({ error: 'Email не найден' });
+  if (u.verified) return res.status(400).json({ error: 'Почта уже подтверждена' });
+
+  u.verifyToken = nanoid(32);
+  save();
+
+  if (!resend) return res.status(500).json({ error: 'Почта не настроена' });
+
+  const link = BASE_URL + '/verify?token=' + u.verifyToken;
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: u.email,
+      subject: 'Подтверждение почты — MathTest',
+      html: `<p><a href="${link}">Подтвердить почту</a></p><p>${link}</p>`
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Не удалось отправить письмо' });
+  }
+  res.json({ ok: true });
 });
 
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
