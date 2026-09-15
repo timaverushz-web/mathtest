@@ -30,7 +30,7 @@ button.small{padding:5px 10px;font-size:13px}
 @media(max-width:900px){.two-col{grid-template-columns:1fr}}
 .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
-.muted{color:var(--muted);font-size:13px}.err{color:var(--err);min-height:20px}.ok{color:var(--ok)}
+.muted{color:var(--muted);font-size:13px}.err{color:var(--err);min-height:20px}.ok{color:var(--ok);min-height:20px}
 .badge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--accent);color:#fff;font-size:13px;font-weight:700;flex:none}
 .badge.red{background:var(--err)}.badge.gray{background:#3a465c}
 .task-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
@@ -66,6 +66,7 @@ button.small{padding:5px 10px;font-size:13px}
 .empty{color:var(--muted);padding:14px 0;text-align:center}
 h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing:1px;margin:20px 0 8px}
 .loading{padding:40px;text-align:center;color:var(--muted)}
+.info-box{background:#0d1119;border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin:12px 0;font-size:14px}
 </style>
 </head>
 <body>
@@ -79,27 +80,39 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
 <main>
 <section id="view-auth" class="view active">
   <div class="card narrow">
-    <h2>Вход</h2>
+    <h2>Вход в систему</h2>
     <div class="tabs">
       <button class="tab active" data-tab="login">Вход</button>
       <button class="tab" data-tab="reg">Регистрация</button>
     </div>
+
     <div id="loginForm">
-      <label>Email<input id="loginEmail" type="email"></label>
-      <label>Пароль<input id="loginPass" type="password"></label>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email"></label>
+      <label>Пароль<input id="loginPass" type="password" autocomplete="current-password"></label>
       <button class="primary" id="doLogin" style="width:100%">Войти</button>
+      <p class="muted" style="margin-top:14px;text-align:center">
+        Не получили письмо?
+        <button class="ghost small" id="btnResend" type="button">Отправить заново</button>
+      </p>
+      <p class="err" id="resendMsg"></p>
     </div>
+
     <div id="regForm" hidden>
       <label>Имя<input id="regName"></label>
-      <label>Email<input id="regEmail" type="email"></label>
+      <label>Email<input id="regEmail" type="email" autocomplete="email"></label>
       <label>Пароль (от 6 символов)<input id="regPass" type="password"></label>
-      <label>Роль<select id="regRole">
-        <option value="teacher">Учитель</option>
-        <option value="student">Ученик</option>
-      </select></label>
+      <label>Роль
+        <select id="regRole">
+          <option value="teacher">Учитель</option>
+          <option value="student">Ученик</option>
+        </select>
+      </label>
       <button class="primary" id="doRegister" style="width:100%">Зарегистрироваться</button>
+      <div class="info-box" id="regOk" hidden></div>
     </div>
+
     <p class="err" id="authErr"></p>
+    <p class="ok" id="authOk"></p>
   </div>
 </section>
 
@@ -133,13 +146,15 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
   <div class="two-col">
     <div class="card">
       <h3>Конструктор задания</h3>
-      <label>Тип<select id="taskType">
-        <option value="input">Ввод ответа</option>
-        <option value="choice">Выбор варианта</option>
-      </select></label>
+      <label>Тип
+        <select id="taskType">
+          <option value="input">Ввод ответа</option>
+          <option value="choice">Выбор варианта</option>
+        </select>
+      </label>
       <div class="muted">Условие</div>
       <div id="statementHost"></div>
-      <div class="muted" style="margin-top:14px">Символы</div>
+      <div class="muted" style="margin-top:14px">Символы — клик вставит в последнее активное поле</div>
       <div id="symbolBar" class="symbols"></div>
       <div id="inputBlock">
         <div class="muted">Правильный ответ</div>
@@ -152,7 +167,7 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
         <button class="ghost small" id="btnAddOption">+ вариант</button>
       </div>
       <label>Баллы<input id="taskPoints" type="number" value="1" min="1" style="width:100px"></label>
-      <button class="primary" id="btnAddTask" style="width:100%;margin-top:10px">Добавить</button>
+      <button class="primary" id="btnAddTask" style="width:100%;margin-top:10px">Добавить задание</button>
     </div>
     <div class="card">
       <h3>Задания <span id="taskCount" class="pill">0</span></h3>
@@ -166,7 +181,7 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
     <button class="ghost" id="btnBackFromClass">← Назад</button>
     <h2 id="classTitle" style="margin:0"></h2>
     <div class="spacer"></div>
-    <div class="muted">Код:</div>
+    <div class="muted">Код для учеников:</div>
     <div id="classCodeBig" class="code-box"></div>
   </div>
   <div class="two-col">
@@ -200,7 +215,7 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
     <button class="ghost" id="btnBackFromTake">← Назад</button>
     <h2 id="takeTitle" style="margin:0"></h2>
     <div class="spacer"></div>
-    <button class="primary" id="btnSubmitTest">Завершить</button>
+    <button class="primary" id="btnSubmitTest">Завершить и проверить</button>
   </div>
   <div id="takeBody"></div>
 </section>
@@ -222,7 +237,7 @@ h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing
 <script>
 (function(){
 'use strict';
-var $ = function(s,r){return (r||document).querySelector(s);};
+var $  = function(s,r){return (r||document).querySelector(s);};
 var $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
 var esc = function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 var uid = function(){return Math.random().toString(36).slice(2,10);};
@@ -339,25 +354,79 @@ function logout(){setToken(null);currentUser=null;renderTop();show('view-auth');
 $$('.tab').forEach(function(t){if(!t.dataset.tab)return;t.onclick=function(){
   $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
   var isL=t.dataset.tab==='login';
-  $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;$('#authErr').textContent='';
+  $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
+  $('#authErr').textContent='';$('#authOk').textContent='';
 };});
+
 $('#doLogin').onclick=async function(){
+  $('#authErr').textContent='';$('#authOk').textContent='';$('#resendMsg').textContent='';
   try{
     var r=await api('/auth/login',{method:'POST',body:{
-      email:$('#loginEmail').value.trim(),password:$('#loginPass').value}});
+      email:$('#loginEmail').value.trim(),
+      password:$('#loginPass').value}});
     setToken(r.token);enterApp(r.user);
-  }catch(e){$('#authErr').textContent=e.message;}
+  }catch(e){
+    $('#authErr').textContent=e.message;
+    if(e.status===403){
+      // показать кнопку "отправить письмо заново"
+      $('#resendMsg').textContent='Нажмите «Отправить заново», чтобы получить письмо повторно.';
+      $('#resendMsg').className='muted';
+    }
+  }
 };
+
 $('#doRegister').onclick=async function(){
+  $('#authErr').textContent='';$('#authOk').textContent='';
+  $('#regOk').hidden=true;
   try{
     var r=await api('/auth/register',{method:'POST',body:{
-      name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),
-      password:$('#regPass').value,role:$('#regRole').value}});
-    setToken(r.token);enterApp(r.user);
-  }catch(e){$('#authErr').textContent=e.message;}
+      name:$('#regName').value.trim(),
+      email:$('#regEmail').value.trim(),
+      password:$('#regPass').value,
+      role:$('#regRole').value}});
+    $('#regOk').hidden=false;
+    $('#regOk').innerHTML='<b>✓ Проверьте почту!</b><br>'+
+      (r.message || 'Мы отправили письмо со ссылкой для подтверждения.')+
+      '<br><br><span class="muted">Если не видите — проверьте папку «Спам».</span>';
+    $('#regName').value='';$('#regEmail').value='';$('#regPass').value='';
+  }catch(e){
+    $('#authErr').textContent=e.message;
+  }
 };
+
+$('#btnResend').onclick=async function(){
+  var email=$('#loginEmail').value.trim();
+  $('#resendMsg').textContent='';
+  if(!email){
+    $('#resendMsg').className='err';
+    $('#resendMsg').textContent='Введите email в поле выше';
+    return;
+  }
+  try{
+    await api('/auth/resend',{method:'POST',body:{email:email}});
+    $('#resendMsg').className='ok';
+    $('#resendMsg').textContent='✓ Письмо отправлено повторно. Проверьте почту (и папку «Спам»).';
+  }catch(e){
+    $('#resendMsg').className='err';
+    $('#resendMsg').textContent=e.message;
+  }
+};
+
 function enterApp(u){currentUser=u;renderTop();
   if(u.role==='teacher')goTeacher();else goStudent();}
+
+/* ---------- проверка параметра ?verify=... ---------- */
+(function checkVerify(){
+  var p=new URLSearchParams(location.search).get('verify');
+  if(!p)return;
+  if(p==='ok'){
+    $('#authOk').textContent='✓ Почта подтверждена. Теперь можно войти.';
+    $('#authErr').textContent='';
+  }else{
+    $('#authErr').textContent='Ссылка недействительна или устарела.';
+  }
+  history.replaceState(null,'',location.pathname);
+})();
 
 /* ---------- табы ---------- */
 $$('[data-ttab]').forEach(function(t){t.onclick=function(){
@@ -414,7 +483,8 @@ async function renderTeacherTests(){
       (test.unseen?'<span class="badge red">'+test.unseen+' новых</span>':'')+'</div>'+
       '<div class="meta">Заданий: '+test.tasks.length+' · макс: '+max+
       ' · классов: '+(test.classIds||[]).length+'</div>';
-    var actions=document.createElement('div');actions.className='actions';actions.style.display='flex';actions.style.gap='8px';actions.style.flexWrap='wrap';
+    var actions=document.createElement('div');
+    actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
     var bE=document.createElement('button');bE.className='small';bE.textContent='Редактировать';
     bE.onclick=async function(){
       var rr=await api('/tests');
@@ -454,7 +524,7 @@ async function openClassView(id){
   var stu=$('#classStudents');stu.innerHTML='';
   $('#classStuCount').textContent=r.students.length;
   if(!r.students.length){
-    stu.innerHTML='<div class="empty">Пока нет учеников. Код: <b>'+r.class.code+'</b></div>';
+    stu.innerHTML='<div class="empty">Пока нет учеников. Код: <b>'+esc(r.class.code)+'</b></div>';
   }
   r.students.forEach(function(u){
     var el=document.createElement('div');el.className='stu-row';
