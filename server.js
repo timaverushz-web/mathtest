@@ -236,7 +236,9 @@ app.delete('/api/tests/:id', auth, teacherOnly, (req, res) => {
 /* =========================================================
    СДАЧА РАБОТЫ (автопроверка на сервере)
    ========================================================= */
-const nerdamer = require('nerdamer/all');
+let nerdamer;
+try { nerdamer = require('nerdamer/all'); }
+catch (e) { try { nerdamer = require('nerdamer'); } catch (e2) { nerdamer = null; } }
 
 function norm(s) {
   return String(s || '')
