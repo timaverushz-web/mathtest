@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MathTest</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+:root{--bg:#0f1420;--panel:#181f2e;--panel2:#1f2839;--line:#2b3548;--text:#e6ecf5;--muted:#8b9ab3;--accent:#4c8dff;--ok:#2fbf71;--err:#ff5d5d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}
+#topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);background:#131a27;position:sticky;top:0;z-index:10}
+.brand{font-weight:700}.spacer{flex:1}
+main{max-width:1200px;margin:0 auto;padding:20px}
+.view{display:none}.view.active{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.card.narrow{max-width:440px;margin:60px auto}
+h2,h3{margin:0 0 12px}
+label{display:block;margin:10px 0;color:var(--muted);font-size:13px}
+input,select,textarea{width:100%;margin-top:5px;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:#0f1420;color:var(--text);font:inherit}
+button{cursor:pointer;font:inherit;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 14px}
+button:hover{filter:brightness(1.15)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.ghost{background:transparent}
+button.small{padding:5px 10px;font-size:13px}
+.row{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.two-col{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.muted{color:var(--muted);font-size:13px}.err{color:var(--err);min-height:20px}.ok{color:var(--ok)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--accent);color:#fff;font-size:13px;font-weight:700;flex:none}
+.badge.red{background:var(--err)}.badge.gray{background:#3a465c}
+.task-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.title-input{font-size:17px;font-weight:600;padding:8px 12px;width:auto;min-width:260px;margin:0;border:1px solid var(--line);border-radius:9px;background:#0f1420;color:var(--text)}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.pill.blue{border-color:var(--accent);color:var(--accent)}.pill.green{border-color:var(--ok);color:var(--ok)}
+.pill.red{border-color:var(--err);color:var(--err)}
+.result-line{padding:10px 12px;border-radius:10px;margin:8px 0;background:#131a27;border-left:4px solid var(--line)}
+.result-line.ok{border-left-color:var(--ok)}.result-line.err{border-left-color:var(--err)}
+.mi-wrap{margin:8px 0 12px}
+.mi-input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#0d1119;color:var(--text);font:15px/1.4 Consolas,Monaco,monospace;resize:vertical;min-height:48px;outline:none}
+.mi-input:focus{border-color:var(--accent)}
+.mi-input[readonly]{background:#131a27;border-style:dashed;color:var(--muted)}
+.mi-preview{min-height:26px;padding:6px 12px;margin-top:6px;background:#0a0e16;border:1px dashed var(--line);border-radius:8px;color:#cfd8e8;font-size:16px;overflow-x:auto}
+.mi-preview:empty{display:none}
+.symbols{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.symbols button{padding:6px 11px;font-size:15px;min-width:44px;font-family:"Times New Roman",serif}
+.option-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.option-row input[type=radio]{width:auto;margin:0;flex:none}
+.option-row .mi-wrap{flex:1;margin:0}
+.option-row .mi-input{min-height:40px}
+.class-card{background:#131a27;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.class-card h4{margin:0;font-size:16px}
+.code-box{font-family:monospace;font-size:17px;letter-spacing:2px;font-weight:700;background:#0d1119;border:1px dashed var(--accent);color:var(--accent);padding:5px 12px;border-radius:8px;cursor:pointer;user-select:all}
+.stu-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#131a27;border:1px solid var(--line);border-radius:10px;margin-bottom:6px}
+.stu-row .name{flex:1}
+.stu-row .score{font-weight:600;min-width:70px;text-align:right}
+.test-card{background:#131a27;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+.test-card h4{margin:0 0 6px}
+.test-card .meta{color:var(--muted);font-size:13px;margin-bottom:8px}
+.class-pick{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#131a27;border:1px solid var(--line);border-radius:8px;margin:5px 0;cursor:pointer}
+.class-pick input{width:auto;margin:0}
+.empty{color:var(--muted);padding:14px 0;text-align:center}
+h4.sec{color:var(--muted);text-transform:uppercase;font-size:12px;letter-spacing:1px;margin:20px 0 8px}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand">∑ MathTest</div>
+  <div class="spacer"></div>
+  <div id="userBox" class="muted"></div>
+</header>
+
+<main>
+<section id="view-auth" class="view active">
+  <div class="card narrow">
+    <h2>Вход</h2>
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Вход</button>
+      <button class="tab" data-tab="reg">Регистрация</button>
+    </div>
+    <div id="loginForm">
+      <label>Email<input id="loginEmail" type="email"></label>
+      <label>Пароль<input id="loginPass" type="password"></label>
+      <button class="primary" id="doLogin" style="width:100%">Войти</button>
+    </div>
+    <div id="regForm" hidden>
+      <label>Имя<input id="regName"></label>
+      <label>Email<input id="regEmail" type="email"></label>
+      <label>Пароль (от 6 символов)<input id="regPass" type="password"></label>
+      <label>Роль<select id="regRole">
+        <option value="teacher">Учитель</option>
+        <option value="student">Ученик</option>
+      </select></label>
+      <button class="primary" id="doRegister" style="width:100%">Зарегистрироваться</button>
+    </div>
+    <p class="err" id="authErr"></p>
+  </div>
+</section>
+
+<section id="view-teacher" class="view">
+  <div class="row">
+    <h2 style="margin:0">Кабинет учителя</h2>
+    <div class="spacer"></div>
+    <button class="primary" id="btnNewClass">+ Класс</button>
+    <button class="primary" id="btnNewTest">+ Работа</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-ttab="tests">Работы</button>
+    <button class="tab" data-ttab="classes">Классы</button>
+  </div>
+  <div id="tt-tests"><div id="testList"></div></div>
+  <div id="tt-classes" hidden><div id="classList"></div></div>
+</section>
+
+<section id="view-editor" class="view">
+  <div class="row">
+    <button class="ghost" id="btnBackToTeacher">← Назад</button>
+    <input id="testTitle" class="title-input" placeholder="Название работы">
+    <div class="spacer"></div>
+    <button class="primary" id="btnSaveTest">Сохранить</button>
+  </div>
+  <div class="card">
+    <h3>Кому назначить работу</h3>
+    <div class="muted">Отметьте классы — их ученики увидят работу.</div>
+    <div id="classPicker" style="margin-top:10px"></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <h3>Конструктор задания</h3>
+      <label>Тип<select id="taskType">
+        <option value="input">Ввод ответа</option>
+        <option value="choice">Выбор варианта</option>
+      </select></label>
+      <div class="muted">Условие</div>
+      <div id="statementHost"></div>
+      <div class="muted" style="margin-top:14px">Символы</div>
+      <div id="symbolBar" class="symbols"></div>
+      <div id="inputBlock">
+        <div class="muted">Правильный ответ</div>
+        <div id="answerHost"></div>
+        <label>Допуск<input id="taskTol" value="1e-6" style="width:130px"></label>
+      </div>
+      <div id="choiceBlock" hidden>
+        <div class="muted">Варианты (отметьте верный)</div>
+        <div id="optionsList"></div>
+        <button class="ghost small" id="btnAddOption">+ вариант</button>
+      </div>
+      <label>Баллы<input id="taskPoints" type="number" value="1" min="1" style="width:100px"></label>
+      <button class="primary" id="btnAddTask" style="width:100%;margin-top:10px">Добавить</button>
+    </div>
+    <div class="card">
+      <h3>Задания <span id="taskCount" class="pill">0</span></h3>
+      <div id="draftList"></div>
+    </div>
+  </div>
+</section>
+
+<section id="view-class" class="view">
+  <div class="row">
+    <button class="ghost" id="btnBackFromClass">← Назад</button>
+    <h2 id="classTitle" style="margin:0"></h2>
+    <div class="spacer"></div>
+    <div class="muted">Код:</div>
+    <div id="classCodeBig" class="code-box"></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><h3>Ученики <span id="classStuCount" class="pill">0</span></h3><div id="classStudents"></div></div>
+    <div class="card"><h3>Работы класса</h3><div id="classTests"></div></div>
+  </div>
+</section>
+
+<section id="view-student" class="view">
+  <h2>Кабинет ученика</h2>
+  <div class="tabs">
+    <button class="tab active" data-stab="tests">Мои работы</button>
+    <button class="tab" data-stab="classes">Мои классы</button>
+  </div>
+  <div id="st-tests"><div id="studentList" class="grid"></div></div>
+  <div id="st-classes" hidden>
+    <div class="card">
+      <h3>Присоединиться к классу</h3>
+      <div class="row">
+        <input id="joinCode" placeholder="Код класса" style="flex:1;min-width:200px;margin:0;text-transform:uppercase" maxlength="10">
+        <button class="primary" id="btnJoinClass">Присоединиться</button>
+      </div>
+      <p class="err" id="joinErr"></p>
+    </div>
+    <div class="card"><h3>Мои классы</h3><div id="myClasses"></div></div>
+  </div>
+</section>
+
+<section id="view-take" class="view">
+  <div class="row">
+    <button class="ghost" id="btnBackFromTake">← Назад</button>
+    <h2 id="takeTitle" style="margin:0"></h2>
+    <div class="spacer"></div>
+    <button class="primary" id="btnSubmitTest">Завершить</button>
+  </div>
+  <div id="takeBody"></div>
+</section>
+
+<section id="view-result" class="view">
+  <div class="card" id="resultCard"></div>
+  <button class="primary" id="btnResultBack">К списку</button>
+</section>
+
+<section id="view-submissions" class="view">
+  <div class="row">
+    <button class="ghost" id="btnBackFromSubs">← Назад</button>
+    <h2 id="subsTitle" style="margin:0"></h2>
+  </div>
+  <div id="subsBody"></div>
+</section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var $ = function(s,r){return (r||document).querySelector(s);};
+var $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+var esc = function(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var uid = function(){return Math.random().toString(36).slice(2,10);};
+var fmt = function(t){return new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});};
+
+/* ---------- API ---------- */
+var TOKEN_KEY='mathtest_token';
+var getToken=function(){return localStorage.getItem(TOKEN_KEY);};
+var setToken=function(t){t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY);};
+async function api(path,opts){
+  opts=opts||{};
+  var headers={'Content-Type':'application/json'};
+  var tk=getToken(); if(tk) headers.Authorization='Bearer '+tk;
+  if(opts.headers) Object.assign(headers,opts.headers);
+  var r=await fetch('/api'+path,{method:opts.method||'GET',headers:headers,body:opts.body?JSON.stringify(opts.body):undefined});
+  var data=await r.json().catch(function(){return {};});
+  if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;throw e;}
+  return data;
+}
+
+/* ---------- поля формул ---------- */
+var lastFocused=null;
+function textToLatex(t){
+  if(!t)return'';
+  t=String(t);
+  t=t.replace(/sqrt\s*\(([^()]*)\)/gi,'\\sqrt{$1}');
+  t=t.replace(/√/g,'\\sqrt{}').replace(/π/g,'\\pi ').replace(/∞/g,'\\infty ');
+  t=t.replace(/≤/g,'\\le ').replace(/≥/g,'\\ge ').replace(/≠/g,'\\ne ');
+  t=t.replace(/→/g,'\\to ').replace(/∂/g,'\\partial ').replace(/∫/g,'\\int ').replace(/Σ/g,'\\sum ');
+  t=t.replace(/±/g,'\\pm ').replace(/×/g,'\\times ').replace(/÷/g,'\\div ').replace(/·/g,'\\cdot ');
+  t=t.replace(/²/g,'^{2}').replace(/³/g,'^{3}').replace(/¹/g,'^{1}');
+  t=t.replace(/([0-9a-zA-Z]+)\s*\/\s*([0-9a-zA-Z]+)/g,'\\frac{$1}{$2}');
+  t=t.replace(/\^(-?\d+)/g,'^{$1}').replace(/\*/g,'\\cdot ');
+  return t;
+}
+function createMathInput(initial,readonly){
+  var wrap=document.createElement('div');wrap.className='mi-wrap';
+  var ta=document.createElement('textarea');ta.className='mi-input';ta.rows=2;ta.spellcheck=false;
+  ta.placeholder='Например: sqrt(16), 2^2+3, sin(pi/2)';
+  ta.value=initial||'';if(readonly)ta.readOnly=true;
+  var prev=document.createElement('div');prev.className='mi-preview';
+  wrap.appendChild(ta);wrap.appendChild(prev);
+  function render(){
+    var tex=textToLatex(ta.value);
+    if(window.katex&&tex){try{katex.render(tex,prev,{throwOnError:false});}catch(e){prev.textContent=ta.value;}}
+    else prev.textContent=ta.value;
+  }
+  ta.addEventListener('input',render);
+  ta.addEventListener('focus',function(){lastFocused=api;});
+  var api={
+    el:wrap,textarea:ta,
+    getValue:function(){return ta.value;},
+    setValue:function(v){ta.value=v||'';render();},
+    insertAtCursor:function(str){
+      if(ta.readOnly)return;
+      var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;
+      ta.value=v.slice(0,s)+str+v.slice(e);
+      ta.selectionStart=ta.selectionEnd=s+str.length;ta.focus();render();
+    },
+    insertAroundCursor:function(before,after){
+      if(ta.readOnly)return;
+      var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;
+      var sel=v.slice(s,e);
+      ta.value=v.slice(0,s)+before+sel+after+v.slice(e);
+      var pos=s+before.length+sel.length;
+      ta.selectionStart=ta.selectionEnd=pos;ta.focus();render();
+    }
+  };
+  render();return api;
+}
+var SYMBOLS=[
+  {label:'√',wrap:['√(',')']},{label:'ⁿ√',wrap:['root(3,',')']},
+  {label:'x²',insert:'^2'},{label:'xⁿ',wrap:['^(',')']},
+  {label:'a/b',wrap:['(',')/(',')']},{label:'( )',wrap:['(',')']},
+  {label:'π',insert:'π'},{label:'∞',insert:'∞'},{label:'∫',insert:'∫('},
+  {label:'Σ',insert:'Σ('},{label:'lim',insert:'lim('},{label:'d/dx',insert:'d/dx('},
+  {label:'∂',insert:'∂'},{label:'sin',wrap:['sin(',')']},{label:'cos',wrap:['cos(',')']},
+  {label:'tan',wrap:['tan(',')']},{label:'ln',wrap:['ln(',')']},{label:'log',wrap:['log(',')']},
+  {label:'≤',insert:'≤'},{label:'≥',insert:'≥'},{label:'≠',insert:'≠'},{label:'±',insert:'±'},
+  {label:'×',insert:'×'},{label:'÷',insert:'÷'},{label:'→',insert:'→'},{label:'|x|',wrap:['|','|']}
+];
+function buildSymbolBar(c){
+  c.innerHTML='';
+  SYMBOLS.forEach(function(s){
+    var b=document.createElement('button');b.type='button';b.textContent=s.label;
+    b.addEventListener('mousedown',function(e){e.preventDefault();});
+    b.onclick=function(){
+      if(!lastFocused)return;
+      if(s.wrap)lastFocused.insertAroundCursor(s.wrap[0],s.wrap[1]);
+      else lastFocused.insertAtCursor(s.insert);
+    };
+    c.appendChild(b);
+  });
+}
+
+/* ---------- состояние ---------- */
+var currentUser=null,currentTest=null,answerInputs=[],choicePicks=[];
+var editingTestId=null,draftTasks=[],draftClassIds=[],currentClassId=null;
+var stmtInput=null,ansInput=null;
+
+function show(id){$$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});window.scrollTo(0,0);}
+
+function renderTop(){
+  var box=$('#userBox');
+  if(!currentUser){box.innerHTML='';return;}
+  var role=currentUser.role==='teacher'?'учитель':'ученик';
+  box.innerHTML='<span>'+esc(currentUser.name)+' · '+role+'</span>';
+  var b=document.createElement('button');b.className='ghost small';b.textContent='Выйти';
+  b.style.marginLeft='10px';b.onclick=logout;box.appendChild(b);
+}
+function logout(){setToken(null);currentUser=null;renderTop();show('view-auth');}
+
+/* ---------- авторизация ---------- */
+$$('.tab').forEach(function(t){if(!t.dataset.tab)return;t.onclick=function(){
+  $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
+  var isL=t.dataset.tab==='login';
+  $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;$('#authErr').textContent='';
+};});
+$('#doLogin').onclick=async function(){
+  try{
+    var r=await api('/auth/login',{method:'POST',body:{
+      email:$('#loginEmail').value.trim(),password:$('#loginPass').value}});
+    setToken(r.token);enterApp(r.user);
+  }catch(e){$('#authErr').textContent=e.message;}
+};
+$('#doRegister').onclick=async function(){
+  try{
+    var r=await api('/auth/register',{method:'POST',body:{
+      name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),
+      password:$('#regPass').value,role:$('#regRole').value}});
+    setToken(r.token);enterApp(r.user);
+  }catch(e){$('#authErr').textContent=e.message;}
+};
+function enterApp(u){currentUser=u;renderTop();
+  if(u.role==='teacher')goTeacher();else goStudent();}
+
+/* ---------- табы ---------- */
+$$('[data-ttab]').forEach(function(t){t.onclick=function(){
+  $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
+  $('#tt-tests').hidden=t.dataset.ttab!=='tests';
+  $('#tt-classes').hidden=t.dataset.ttab!=='classes';
+};});
+$$('[data-stab]').forEach(function(t){t.onclick=function(){
+  $$('[data-stab]').forEach(function(x){x.classList.toggle('active',x===t);});
+  $('#st-tests').hidden=t.dataset.stab!=='tests';
+  $('#st-classes').hidden=t.dataset.stab!=='classes';
+};});
+
+/* ---------- учитель ---------- */
+async function goTeacher(){
+  await renderTeacherClasses();
+  await renderTeacherTests();
+  show('view-teacher');
+}
+async function renderTeacherClasses(){
+  var r=await api('/classes');
+  var list=$('#classList');list.innerHTML='';
+  if(!r.classes.length){list.innerHTML='<div class="card"><div class="empty">Нет классов. Нажмите «+ Класс».</div></div>';return;}
+  r.classes.forEach(function(c){
+    var el=document.createElement('div');el.className='class-card';
+    el.innerHTML='<div style="flex:1;min-width:200px"><h4>'+esc(c.name)+'</h4>'+
+      '<div class="muted">учеников: '+c.studentCount+'</div></div>'+
+      '<div class="code-box" title="Клик — копировать">'+c.code+'</div>';
+    var bV=document.createElement('button');bV.className='small';bV.textContent='Открыть';
+    bV.onclick=function(){openClassView(c.id);};
+    var bD=document.createElement('button');bD.className='ghost small';bD.textContent='Удалить';
+    bD.onclick=async function(){
+      if(!confirm('Удалить класс «'+c.name+'»?'))return;
+      await api('/classes/'+c.id,{method:'DELETE'});goTeacher();
+    };
+    el.appendChild(bV);el.appendChild(bD);
+    var cb=el.querySelector('.code-box');
+    cb.onclick=function(){
+      try{navigator.clipboard.writeText(c.code);cb.textContent='✓ '+c.code;
+        setTimeout(function(){cb.textContent=c.code;},900);}catch(e){}
+    };
+    list.appendChild(el);
+  });
+}
+async function renderTeacherTests(){
+  var r=await api('/tests');
+  var host=$('#testList');host.innerHTML='';
+  if(!r.tests.length){host.innerHTML='<div class="card"><div class="empty">Работ пока нет.</div></div>';return;}
+  r.tests.forEach(function(test){
+    var max=test.tasks.reduce(function(s,t){return s+(t.points||1);},0);
+    var el=document.createElement('div');el.className='test-card';
+    el.innerHTML='<div class="row" style="margin:0 0 6px">'+
+      '<h4 style="flex:1;margin:0">'+esc(test.title)+'</h4>'+
+      (test.unseen?'<span class="badge red">'+test.unseen+' новых</span>':'')+'</div>'+
+      '<div class="meta">Заданий: '+test.tasks.length+' · макс: '+max+
+      ' · классов: '+(test.classIds||[]).length+'</div>';
+    var actions=document.createElement('div');actions.className='actions';actions.style.display='flex';actions.style.gap='8px';actions.style.flexWrap='wrap';
+    var bE=document.createElement('button');bE.className='small';bE.textContent='Редактировать';
+    bE.onclick=async function(){
+      var rr=await api('/tests');
+      var full=rr.tests.find(function(x){return x.id===test.id;});
+      openEditor(full);
+    };
+    var bR=document.createElement('button');bR.className='primary small';bR.textContent='Результаты';
+    bR.onclick=function(){showSubmissions(test);};
+    var bD=document.createElement('button');bD.className='ghost small';bD.textContent='Удалить';
+    bD.onclick=async function(){
+      if(!confirm('Удалить работу?'))return;
+      await api('/tests/'+test.id,{method:'DELETE'});goTeacher();
+    };
+    actions.appendChild(bE);actions.appendChild(bR);actions.appendChild(bD);
+    el.appendChild(actions);host.appendChild(el);
+  });
+}
+$('#btnNewTest').onclick=function(){openEditor(null);};
+$('#btnNewClass').onclick=async function(){
+  var name=prompt('Название класса (например: Математика 101)');
+  if(!name||!name.trim())return;
+  await api('/classes',{method:'POST',body:{name:name.trim()}});
+  goTeacher();
+};
+
+/* ---------- просмотр класса ---------- */
+async function openClassView(id){
+  currentClassId=id;
+  var r=await api('/classes/'+id);
+  $('#classTitle').textContent='Класс: '+r.class.name;
+  $('#classCodeBig').textContent=r.class.code;
+  $('#classCodeBig').onclick=function(){
+    try{navigator.clipboard.writeText(r.class.code);
+      $('#classCodeBig').textContent='✓ скопировано';
+      setTimeout(function(){$('#classCodeBig').textContent=r.class.code;},900);}catch(e){}
+  };
+  var stu=$('#classStudents');stu.innerHTML='';
+  $('#classStuCount').textContent=r.students.length;
+  if(!r.students.length){
+    stu.innerHTML='<div class="empty">Пока нет учеников. Код: <b>'+r.class.code+'</b></div>';
+  }
+  r.students.forEach(function(u){
+    var el=document.createElement('div');el.className='stu-row';
+    el.innerHTML='<span class="badge">'+esc(u.name[0].toUpperCase())+'</span>'+
+      '<div class="name"><div>'+esc(u.name)+'</div>'+
+      '<div class="muted" style="font-size:12px">'+esc(u.email)+'</div></div>';
+    var b=document.createElement('button');b.className='ghost small';b.textContent='Исключить';
+    b.onclick=async function(){
+      if(!confirm('Исключить '+u.name+'?'))return;
+      await api('/classes/'+id+'/students/'+u.id,{method:'DELETE'});
+      openClassView(id);
+    };
+    el.appendChild(b);stu.appendChild(el);
+  });
+  var ts=$('#classTests');ts.innerHTML='';
+  if(!r.tests.length)ts.innerHTML='<div class="empty">Работ нет.</div>';
+  r.tests.forEach(function(t){
+    var el=document.createElement('div');el.className='test-card';
+    el.innerHTML='<div class="row" style="margin:0 0 6px">'+
+      '<h4 style="flex:1;margin:0">'+esc(t.title)+'</h4>'+
+      (t.unseen?'<span class="badge red">'+t.unseen+'</span>':'')+'</div>'+
+      '<div class="meta">Сдали: '+t.submitted+' из '+t.total+'</div>';
+    var b=document.createElement('button');b.className='primary small';b.textContent='Открыть';
+    b.onclick=async function(){
+      var rr=await api('/tests');
+      var full=rr.tests.find(function(x){return x.id===t.id;});
+      if(full)showSubmissions(full);
+    };
+    el.appendChild(b);ts.appendChild(el);
+  });
+  show('view-class');
+}
+$('#btnBackFromClass').onclick=goTeacher;
+
+/* ---------- редактор ---------- */
+function initEditorFields(){
+  if(stmtInput)return;
+  stmtInput=createMathInput('',false);
+  ansInput=createMathInput('',false);
+  $('#statementHost').appendChild(stmtInput.el);
+  $('#answerHost').appendChild(ansInput.el);
+  buildSymbolBar($('#symbolBar'));
+  addOption();addOption();
+}
+$('#taskType').onchange=function(){
+  var i=$('#taskType').value==='input';
+  $('#inputBlock').hidden=!i;$('#choiceBlock').hidden=i;
+};
+function addOption(){
+  var row=document.createElement('div');row.className='option-row';
+  var r=document.createElement('input');r.type='radio';r.name='correctOpt';
+  var mi=createMathInput('',false);
+  var d=document.createElement('button');d.type='button';d.className='ghost small';d.textContent='✕';
+  d.onclick=function(){row.remove();};
+  row.appendChild(r);row.appendChild(mi.el);row.appendChild(d);
+  $('#optionsList').appendChild(row);
+}
+$('#btnAddOption').onclick=function(){addOption();};
+async function renderClassPicker(){
+  var r=await api('/classes');
+  var host=$('#classPicker');host.innerHTML='';
+  if(!r.classes.length){host.innerHTML='<div class="muted">У вас нет классов. Создайте класс и назначьте работу ему.</div>';return;}
+  r.classes.forEach(function(c){
+    var lab=document.createElement('label');lab.className='class-pick';
+    var cb=document.createElement('input');cb.type='checkbox';
+    cb.checked=draftClassIds.indexOf(c.id)>=0;
+    cb.onchange=function(){
+      if(cb.checked){if(draftClassIds.indexOf(c.id)<0)draftClassIds.push(c.id);}
+      else draftClassIds=draftClassIds.filter(function(x){return x!==c.id;});
+    };
+    var s=document.createElement('span');
+    s.innerHTML='<b>'+esc(c.name)+'</b> <span class="muted">('+c.studentCount+' учеников)</span>';
+    lab.appendChild(cb);lab.appendChild(s);host.appendChild(lab);
+  });
+}
+async function openEditor(test){
+  initEditorFields();
+  editingTestId=test?test.id:null;
+  draftTasks=test?JSON.parse(JSON.stringify(test.tasks)):[];
+  draftClassIds=test?(test.classIds||[]).slice():[];
+  $('#testTitle').value=test?test.title:'';
+  stmtInput.setValue('');ansInput.setValue('');
+  $('#taskPoints').value=1;$('#taskTol').value='1e-6';
+  $('#taskType').value='input';$('#taskType').onchange();
+  $('#optionsList').innerHTML='';addOption();addOption();
+  await renderClassPicker();
+  renderDraft();show('view-editor');
+}
+function renderDraft(){
+  var host=$('#draftList');host.innerHTML='';
+  $('#taskCount').textContent=draftTasks.length;
+  if(!draftTasks.length){host.innerHTML='<div class="empty">Заданий нет.</div>';return;}
+  draftTasks.forEach(function(t,i){
+    var d=document.createElement('div');
+    d.style.cssText='background:#131a27;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px';
+    var h=document.createElement('div');h.className='task-head';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span>'+
+      '<span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span>'+
+      '<span class="pill">'+t.points+' б.</span>';
+    var del=document.createElement('button');del.className='ghost small';del.textContent='✕';
+    del.style.marginLeft='auto';del.onclick=function(){draftTasks.splice(i,1);renderDraft();};
+    h.appendChild(del);d.appendChild(h);
+    var s=createMathInput(t.statement,true);d.appendChild(s.el);
+    host.appendChild(d);
+  });
+}
+$('#btnAddTask').onclick=function(){
+  var type=$('#taskType').value;
+  var statement=stmtInput.getValue().trim();
+  if(!statement){alert('Введите условие');return;}
+  var points=Math.max(1,Number($('#taskPoints').value)||1);
+  var task={id:uid(),type:type,statement:statement,points:points};
+  if(type==='input'){
+    var a=ansInput.getValue().trim();
+    if(!a){alert('Введите ответ');return;}
+    task.answer=a;task.tolerance=parseFloat($('#taskTol').value)||1e-6;
+  }else{
+    var rows=$$('#optionsList .option-row');
+    if(rows.length<2){alert('Нужно минимум 2 варианта');return;}
+    task.options=rows.map(function(r){return{text:r.querySelector('.mi-input').value};});
+    task.correctIndex=rows.findIndex(function(r){return r.querySelector('input[type=radio]').checked;});
+    if(task.correctIndex<0){alert('Отметьте верный вариант');return;}
+  }
+  draftTasks.push(task);
+  stmtInput.setValue('');ansInput.setValue('');
+  $('#optionsList').innerHTML='';addOption();addOption();
+  renderDraft();
+};
+$('#btnSaveTest').onclick=async function(){
+  var title=$('#testTitle').value.trim()||'Без названия';
+  if(!draftTasks.length){alert('Добавьте задание');return;}
+  try{
+    if(editingTestId){
+      await api('/tests/'+editingTestId,{method:'PUT',body:{title:title,tasks:draftTasks,classIds:draftClassIds}});
+    }else{
+      await api('/tests',{method:'POST',body:{title:title,tasks:draftTasks,classIds:draftClassIds}});
+    }
+    goTeacher();
+  }catch(e){alert(e.message);}
+};
+$('#btnBackToTeacher').onclick=goTeacher;
+
+/* ---------- ученик ---------- */
+async function goStudent(){
+  await renderStudentTests();
+  await renderStudentClasses();
+  show('view-student');
+}
+async function renderStudentTests(){
+  var r=await api('/tests');
+  var host=$('#studentList');host.innerHTML='';
+  if(!r.tests.length){
+    host.innerHTML='<div class="card"><div class="empty">Работ нет. Присоединитесь к классу в разделе «Мои классы».</div></div>';
+    return;
+  }
+  r.tests.forEach(function(test){
+    var max=test.tasks.reduce(function(s,t){return s+(t.points||1);},0);
+    var card=document.createElement('div');card.className='card';
+    card.innerHTML='<h3>'+esc(test.title)+'</h3>'+
+      '<p class="muted">Заданий: '+test.tasks.length+' · макс: '+max+'</p>'+
+      (test.mySubmission?'<p class="ok">Ваш результат: '+test.mySubmission.score+' / '+test.mySubmission.max+
+        ' · '+fmt(test.mySubmission.at)+'</p>':'');
+    var b=document.createElement('button');b.className='primary';
+    b.textContent=test.mySubmission?'Пройти заново':'Начать';
+    b.onclick=function(){openTest(test);};
+    card.appendChild(b);host.appendChild(card);
+  });
+}
+async function renderStudentClasses(){
+  var r=await api('/classes');
+  var host=$('#myClasses');host.innerHTML='';
+  if(!r.classes.length){host.innerHTML='<div class="empty">Пока не в классе. Введите код выше.</div>';return;}
+  r.classes.forEach(function(c){
+    var el=document.createElement('div');el.className='stu-row';
+    el.innerHTML='<span class="badge">'+esc((c.name[0]||'?').toUpperCase())+'</span>'+
+      '<div class="name"><div>'+esc(c.name)+'</div>'+
+      '<div class="muted" style="font-size:12px">Учитель: '+esc(c.teacherName)+'</div></div>';
+    var b=document.createElement('button');b.className='ghost small';b.textContent='Покинуть';
+    b.onclick=async function(){
+      if(!confirm('Покинуть класс?'))return;
+      await api('/classes/'+c.id+'/leave',{method:'POST'});
+      renderStudentClasses();renderStudentTests();
+    };
+    el.appendChild(b);host.appendChild(el);
+  });
+}
+$('#btnJoinClass').onclick=async function(){
+  $('#joinErr').textContent='';
+  var c=$('#joinCode').value.trim().toUpperCase();
+  if(!c){$('#joinErr').textContent='Введите код';return;}
+  try{
+    await api('/classes/join',{method:'POST',body:{code:c}});
+    $('#joinCode').value='';
+    renderStudentClasses();renderStudentTests();
+  }catch(e){$('#joinErr').textContent=e.message;}
+};
+
+/* ---------- прохождение ---------- */
+function openTest(test){
+  currentTest=test;answerInputs=[];choicePicks=[];
+  $('#takeTitle').textContent=test.title;
+  var host=$('#takeBody');host.innerHTML='';
+  test.tasks.forEach(function(task,i){
+    var card=document.createElement('div');card.className='card';
+    var h=document.createElement('div');h.className='task-head';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(task.points||1)+' б.</span>';
+    card.appendChild(h);
+    var s=createMathInput(task.statement,true);card.appendChild(s.el);
+    if(task.type==='input'){
+      var mi=createMathInput('',false);card.appendChild(mi.el);answerInputs[i]=mi;
+    }else{
+      var w=document.createElement('div');w.style.marginTop='6px';
+      task.options.forEach(function(opt,j){
+        var lab=document.createElement('label');
+        lab.style.cssText='display:flex;align-items:center;gap:10px;background:#131a27;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:6px 0;cursor:pointer';
+        var rd=document.createElement('input');rd.type='radio';rd.name='q'+i;
+        rd.style.width='auto';rd.style.margin='0';
+        rd.onchange=function(){choicePicks[i]=j;};
+        var ob=createMathInput(opt.text,true);ob.el.style.flex='1';ob.el.style.margin='0';
+        lab.appendChild(rd);lab.appendChild(ob.el);w.appendChild(lab);
+      });
+      card.appendChild(w);
+    }
+    host.appendChild(card);
+  });
+  show('view-take');
+}
+$('#btnBackFromTake').onclick=goStudent;
+$('#btnSubmitTest').onclick=async function(){
+  if(!currentTest)return;
+  var answers=currentTest.tasks.map(function(t,i){
+    if(t.type==='input'){
+      var mi=answerInputs[i];
+      return {text:mi?mi.getValue():''};
+    }
+    return {index:choicePicks[i]===undefined?-1:choicePicks[i]};
+  });
+  try{
+    var r=await api('/tests/'+currentTest.id+'/submit',{method:'POST',body:{answers:answers}});
+    showResult(currentTest,r.results,r.score,r.max);
+  }catch(e){alert(e.message);}
+};
+function showResult(test,results,score,max){
+  var card=$('#resultCard');
+  var pct=max?Math.round(score/max*100):0;
+  card.innerHTML='<h2>'+esc(test.title)+'</h2>'+
+    '<p style="font-size:22px;font-weight:700">'+score+' / '+max+
+    ' <span class="muted" style="font-size:15px">('+pct+'%)</span></p>'+
+    '<p class="muted">Работа отправлена учителю.</p>';
+  test.tasks.forEach(function(task,i){
+    var r=results[i]||{ok:false};
+    var line=document.createElement('div');line.className='result-line '+(r.ok?'ok':'err');
+    var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
+    var info=document.createElement('div');info.className='muted';
+    info.textContent=r.ok?'✓ Верно · '+(task.points||1)+' б.':'✗ Неверно · 0 из '+(task.points||1)+' б.';
+    line.appendChild(info);
+    if(!r.ok&&task.type==='input'){
+      var a=document.createElement('div');a.style.marginTop='8px';
+      a.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
+      var mf=createMathInput(task.answer,true);a.appendChild(mf.el);line.appendChild(a);
+    }
+    card.appendChild(line);
+  });
+  show('view-result');
+}
+$('#btnResultBack').onclick=goStudent;
+
+/* ---------- результаты для учителя ---------- */
+async function showSubmissions(test){
+  $('#subsTitle').textContent='Результаты: '+test.title;
+  var body=$('#subsBody');body.innerHTML='<div class="loading">Загрузка...</div>';
+  try{
+    var r=await api('/tests/'+test.id+'/submissions');
+    body.innerHTML='';
+    if(!r.groups.length){
+      body.innerHTML='<div class="card"><div class="empty">Работа не назначена ни одному классу.</div></div>';
+      show('view-submissions');return;
+    }
+    r.groups.forEach(function(g){
+      var card=document.createElement('div');card.className='card';
+      var avg=g.submitted.length?Math.round(g.submitted.reduce(function(s,x){return s+(x.max?x.score/x.max:0);},0)/g.submitted.length*100):0;
+      card.innerHTML='<div class="row" style="margin:0 0 10px">'+
+        '<h3 style="flex:1;margin:0">'+esc(g.className)+'</h3>'+
+        '<span class="pill">сдано: '+g.submitted.length+' / '+(g.submitted.length+g.notSubmitted.length)+'</span>'+
+        (g.submitted.length?'<span class="pill green">средний: '+avg+'%</span>':'')+'</div>';
+      if(g.submitted.length){
+        var h=document.createElement('h4');h.className='sec';h.textContent='Сдали';card.appendChild(h);
+        g.submitted.forEach(function(s){
+          var pct=s.max?Math.round(s.score/s.max*100):0;
+          var el=document.createElement('div');el.className='stu-row';
+          el.innerHTML='<span class="badge">'+esc((s.studentName[0]||'?').toUpperCase())+'</span>'+
+            '<div class="name"><div>'+esc(s.studentName)+'</div>'+
+            '<div class="muted" style="font-size:12px">'+fmt(s.at)+'</div></div>'+
+            '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+' ('+pct+'%)</div>';
+          var b=document.createElement('button');b.className='ghost small';b.textContent='Работа';
+          b.onclick=function(){openSubmissionDetail(s.id,test.id);};
+          el.appendChild(b);card.appendChild(el);
+        });
+      }
+      if(g.notSubmitted.length){
+        var h2=document.createElement('h4');h2.className='sec';h2.textContent='Не сдали ('+g.notSubmitted.length+')';
+        card.appendChild(h2);
+        g.notSubmitted.forEach(function(u){
+          var el=document.createElement('div');el.className='stu-row';
+          el.innerHTML='<span class="badge gray">'+esc((u.name[0]||'?').toUpperCase())+'</span>'+
+            '<div class="name">'+esc(u.name)+'</div><div class="muted">нет сдачи</div>';
+          card.appendChild(el);
+        });
+      }
+      body.appendChild(card);
+    });
+    show('view-submissions');
+  }catch(e){body.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+$('#btnBackFromSubs').onclick=goTeacher;
+
+async function openSubmissionDetail(subId,testId){
+  try{
+    var r=await api('/submissions/'+subId);
+    var body=$('#subsBody');
+    $('#subsTitle').textContent='Работа: '+r.test.title;
+    body.innerHTML='';
+    var card=document.createElement('div');card.className='card';
+    var pct=r.submission.max?Math.round(r.submission.score/r.submission.max*100):0;
+    card.innerHTML='<p style="font-size:20px;font-weight:700">'+r.submission.score+' / '+r.submission.max+' ('+pct+'%)</p>'+
+      '<p class="muted">'+fmt(r.submission.at)+'</p>';
+    r.test.tasks.forEach(function(task,i){
+      var res=r.submission.results[i]||{ok:false,studentText:''};
+      var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
+      var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
+      var info=document.createElement('div');info.className='muted';
+      info.textContent=res.ok?'✓ Верно · '+(task.points||1)+' б.':'✗ Неверно · '+(task.points||1)+' б.';
+      line.appendChild(info);
+      if(task.type==='input'){
+        var st=document.createElement('div');st.style.marginTop='8px';
+        st.innerHTML='<div class="muted" style="margin-bottom:4px">Ответ ученика:</div>';
+        var mf=createMathInput(res.studentText||'(пусто)',true);st.appendChild(mf.el);line.appendChild(st);
+        if(!res.ok){
+          var c=document.createElement('div');c.style.marginTop='8px';
+          c.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
+          var mfc=createMathInput(task.answer,true);c.appendChild(mfc.el);line.appendChild(c);
+        }
+      }
+      card.appendChild(line);
+    });
+    var b=document.createElement('button');b.className='primary';b.textContent='← К результатам';
+    b.onclick=function(){
+      api('/tests').then(function(rr){
+        var t=rr.tests.find(function(x){return x.id===testId;});
+        if(t)showSubmissions(t);else goTeacher();
+      });
+    };
+    card.appendChild(b);body.appendChild(card);
+  }catch(e){alert(e.message);}
+}
+
+/* ---------- старт ---------- */
+async function boot(){
+  initEditorFields();
+  if(getToken()){
+    try{
+      var r=await api('/auth/me');
+      enterApp(r.user);return;
+    }catch(e){setToken(null);}
+  }
+  show('view-auth');
+}
+boot();
+})();
+</script>
+</body>
+</html>
