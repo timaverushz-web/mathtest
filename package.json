@@ -10,6 +10,8 @@
     "bcryptjs": "^2.4.3",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "nerdamer": "^1.1.13"
+    "nerdamer": "^1.1.13",
+    "resend": "^4.0.1",
+    "nanoid": "^3.3.7"
   }
-}
+}ы
