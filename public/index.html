@@ -19,6 +19,7 @@
   <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
     🔔<span class="notif-badge" id="notifBadge" hidden>0</span>
   </button>
+  <button class="icon-btn" id="btnProfile" title="Профиль">⚙️</button>
   <div id="userBox"></div>
 </header>
 
@@ -44,14 +45,14 @@
       <button class="tab" data-tab="reg" style="flex:1">Регистрация</button>
     </div>
     <div id="loginForm">
-      <label>Email<input id="loginEmail" type="email" placeholder="you@example.com"></label>
-      <label>Пароль<div class="pass-wrap"><input id="loginPass" type="password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="loginPass">👁</button></div></label>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Пароль<div class="pass-wrap"><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="loginPass">👁</button></div></label>
       <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
     </div>
     <div id="regForm" hidden>
       <label>Имя<input id="regName" placeholder="Иван Петров"></label>
-      <label>Email<input id="regEmail" type="email" placeholder="you@example.com"></label>
-      <label>Пароль (от 6 символов)<div class="pass-wrap"><input id="regPass" type="password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="regPass">👁</button></div></label>
+      <label>Email<input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Пароль (от 6 символов)<div class="pass-wrap"><input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="regPass">👁</button></div></label>
       <label>Роль<select id="regRole"><option value="teacher">Учитель</option><option value="student">Ученик</option></select></label>
       <button class="primary" id="doRegister" style="width:100%;margin-top:8px">Создать аккаунт →</button>
     </div>
@@ -192,7 +193,7 @@
     <span class="progress-text" id="progressPct">0%</span>
     <div class="timer" id="timerDisplay" hidden>00:00</div>
   </div>
-  <div class="draft-hint" id="draftHint" hidden>💾 Черновик автосохраняется</div>
+  <div class="draft-hint" id="draftHint" hidden></div>
   <div id="takeBody"></div>
 </section>
 
@@ -212,6 +213,37 @@
 </section>
 
 </main>
+
+<div id="profileModal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>Профиль и настройки</h3>
+      <button class="ghost small" id="btnCloseProfile">✕</button>
+    </div>
+
+    <div id="profileBody">
+      <div class="row" style="align-items:center;gap:12px;margin-bottom:18px">
+        <div class="avatar" id="profAvatar" style="width:48px;height:48px;font-size:20px"></div>
+        <div>
+          <div style="font-weight:600;font-size:16px" id="profName"></div>
+          <div class="muted" id="profRole"></div>
+        </div>
+      </div>
+
+      <h4 class="sec">Telegram-уведомления</h4>
+      <div id="tgBlock">
+        <div class="muted" id="tgStatus">Проверка…</div>
+        <div id="tgActions" style="margin-top:10px"></div>
+      </div>
+
+      <h4 class="sec">Тема оформления</h4>
+      <div class="theme-picker">
+        <button class="theme-option" data-theme-set="dark">🌙 Тёмная</button>
+        <button class="theme-option" data-theme-set="light">☀️ Светлая</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/app.js"></script>
 </body>
