@@ -19,21 +19,26 @@ var fmtDur=function(ms){
   var m=Math.floor(s/60),sec=s%60;
   return m+' мин'+(sec?' '+sec+' с':'');
 };
+var fmtSize=function(b){
+  if(!b)return '';
+  if(b<1024)return b+' Б';
+  if(b<1048576)return (b/1024).toFixed(1)+' КБ';
+  return (b/1048576).toFixed(1)+' МБ';
+};
+var fmtDate=function(t){
+  return new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+};
 
-/* ============ ТЕМА ============ */
+/* ============ THEME ============ */
 var THEME_KEY='mathtest_theme';
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
-  var btn=$('#btnTheme');if(btn)btn.textContent = t==='dark' ? '🌙' : '☀️';
+  var b=$('#btnTheme');if(b)b.textContent=t==='dark'?'🌙':'☀️';
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
 }
-(function(){
-  var saved='dark';
-  try{saved=localStorage.getItem(THEME_KEY)||'dark';}catch(e){}
-  applyTheme(saved);
-})();
+(function(){var s='dark';try{s=localStorage.getItem(THEME_KEY)||'dark';}catch(e){}applyTheme(s);})();
 
-/* ============ ТОСТЫ ============ */
+/* ============ TOASTS ============ */
 function toast(msg,type){
   type=type||'info';
   var box=$('#toasts');if(!box)return;
@@ -58,15 +63,41 @@ async function api(path,opts){
   var r=await fetch('/api'+path,{method:opts.method||'GET',headers:headers,
     body:opts.body?JSON.stringify(opts.body):undefined});
   var data=await r.json().catch(function(){return {};});
-  if(!r.ok){
-    var e=new Error(data.error||'Ошибка');e.status=r.status;
-    if(r.status===401){setToken(null);}
-    throw e;
-  }
+  if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;
+    if(r.status===401)setToken(null);throw e;}
+  return data;
+}
+async function apiForm(path,fd,method){
+  var tk=getToken();
+  var r=await fetch('/api'+path,{method:method||'POST',
+    headers:tk?{Authorization:'Bearer '+tk}:{},body:fd});
+  var data=await r.json().catch(function(){return {};});
+  if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;throw e;}
   return data;
 }
 
-/* ============ ПОЛЯ ФОРМУЛ ============ */
+/* ============ HELPERS ============ */
+function isTeacherLike(){return currentUser&&(currentUser.role==='teacher'||currentUser.role==='admin');}
+function isAdmin(){return currentUser&&currentUser.role==='admin';}
+function canUploadBooks(){return currentUser&&['teacher','admin','librarian'].includes(currentUser.role);}
+function roleLabel(){
+  if(!currentUser)return '';
+  return {'admin':'администратор','teacher':'учитель','librarian':'библиотекарь','student':'ученик'}[currentUser.role]||currentUser.role;
+}
+function avatarUrl(id){return '/api/users/'+id+'/avatar';}
+function renderAvatar(el,user,size){
+  el.style.width=(size||26)+'px';el.style.height=(size||26)+'px';
+  el.style.fontSize=Math.round((size||26)*0.45)+'px';
+  if(user&&user.hasAvatar){
+    el.style.backgroundImage="url('"+avatarUrl(user.id)+"')";
+    el.textContent='';
+  } else {
+    el.style.backgroundImage='';
+    el.textContent=(user&&user.name?user.name[0]:'?').toUpperCase();
+  }
+}
+
+/* ============ FORMULA INPUTS ============ */
 var lastFocused=null;
 function textToLatex(t){
   if(!t)return'';
@@ -96,10 +127,9 @@ function createMathInput(initial,readonly,onChange){
   wrap.appendChild(ta);wrap.appendChild(prev);
   function render(){
     var tex=textToLatex(ta.value);
-    if(window.katex&&tex){
-      try{katex.render(tex,prev,{throwOnError:false});}
-      catch(e){prev.textContent=ta.value;}
-    } else prev.textContent=ta.value;
+    if(window.katex&&tex){try{katex.render(tex,prev,{throwOnError:false});}
+      catch(e){prev.textContent=ta.value;}}
+    else prev.textContent=ta.value;
   }
   ta.addEventListener('input',function(){render();if(onChange)onChange(ta.value);});
   ta.addEventListener('focus',function(){lastFocused=api;});
@@ -154,8 +184,7 @@ var SYMBOLS_ADVANCED=[
 ];
 var currentSymTab='basic';
 function buildSymbolBar(c){
-  if(!c)return;
-  c.innerHTML='';
+  if(!c)return;c.innerHTML='';
   var list=currentSymTab==='basic'?SYMBOLS_BASIC:SYMBOLS_ADVANCED;
   list.forEach(function(s){
     var b=document.createElement('button');b.type='button';
@@ -170,64 +199,60 @@ function buildSymbolBar(c){
   });
 }
 
-/* ============ СОСТОЯНИЕ ============ */
+/* ============ STATE ============ */
 var currentUser=null,currentTest=null,answerInputs=[],choicePicks=[];
 var editingTestId=null,draftTasks=[],draftClassIds=[],draftGroupIds=[];
 var currentClassId=null,currentSubmissionTest=null;
 var stmtInput=null,ansInput=null;
-var timerInterval=null,testDeadline=null;
-var draftTimer=null;
-var notifOpen=false;
-var notifTimer=null;
+var timerInterval=null,testDeadline=null,draftTimer=null;
+var notifOpen=false,notifTimer=null;
+var bookView='grid';
+var chatPollTimer=null,lastChatTime=0;
 
 function show(id){
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   window.scrollTo(0,0);
+  if(id!=='view-class'&&chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
 }
 function skeleton(host,lines){
-  if(!host)return;
-  lines=lines||3;
+  if(!host)return;lines=lines||3;
   var html='<div class="skeleton">';
   for(var i=0;i<lines;i++)html+='<div class="sk-line w'+(60+((i*17)%40))+'"></div>';
-  html+='</div>';
-  host.innerHTML=html;
+  html+='</div>';host.innerHTML=html;
 }
 
-/* ============ ШАПКА ============ */
+/* ============ TOPBAR ============ */
 function renderTop(){
-  var box=$('#userBox');
-  if(!box)return;
-  var bn=$('#btnNotif');
-  var bp=$('#btnProfile');
+  var box=$('#userBox');if(!box)return;
+  var bn=$('#btnNotif'),bp=$('#btnProfile'),ba=$('#btnAdmin');
   if(!currentUser){
     box.innerHTML='';
     if(bn)bn.style.display='none';
     if(bp)bp.style.display='none';
+    if(ba)ba.style.display='none';
     return;
   }
   if(bn)bn.style.display='';
   if(bp)bp.style.display='';
-  var role=currentUser.role==='teacher'?'учитель':'ученик';
+  if(ba)ba.style.display=isAdmin()?'':'none';
   var initial=(currentUser.name[0]||'?').toUpperCase();
-  box.innerHTML='<div class="user-chip"><div class="avatar">'+esc(initial)+'</div>'+
+  box.innerHTML='<div class="user-chip">'+
+    '<div class="avatar" id="topAvatar"></div>'+
     '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
-    '<div class="role" style="font-size:11.5px;margin-top:-2px">'+role+'</div></div>'+
+    '<div class="role" style="font-size:11.5px;margin-top:-2px">'+roleLabel()+'</div></div>'+
     '<button class="logout-btn" id="btnLogout">Выйти</button></div>';
-  var lo=$('#btnLogout');if(lo)lo.onclick=logout;
+  renderAvatar($('#topAvatar'),currentUser,30);
+  $('#btnLogout').onclick=logout;
 }
 function logout(){
   setToken(null);currentUser=null;
   if(notifTimer){clearInterval(notifTimer);notifTimer=null;}
-  renderTop();show('view-auth');
-  toast('Вы вышли','info');
+  if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
+  renderTop();show('view-auth');toast('Вы вышли','info');
 }
 
-/* ============ УВЕДОМЛЕНИЯ ============ */
-function closeNotifPanel(){
-  notifOpen=false;
-  var p=$('#notifPanel');if(p)p.hidden=true;
-}
-
+/* ============ NOTIFICATIONS ============ */
+function closeNotifPanel(){notifOpen=false;var p=$('#notifPanel');if(p)p.hidden=true;}
 async function refreshNotifBadge(){
   if(!currentUser)return;
   try{
@@ -250,25 +275,22 @@ async function loadNotifications(){
     r.notifications.forEach(function(n){
       var el=document.createElement('div');
       el.className='notif-item'+(n.read?'':' unread');
-      var icon=n.type==='submission'?'📝':(n.type==='new_test'?'📚':'👤');
+      var icon=n.type==='submission'?'📝':(n.type==='new_test'?'📚':(n.type==='new_book'?'📖':(n.type==='chat'?'💬':'👤')));
       el.innerHTML='<div class="ni-icon">'+icon+'</div>'+
-        '<div class="ni-body">'+
-          '<div class="ni-title">'+esc(n.title)+'</div>'+
-          '<div class="ni-text">'+esc(n.text)+'</div>'+
-          '<div class="ni-time">'+fmt(n.at)+'</div>'+
-        '</div>';
+        '<div class="ni-body"><div class="ni-title">'+esc(n.title)+'</div>'+
+        '<div class="ni-text">'+esc(n.text)+'</div>'+
+        '<div class="ni-time">'+fmt(n.at)+'</div></div>';
       el.onclick=async function(){
         try{await api('/notifications/'+n.id+'/read',{method:'POST'});}catch(e){}
-        el.classList.remove('unread');
-        closeNotifPanel();
-        if(n.type==='submission'&&n.link&&n.link.testId&&currentUser.role==='teacher'){
-          try{
-            var rr=await api('/tests');
+        el.classList.remove('unread');closeNotifPanel();
+        if(n.type==='submission'&&n.link&&n.link.testId&&isTeacherLike()){
+          try{var rr=await api('/tests');
             var t=rr.tests.find(function(x){return x.id===n.link.testId;});
-            if(t)showSubmissions(t);
-          }catch(e){}
+            if(t)showSubmissions(t);}catch(e){}
         } else if(n.type==='new_test'&&currentUser.role==='student'){
           goStudent();
+        } else if(n.type==='new_book'){
+          openLibrary();
         }
         refreshNotifBadge();
       };
@@ -277,14 +299,25 @@ async function loadNotifications(){
   }catch(e){list.innerHTML='<div class="err" style="padding:16px">'+esc(e.message)+'</div>';}
 }
 
-/* ============ ПРОФИЛЬ ============ */
+/* ============ PROFILE MODAL ============ */
 async function openProfile(){
-  if(!currentUser){toast('Сначала войдите в систему','warn');return;}
+  if(!currentUser){toast('Сначала войдите','warn');return;}
   var pm=$('#profileModal');if(!pm)return;
   pm.hidden=false;
-  $('#profAvatar').textContent=(currentUser.name[0]||'?').toUpperCase();
+  renderAvatar($('#profAvatar'),currentUser,48);
   $('#profName').textContent=currentUser.name;
-  $('#profRole').textContent=currentUser.role==='teacher'?'Учитель':'Ученик';
+  $('#profRole').textContent=roleLabel();
+
+  var oldCab=document.getElementById('btnGoCabinet');
+  if(oldCab)oldCab.remove();
+  var cab=document.createElement('button');
+  cab.id='btnGoCabinet';cab.className='primary';
+  cab.style.cssText='width:100%;margin-top:12px';
+  cab.textContent='📊 Открыть личный кабинет';
+  cab.onclick=function(){$('#profileModal').hidden=true;openProfileStats();};
+  var pb=$('#profileBody');
+  var firstSec=pb.querySelector('h4.sec');
+  if(firstSec)pb.insertBefore(cab,firstSec);
 
   var curTheme=document.documentElement.getAttribute('data-theme');
   $$('.theme-option').forEach(function(b){
@@ -296,125 +329,79 @@ async function openProfile(){
   try{
     var r=await api('/telegram/link');
     if(r.linked){
-      $('#tgStatus').innerHTML='<span class="tg-ok">✅ Подключён</span>';
+      $('#tgStatus').innerHTML='<span class="tg-ok" style="color:var(--ok);font-weight:600">✅ Подключён</span>';
       var unlink=document.createElement('button');
-      unlink.className='ghost small danger';
-      unlink.textContent='Отключить Telegram';
+      unlink.className='ghost small danger';unlink.textContent='Отключить Telegram';
       unlink.onclick=async function(){
-        try{await api('/telegram/unlink',{method:'POST'});
-          toast('Telegram отключён','info');openProfile();}
+        try{await api('/telegram/unlink',{method:'POST'});toast('Отключено','info');openProfile();}
         catch(e){toast(e.message,'err');}
       };
       $('#tgActions').appendChild(unlink);
     }else{
-      $('#tgStatus').innerHTML='<span class="tg-no">Не подключён. Получайте уведомления о новых работах и сдачах прямо в Telegram.</span>';
+      $('#tgStatus').innerHTML='<span class="tg-no" style="color:var(--muted)">Не подключён. Получайте уведомления в Telegram.</span>';
       var a=document.createElement('a');
       a.className='tg-link';a.href=r.link;a.target='_blank';
       a.innerHTML='✈️ Подключить Telegram';
       $('#tgActions').appendChild(a);
-      var hint=document.createElement('div');
-      hint.className='muted';hint.style.marginTop='8px';
-      hint.textContent='После перехода нажмите Start в боте — аккаунт привяжется автоматически.';
-      $('#tgActions').appendChild(hint);
     }
   }catch(e){
-    $('#tgStatus').innerHTML='<span class="tg-no">Не удалось: '+esc(e.message)+'</span>';
+    $('#tgStatus').innerHTML='<span style="color:var(--muted)">Не удалось: '+esc(e.message)+'</span>';
   }
 }
 
-/* ============ GOOGLE LOGIN ============ */
-var GOOGLE_CLIENT_ID = '279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com';
-
+/* ============ GOOGLE + TELEGRAM LOGIN ============ */
+var GOOGLE_CLIENT_ID='279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com';
 function initGoogleLogin(){
-  if(!GOOGLE_CLIENT_ID) return;
-  if(window.__googleReady) return;
-  window.__googleReady = true;
-
-  window.handleGoogleLogin = async function(response){
-    var errEl = document.getElementById('googleLoginErr');
-    if(errEl) errEl.textContent = '';
+  if(!GOOGLE_CLIENT_ID||window.__googleReady)return;
+  window.__googleReady=true;
+  window.handleGoogleLogin=async function(response){
+    var errEl=$('#googleLoginErr');if(errEl)errEl.textContent='';
     try{
-      var r = await api('/auth/google', { method: 'POST', body: { credential: response.credential } });
-      setToken(r.token);
-      enterApp(r.user);
-      toast('Вы вошли через Google', 'ok');
-    }catch(e){
-      if(errEl) errEl.textContent = e.message;
-      toast(e.message, 'err');
-    }
+      var r=await api('/auth/google',{method:'POST',body:{credential:response.credential}});
+      setToken(r.token);enterApp(r.user);toast('Вы вошли через Google','ok');
+    }catch(e){if(errEl)errEl.textContent=e.message;toast(e.message,'err');}
   };
-
   function tryRender(){
-    if(!window.google || !window.google.accounts || !window.google.accounts.id){
-      setTimeout(tryRender, 200);
-      return;
+    if(!window.google||!window.google.accounts||!window.google.accounts.id){
+      setTimeout(tryRender,200);return;
     }
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: window.handleGoogleLogin
-    });
-    var box = document.getElementById('googleBtnBox');
-    if(!box) return;
-    box.innerHTML = '';
-    google.accounts.id.renderButton(box, {
-      type: 'standard',
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      shape: 'rectangular',
-      logo_alignment: 'left',
-      width: 340
-    });
+    google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:window.handleGoogleLogin});
+    var box=document.getElementById('googleBtnBox');if(!box)return;
+    box.innerHTML='';
+    google.accounts.id.renderButton(box,{type:'standard',theme:'outline',size:'large',
+      text:'signin_with',shape:'rectangular',logo_alignment:'left',width:240});
   }
-
   if(!document.getElementById('gsi-script')){
-    var s = document.createElement('script');
-    s.id = 'gsi-script';
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.defer = true;
-    s.onload = tryRender;
-    document.head.appendChild(s);
-  } else {
-    tryRender();
-  }
+    var s=document.createElement('script');s.id='gsi-script';
+    s.src='https://accounts.google.com/gsi/client';s.async=true;s.defer=true;
+    s.onload=tryRender;document.head.appendChild(s);
+  } else tryRender();
 }
 
-/* ============ TELEGRAM LOGIN ============ */
 function initTelegramLogin(){
-  var wrap = document.getElementById('tgLoginWrap');
-  if(!wrap || !window.TELEGRAM_BOT_USERNAME) return;
-  if(wrap.dataset.ready) return;
-  wrap.dataset.ready = '1';
-
-  window.onTelegramAuth = async function(user){
-    var errEl = document.getElementById('tgLoginErr');
-    if(errEl) errEl.textContent = '';
+  var wrap=document.getElementById('tgLoginWrap');
+  if(!wrap||!window.TELEGRAM_BOT_USERNAME||wrap.dataset.ready)return;
+  wrap.dataset.ready='1';
+  window.onTelegramAuth=async function(user){
+    var errEl=$('#tgLoginErr');if(errEl)errEl.textContent='';
     try{
-      var r = await api('/auth/telegram', { method: 'POST', body: user });
-      setToken(r.token);
-      enterApp(r.user);
-      toast('Вы вошли через Telegram', 'ok');
-    }catch(e){
-      if(errEl) errEl.textContent = e.message;
-      toast(e.message, 'err');
-    }
+      var r=await api('/auth/telegram',{method:'POST',body:user});
+      setToken(r.token);enterApp(r.user);toast('Вы вошли через Telegram','ok');
+    }catch(e){if(errEl)errEl.textContent=e.message;toast(e.message,'err');}
   };
-
-  var script = document.createElement('script');
-  script.async = true;
-  script.src = 'https://telegram.org/js/telegram-widget.js?22';
-  script.setAttribute('data-telegram-login', window.TELEGRAM_BOT_USERNAME);
-  script.setAttribute('data-size', 'large');
-  script.setAttribute('data-radius', '10');
-  script.setAttribute('data-userpic', 'false');
-  script.setAttribute('data-color', 'white');
-  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-  script.setAttribute('data-request-access', 'write');
+  var script=document.createElement('script');script.async=true;
+  script.src='https://telegram.org/js/telegram-widget.js?22';
+  script.setAttribute('data-telegram-login',window.TELEGRAM_BOT_USERNAME);
+  script.setAttribute('data-size','large');
+  script.setAttribute('data-radius','10');
+  script.setAttribute('data-userpic','false');
+  script.setAttribute('data-color','white');
+  script.setAttribute('data-onauth','onTelegramAuth(user)');
+  script.setAttribute('data-request-access','write');
   wrap.appendChild(script);
 }
 
-/* ============ УЧИТЕЛЬ ============ */
+/* ============ TEACHER ============ */
 async function goTeacher(){
   show('view-teacher');
   await Promise.all([renderTeacherClasses(),renderTeacherTests()]);
@@ -427,21 +414,22 @@ async function renderTeacherClasses(){
     var r=await api('/classes');
     list.innerHTML='';
     if(!r.classes.length){
-      list.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b> — и получите код для учеников.</div></div>';
+      list.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b>.</div></div>';
       return;
     }
     r.classes.forEach(function(c){
       var el=document.createElement('div');el.className='class-card';
       el.innerHTML='<div style="flex:1;min-width:180px"><h4>'+esc(c.name)+'</h4>'+
-        '<div class="muted" style="margin-top:2px">Учеников: '+c.studentCount+' · Групп: '+(c.groups||[]).length+'</div></div>'+
+        '<div class="muted" style="margin-top:2px">Учеников: '+c.studentCount+
+        ' · Групп: '+(c.groups||[]).length+
+        (c.teacherName&&isAdmin()?' · Учитель: '+esc(c.teacherName):'')+'</div></div>'+
         '<div class="code-box" title="Клик — копировать">'+c.code+'</div>';
       var bV=document.createElement('button');bV.className='small';bV.textContent='Открыть';
       bV.onclick=function(){openClassView(c.id);};
       var bD=document.createElement('button');bD.className='ghost small danger';bD.textContent='Удалить';
       bD.onclick=async function(){
         if(!confirm('Удалить класс «'+c.name+'»?'))return;
-        try{await api('/classes/'+c.id,{method:'DELETE'});
-          toast('Класс удалён','ok');goTeacher();}
+        try{await api('/classes/'+c.id,{method:'DELETE'});toast('Класс удалён','ok');goTeacher();}
         catch(e){toast(e.message,'err');}
       };
       el.appendChild(bV);el.appendChild(bD);
@@ -465,7 +453,7 @@ async function renderTeacherTests(){
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📝</span>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>, чтобы создать первую.</div></div>';
+      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📝</span>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
@@ -511,12 +499,11 @@ async function renderTeacherTests(){
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
 
-/* ============ ПРОСМОТР КЛАССА ============ */
+/* ============ CLASS VIEW ============ */
 async function openClassView(id){
   currentClassId=id;show('view-class');
-  skeleton($('#classStudents'),2);
-  skeleton($('#classGroups'),2);
-  skeleton($('#classTests'),2);
+  skeleton($('#classStudents'),2);skeleton($('#classGroups'),2);skeleton($('#classTests'),2);
+  var cb=$('#chatBox');if(cb)cb.style.display='none';
   try{
     var r=await api('/classes/'+id);
     $('#classTitle').textContent='Класс: '+r.class.name;
@@ -532,13 +519,13 @@ async function openClassView(id){
     var bci=$('#btnCopyInvite');if(bci)bci.onclick=function(){
       var url=location.origin+location.pathname+'?join='+r.class.code;
       try{navigator.clipboard.writeText(url);toast('Ссылка скопирована','ok');}
-      catch(e){toast('Не удалось скопировать','err');}
+      catch(e){toast('Не удалось','err');}
     };
 
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
     if(!r.students.length){
-      stu.innerHTML='<div class="empty"><span class="icon">👥</span>Пока нет учеников.<br>Отправьте им код: <b>'+esc(r.class.code)+'</b></div>';
+      stu.innerHTML='<div class="empty"><span class="icon">👥</span>Пока нет учеников.<br>Код: <b>'+esc(r.class.code)+'</b></div>';
     }
     r.students.forEach(function(u){
       var el=document.createElement('div');el.className='stu-row';
@@ -546,19 +533,22 @@ async function openClassView(id){
         var g=(r.class.groups||[]).find(function(x){return x.id===gid;});
         return g?'<span class="pill blue">'+esc(g.name)+'</span>':'';
       }).join('');
-      var tgBadge=u.hasTelegram?' <span class="pill green" title="Telegram подключён">✈️</span>':'';
-      el.innerHTML='<div class="avatar">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
-        '<div class="name"><div>'+esc(u.name)+' '+groupsHtml+tgBadge+'</div>'+
+      var tg=u.hasTelegram?' <span class="pill green" title="Telegram">✈️</span>':'';
+      el.innerHTML='<div class="avatar" data-uid="'+u.id+'"></div>'+
+        '<div class="name"><div>'+esc(u.name)+' '+groupsHtml+tg+'</div>'+
         '<div class="muted">'+esc(u.email)+'</div></div>';
+      renderAvatar(el.querySelector('.avatar'),u,32);
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Исключить';
       b.onclick=async function(){
         if(!confirm('Исключить '+u.name+'?'))return;
         try{await api('/classes/'+id+'/students/'+u.id,{method:'DELETE'});
           openClassView(id);}catch(e){toast(e.message,'err');}
       };
-      el.appendChild(b);stu.appendChild(el);
+      if(isTeacherLike())el.appendChild(b);
+      stu.appendChild(el);
     });
 
+    // группы — только учитель
     var gr=$('#classGroups');gr.innerHTML='';
     if(!(r.class.groups||[]).length){
       gr.innerHTML='<div class="empty" style="padding:16px">Групп пока нет</div>';
@@ -579,67 +569,68 @@ async function openClassView(id){
         };
         chips.appendChild(chip);
       });
-      var notIn=r.students.filter(function(u){return !(g.studentIds||[]).includes(u.id);});
-      if(notIn.length){
-        var sel=document.createElement('select');
-        sel.style.width='auto';sel.style.padding='4px 8px';
-        sel.innerHTML='<option value="">+ добавить...</option>'+
-          notIn.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+'</option>';}).join('');
-        sel.onchange=async function(){
-          if(!sel.value)return;
-          try{await api('/classes/'+id+'/groups/'+g.id+'/students/'+sel.value,{method:'POST'});
-            openClassView(id);}catch(e){toast(e.message,'err');}
-        };
-        chips.appendChild(sel);
+      if(isTeacherLike()){
+        var notIn=r.students.filter(function(u){return !(g.studentIds||[]).includes(u.id);});
+        if(notIn.length){
+          var sel=document.createElement('select');
+          sel.style.cssText='width:auto;padding:4px 8px';
+          sel.innerHTML='<option value="">+ добавить...</option>'+
+            notIn.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+'</option>';}).join('');
+          sel.onchange=async function(){
+            if(!sel.value)return;
+            try{await api('/classes/'+id+'/groups/'+g.id+'/students/'+sel.value,{method:'POST'});
+              openClassView(id);}catch(e){toast(e.message,'err');}
+          };
+          chips.appendChild(sel);
+        }
       }
       el.appendChild(chips);
-      var del=document.createElement('button');del.className='ghost small danger';
-      del.textContent='Удалить группу';del.style.marginTop='8px';
-      del.onclick=async function(){
-        if(!confirm('Удалить группу «'+g.name+'»?'))return;
-        try{await api('/classes/'+id+'/groups/'+g.id,{method:'DELETE'});
-          openClassView(id);}catch(e){toast(e.message,'err');}
-      };
-      el.appendChild(del);
+      if(isTeacherLike()){
+        var del=document.createElement('button');del.className='ghost small danger';
+        del.textContent='Удалить группу';del.style.marginTop='8px';
+        del.onclick=async function(){
+          if(!confirm('Удалить группу «'+g.name+'»?'))return;
+          try{await api('/classes/'+id+'/groups/'+g.id,{method:'DELETE'});
+            openClassView(id);}catch(e){toast(e.message,'err');}
+        };
+        el.appendChild(del);
+      }
       gr.appendChild(el);
     });
 
+    // кнопка рассылки
     var oldB=$('#btnBroadcast');if(oldB)oldB.remove();
-    var bb=document.createElement('button');
-    bb.id='btnBroadcast';bb.className='primary small';
-    bb.textContent='✈️ Разослать в Telegram';
-    bb.style.marginTop='10px';
-    bb.onclick=async function(){
-      var msg=prompt('Сообщение всем ученикам класса в Telegram:');
-      if(!msg||!msg.trim())return;
-      try{
-        var res=await api('/classes/'+id+'/broadcast',{method:'POST',body:{message:msg.trim()}});
-        var text='Отправлено: '+res.sent;
-        if(res.failed)text+=' · ошибок: '+res.failed;
-        if(res.withoutTelegram){
-          text+='\nБез Telegram: '+res.withoutTelegram+
-            ' ('+res.withoutTelegramNames.slice(0,3).join(', ')+
-            (res.withoutTelegramNames.length>3?'…':'')+')';
-        }
-        toast(text,'ok');
-      }catch(e){toast(e.message,'err');}
-    };
-    var tgCard=$('#classGroups').parentNode;
-    tgCard.appendChild(bb);
+    if(isTeacherLike()){
+      var bb=document.createElement('button');
+      bb.id='btnBroadcast';bb.className='primary small';
+      bb.textContent='✈️ Разослать в Telegram';
+      bb.style.marginTop='10px';
+      bb.onclick=async function(){
+        var msg=prompt('Сообщение всем ученикам класса в Telegram:');
+        if(!msg||!msg.trim())return;
+        try{
+          var res=await api('/classes/'+id+'/broadcast',{method:'POST',body:{message:msg.trim()}});
+          var text='Отправлено: '+res.sent;
+          if(res.failed)text+=' · ошибок: '+res.failed;
+          if(res.withoutTelegram)text+=' · без Telegram: '+res.withoutTelegram;
+          toast(text,'ok');
+        }catch(e){toast(e.message,'err');}
+      };
+      var tgCard=$('#classGroups').parentNode;
+      tgCard.appendChild(bb);
+    }
 
+    // Работы
     var ts=$('#classTests');ts.innerHTML='';
     if(!r.tests.length)ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
       var el=document.createElement('div');el.className='test-card';
-      var groupsInfo=t.groupIds&&t.groupIds.length
-        ? ' · группы: '+t.groupIds.map(function(gid){
-            var g=(r.class.groups||[]).find(function(x){return x.id===gid;});
-            return g?esc(g.name):'?';
-          }).join(', ')
-        : '';
+      var gi=t.groupIds&&t.groupIds.length?' · группы: '+t.groupIds.map(function(gid){
+        var g=(r.class.groups||[]).find(function(x){return x.id===gid;});return g?esc(g.name):'?';
+      }).join(', '):'';
       el.innerHTML='<div class="row tight"><h4 style="flex:1;margin:0">'+esc(t.title)+'</h4>'+
         (t.unseen?'<span class="badge red">'+t.unseen+'</span>':'')+'</div>'+
-        '<div class="meta">Сдали: '+t.submitted+' из '+t.total+groupsInfo+'</div>';
+        '<div class="meta">Сдали: '+t.submitted+' из '+t.total+gi+'</div>';
       var b=document.createElement('button');b.className='primary small';b.textContent='Открыть';
       b.onclick=async function(){
         try{var rr=await api('/tests');
@@ -648,53 +639,93 @@ async function openClassView(id){
       };
       el.appendChild(b);ts.appendChild(el);
     });
+
+    // Чат
+    if(cb){
+      cb.style.display='';
+      await loadChatMessages(id, true);
+      if(chatPollTimer)clearInterval(chatPollTimer);
+      chatPollTimer=setInterval(function(){loadChatMessages(id,false);},4000);
+    }
   }catch(e){toast(e.message,'err');}
 }
 
-/* ============ РЕДАКТОР ============ */
+/* ============ CHAT ============ */
+async function loadChatMessages(classId, reset){
+  var box=$('#chatMessages');if(!box)return;
+  try{
+    var r=await api('/classes/'+classId+'/messages');
+    var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<60;
+    if(reset)box.innerHTML='';
+    // показать новые (после lastChatTime)
+    var fresh=r.messages.filter(function(m){return m.createdAt>lastChatTime;});
+    fresh.forEach(function(m){
+      var el=document.createElement('div');
+      el.className='chat-msg'+(m.own?' own':'');
+      el.dataset.mid=m.id;
+      el.innerHTML=
+        '<div class="avatar" data-uid="'+m.userId+'"></div>'+
+        '<div class="chat-msg-body">'+
+          '<div class="chat-msg-head"><b>'+esc(m.userName)+'</b> · '+fmt(m.createdAt)+'</div>'+
+          (m.text?'<div class="chat-msg-text">'+esc(m.text)+'</div>':'')+
+          (m.hasFile?'<div class="chat-msg-file" onclick="downloadChatFile(\''+m.id+'\')">'+
+            '📎 '+esc(m.fileName||'файл')+' · '+fmtSize(m.fileSize)+'</div>':'')+
+          (m.own?'<button class="chat-msg-del" title="Удалить" data-del="'+m.id+'">✕</button>':'')+
+        '</div>';
+      renderAvatar(el.querySelector('.avatar'),{id:m.userId,name:m.userName,hasAvatar:m.hasAvatar},32);
+      if(m.own){
+        var db=el.querySelector('[data-del]');
+        if(db)db.onclick=async function(){
+          if(!confirm('Удалить сообщение?'))return;
+          try{await api('/messages/'+m.id,{method:'DELETE'});
+            el.remove();}catch(e){toast(e.message,'err');}
+        };
+      }
+      box.appendChild(el);
+      lastChatTime=Math.max(lastChatTime,m.createdAt);
+    });
+    if(reset||atBottom)box.scrollTop=box.scrollHeight;
+  }catch(e){/* тихо */}
+}
+window.downloadChatFile=function(mid){
+  var tk=getToken();
+  fetch('/api/messages/'+mid+'/file',{headers:{Authorization:'Bearer '+tk}})
+    .then(function(r){if(!r.ok)throw new Error('Ошибка');return r.blob();})
+    .then(function(b){window.open(URL.createObjectURL(b),'_blank');})
+    .catch(function(e){toast(e.message,'err');});
+};
+
+/* ============ EDITOR ============ */
 function initEditorFields(){
   if(stmtInput)return;
-  var sh=$('#statementHost'),ah=$('#answerHost');
-  if(!sh||!ah)return;
+  var sh=$('#statementHost'),ah=$('#answerHost');if(!sh||!ah)return;
   stmtInput=createMathInput('',false);
   ansInput=createMathInput('',false);
-  sh.appendChild(stmtInput.el);
-  ah.appendChild(ansInput.el);
+  sh.appendChild(stmtInput.el);ah.appendChild(ansInput.el);
   buildSymbolBar($('#symbolBar'));
   addOption();addOption();
-
   var tt=$('#taskType');
   if(tt)tt.onchange=function(){
     var i=tt.value==='input';
     $('#inputBlock').hidden=!i;$('#choiceBlock').hidden=i;
   };
-  var bao=$('#btnAddOption');
-  if(bao)bao.onclick=function(){addOption();};
-  var bat=$('#btnAddTask');
-  if(bat)bat.onclick=addTask;
-  var bst=$('#btnSaveTest');
-  if(bst)bst.onclick=saveTest;
-  var bng=$('#btnNewGroup');
-  if(bng)bng.onclick=async function(){
+  var bao=$('#btnAddOption');if(bao)bao.onclick=function(){addOption();};
+  var bat=$('#btnAddTask');if(bat)bat.onclick=addTask;
+  var bst=$('#btnSaveTest');if(bst)bst.onclick=saveTest;
+  var bng=$('#btnNewGroup');if(bng)bng.onclick=async function(){
     var name=prompt('Название группы (например: Подгруппа А)');
     if(!name||!name.trim())return;
     try{await api('/classes/'+currentClassId+'/groups',{method:'POST',body:{name:name.trim()}});
       toast('Группа создана','ok');openClassView(currentClassId);}
     catch(e){toast(e.message,'err');}
   };
-  var bjc=$('#btnJoinClass');
-  if(bjc)bjc.onclick=joinClass;
-  var bst2=$('#btnSubmitTest');
-  if(bst2)bst2.onclick=function(){
-    if(!confirm('Завершить работу и отправить учителю?'))return;
-    submitTest();
+  var bjc=$('#btnJoinClass');if(bjc)bjc.onclick=joinClass;
+  var bst2=$('#btnSubmitTest');if(bst2)bst2.onclick=function(){
+    if(!confirm('Завершить работу?'))return;submitTest();
   };
-  var bec=$('#btnExportCsv');
-  if(bec)bec.onclick=exportCsv;
-  var bsa=$('#btnShowAnalytics');
-  if(bsa)bsa.onclick=showAnalytics;
-  var bra=$('#btnReadAll');
-  if(bra)bra.onclick=async function(){
+  var bec=$('#btnExportCsv');if(bec)bec.onclick=exportCsv;
+  var bsa=$('#btnShowAnalytics');if(bsa)bsa.onclick=showAnalytics;
+  var bra=$('#btnReadAll');if(bra)bra.onclick=async function(){
     try{await api('/notifications/read-all',{method:'POST'});
       loadNotifications();refreshNotifBadge();toast('Все прочитаны','ok');}
     catch(e){toast(e.message,'err');}
@@ -719,8 +750,7 @@ async function renderClassPicker(){
   try{
     var r=await api('/classes');
     if(!r.classes.length){
-      host.innerHTML='<div class="muted">У вас нет классов. Создайте класс и назначьте работу ему.</div>';
-      return;
+      host.innerHTML='<div class="muted">У вас нет классов.</div>';return;
     }
     r.classes.forEach(function(c){
       var lab=document.createElement('label');lab.className='class-pick';
@@ -728,13 +758,12 @@ async function renderClassPicker(){
       cb.checked=draftClassIds.indexOf(c.id)>=0;
       cb.onchange=function(){
         if(cb.checked){if(draftClassIds.indexOf(c.id)<0)draftClassIds.push(c.id);}
-        else {draftClassIds=draftClassIds.filter(function(x){return x!==c.id;});}
+        else draftClassIds=draftClassIds.filter(function(x){return x!==c.id;});
         renderGroupPicker();
       };
       var s=document.createElement('span');
-      s.innerHTML='<b>'+esc(c.name)+'</b> <span class="muted">('+c.studentCount+' учеников)</span>';
-      lab.appendChild(cb);lab.appendChild(s);
-      host.appendChild(lab);
+      s.innerHTML='<b>'+esc(c.name)+'</b> <span class="muted">('+c.studentCount+')</span>';
+      lab.appendChild(cb);lab.appendChild(s);host.appendChild(lab);
     });
     renderGroupPicker();
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
@@ -751,9 +780,7 @@ async function renderGroupPicker(){
       if(!c||!(c.groups||[]).length)return;
       var block=document.createElement('div');
       block.className='class-pick group-picker-block';
-      block.style.flexDirection='column';
-      block.style.alignItems='stretch';
-      block.style.background='rgba(91,141,255,.05)';
+      block.style.cssText='flex-direction:column;align-items:stretch;background:rgba(91,141,255,.05)';
       var inner='<div style="margin-bottom:8px;font-weight:600;font-size:13px">'+esc(c.name)+' → только для групп:</div>';
       c.groups.forEach(function(g){
         var checked=draftGroupIds.indexOf(g.id)>=0?'checked':'';
@@ -762,7 +789,7 @@ async function renderGroupPicker(){
           ' style="width:16px;height:16px;margin:0;accent-color:var(--accent)">'+
           '<span>'+esc(g.name)+' <span class="muted">('+g.count+')</span></span></label>';
       });
-      inner+='<div class="muted" style="margin-top:4px;font-size:11.5px">Если ни одна группа не отмечена — работа видна всем</div>';
+      inner+='<div class="muted" style="margin-top:4px;font-size:11.5px">Пусто — работа видна всем</div>';
       block.innerHTML=inner;
       block.querySelectorAll('input[type=checkbox]').forEach(function(cb){
         cb.onchange=function(){
@@ -797,19 +824,13 @@ async function openEditor(test){
 
 function renderDraft(){
   var host=$('#draftList');if(!host)return;
-  host.innerHTML='';
-  $('#taskCount').textContent=draftTasks.length;
-  if(!draftTasks.length){
-    host.innerHTML='<div class="empty">Заданий нет. Создайте первое слева.</div>';
-    return;
-  }
+  host.innerHTML='';$('#taskCount').textContent=draftTasks.length;
+  if(!draftTasks.length){host.innerHTML='<div class="empty">Заданий нет.</div>';return;}
   draftTasks.forEach(function(t,i){
     var d=document.createElement('div');
     d.style.cssText='background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;padding:12px;margin-bottom:8px';
     var h=document.createElement('div');h.className='task-head';
-    h.innerHTML='<span class="badge">'+(i+1)+'</span>'+
-      '<span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span>'+
-      '<span class="pill">'+t.points+' б.</span>';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span><span class="pill">'+t.points+' б.</span>';
     var del=document.createElement('button');del.className='ghost small';
     del.textContent='✕';del.style.marginLeft='auto';
     del.onclick=function(){draftTasks.splice(i,1);renderDraft();};
@@ -822,21 +843,19 @@ function renderDraft(){
 function addTask(){
   var type=$('#taskType').value;
   var statement=stmtInput.getValue().trim();
-  if(!statement){toast('Введите условие задания','warn');return;}
+  if(!statement){toast('Введите условие','warn');return;}
   var points=Math.max(1,Number($('#taskPoints').value)||1);
   var task={id:uid(),type:type,statement:statement,points:points};
   if(type==='input'){
     var a=ansInput.getValue().trim();
-    if(!a){toast('Введите правильный ответ','warn');return;}
+    if(!a){toast('Введите ответ','warn');return;}
     task.answer=a;task.tolerance=parseFloat($('#taskTol').value)||1e-6;
   }else{
     var rows=$$('#optionsList .option-row');
-    if(rows.length<2){toast('Нужно минимум 2 варианта','warn');return;}
+    if(rows.length<2){toast('Нужно 2+ варианта','warn');return;}
     task.options=rows.map(function(r){return{text:r.querySelector('.mi-input').value};});
-    task.correctIndex=rows.findIndex(function(r){
-      return r.querySelector('input[type=radio]').checked;
-    });
-    if(task.correctIndex<0){toast('Отметьте правильный вариант','warn');return;}
+    task.correctIndex=rows.findIndex(function(r){return r.querySelector('input[type=radio]').checked;});
+    if(task.correctIndex<0){toast('Отметьте правильный','warn');return;}
   }
   draftTasks.push(task);
   stmtInput.setValue('');ansInput.setValue('');
@@ -846,7 +865,7 @@ function addTask(){
 
 async function saveTest(){
   var title=$('#testTitle').value.trim()||'Без названия';
-  if(!draftTasks.length){toast('Добавьте хотя бы одно задание','warn');return;}
+  if(!draftTasks.length){toast('Добавьте задание','warn');return;}
   var settings={
     timeLimit:Math.max(0,parseInt($('#setTimeLimit').value)||0),
     attempts:Math.max(0,parseInt($('#setAttempts').value)||0),
@@ -855,20 +874,18 @@ async function saveTest(){
   try{
     if(editingTestId){
       await api('/tests/'+editingTestId,{method:'PUT',body:{
-        title:title,tasks:draftTasks,
-        classIds:draftClassIds,groupIds:draftGroupIds,settings:settings}});
+        title:title,tasks:draftTasks,classIds:draftClassIds,groupIds:draftGroupIds,settings:settings}});
       toast('Работа обновлена','ok');
     }else{
       await api('/tests',{method:'POST',body:{
-        title:title,tasks:draftTasks,
-        classIds:draftClassIds,groupIds:draftGroupIds,settings:settings}});
+        title:title,tasks:draftTasks,classIds:draftClassIds,groupIds:draftGroupIds,settings:settings}});
       toast('Работа создана','ok');
     }
     goTeacher();
   }catch(e){toast(e.message,'err');}
 }
 
-/* ============ УЧЕНИК ============ */
+/* ============ STUDENT ============ */
 async function goStudent(){
   show('view-student');
   await Promise.all([renderStudentTests(),renderStudentClasses()]);
@@ -881,33 +898,30 @@ async function renderStudentTests(){
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty"><span class="icon">📖</span>Доступных работ пока нет.<br>Перейдите на вкладку <b>«Мои классы»</b> и присоединитесь по коду от учителя.</div></div>';
+      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty"><span class="icon">📖</span>Доступных работ нет.<br>Присоединитесь к классу.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
       var max=test.tasks.reduce(function(s,t){return s+(t.points||1);},0);
       var s=test.settings||{};
-      var attemptsUsed=test.attemptsUsed||0;
-      var canTry=!(s.attempts>0&&attemptsUsed>=s.attempts);
+      var used=test.attemptsUsed||0;
+      var can=!(s.attempts>0&&used>=s.attempts);
       var draft=loadDraft(test.id);
-
       var card=document.createElement('div');card.className='card';card.style.marginBottom='0';
       card.innerHTML='<h3 style="margin-bottom:8px">'+esc(test.title)+'</h3>'+
         '<div style="margin-bottom:12px">'+
           '<span class="pill">'+test.tasks.length+' заданий</span> '+
           '<span class="pill">макс. '+max+' б.</span>'+
           (s.timeLimit>0?' <span class="pill warn">⏱ '+s.timeLimit+' мин</span>':'')+
-          (s.attempts>0?' <span class="pill">попыток: '+attemptsUsed+' / '+s.attempts+'</span>':'')+
-          (draft?' <span class="pill green">💾 есть черновик</span>':'')+
+          (s.attempts>0?' <span class="pill">попыток: '+used+' / '+s.attempts+'</span>':'')+
+          (draft?' <span class="pill green">💾 черновик</span>':'')+
         '</div>'+
-        (test.mySubmission?
-          '<div class="ok" style="margin-bottom:12px;font-weight:500">Последний результат: '+
-          test.mySubmission.score+' / '+test.mySubmission.max+
+        (test.mySubmission?'<div class="ok" style="margin-bottom:12px;font-weight:500">'+
+          'Последний: '+test.mySubmission.score+' / '+test.mySubmission.max+
           ' <span class="muted">· '+fmt(test.mySubmission.at)+'</span></div>':'');
       var b=document.createElement('button');b.className='primary';b.style.width='100%';
-      if(!canTry){b.disabled=true;b.textContent='Попытки исчерпаны';}
-      else{b.textContent=test.mySubmission?'Пройти заново':'Начать →';
-        b.onclick=function(){openTest(test);};}
+      if(!can){b.disabled=true;b.textContent='Попытки исчерпаны';}
+      else{b.textContent=test.mySubmission?'Пройти заново':'Начать →';b.onclick=function(){openTest(test);};}
       card.appendChild(b);host.appendChild(card);
     });
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
@@ -919,18 +933,13 @@ async function renderStudentClasses(){
   try{
     var r=await api('/classes');
     host.innerHTML='';
-    if(!r.classes.length){
-      host.innerHTML='<div class="empty">Пока вы не в классе. Введите код выше.</div>';
-      return;
-    }
+    if(!r.classes.length){host.innerHTML='<div class="empty">Вы не в классе.</div>';return;}
     r.classes.forEach(function(c){
-      var groupsHtml=(c.groups||[]).length
-        ?' <span class="muted">· группы: '+
-          c.groups.map(function(g){return esc(g.name);}).join(', ')+'</span>':'';
+      var gH=(c.groups||[]).length?' · группы: '+c.groups.map(function(g){return esc(g.name);}).join(', '):'';
       var el=document.createElement('div');el.className='stu-row';
       el.innerHTML='<div class="avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
         '<div class="name"><div>'+esc(c.name)+'</div>'+
-        '<div class="muted">Учитель: '+esc(c.teacherName)+groupsHtml+'</div></div>';
+        '<div class="muted">Учитель: '+esc(c.teacherName)+gH+'</div></div>';
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Покинуть';
       b.onclick=async function(){
         if(!confirm('Покинуть класс?'))return;
@@ -950,52 +959,37 @@ async function joinClass(){
   if(!c){if(je)je.textContent='Введите код';return;}
   try{
     await api('/classes/join',{method:'POST',body:{code:c}});
-    $('#joinCode').value='';
-    toast('Вы присоединились к классу','ok');
+    $('#joinCode').value='';toast('Вы присоединились','ok');
     renderStudentClasses();renderStudentTests();
   }catch(e){if(je)je.textContent=e.message;toast(e.message,'err');}
 }
 
-/* ============ ЧЕРНОВИКИ ============ */
-function draftKey(testId){return 'mathtest_draft_'+currentUser.id+'_'+testId;}
-function saveDraft(testId,data){
-  try{localStorage.setItem(draftKey(testId),JSON.stringify(data));}catch(e){}
+/* ============ DRAFTS ============ */
+function draftKey(tid){return 'mathtest_draft_'+currentUser.id+'_'+tid;}
+function saveDraft(tid,data){try{localStorage.setItem(draftKey(tid),JSON.stringify(data));}catch(e){}}
+function loadDraft(tid){
+  try{var raw=localStorage.getItem(draftKey(tid));return raw?JSON.parse(raw):null;}catch(e){return null;}
 }
-function loadDraft(testId){
-  try{
-    var raw=localStorage.getItem(draftKey(testId));
-    return raw?JSON.parse(raw):null;
-  }catch(e){return null;}
-}
-function clearDraft(testId){
-  try{localStorage.removeItem(draftKey(testId));}catch(e){}
-}
+function clearDraft(tid){try{localStorage.removeItem(draftKey(tid));}catch(e){}}
 function scheduleDraftSave(){
   if(!currentTest)return;
   clearTimeout(draftTimer);
   draftTimer=setTimeout(function(){
     var answers=currentTest.tasks.map(function(t,i){
-      if(t.type==='input'){
-        var mi=answerInputs[i];
-        return mi?mi.getValue():'';
-      }
+      if(t.type==='input'){var mi=answerInputs[i];return mi?mi.getValue():'';}
       return choicePicks[i]===undefined?null:choicePicks[i];
     });
     saveDraft(currentTest.id,{answers:answers,at:Date.now()});
   },600);
 }
 
-/* ============ ПРОХОЖДЕНИЕ ============ */
+/* ============ TEST TAKING ============ */
 function updateProgress(){
   if(!currentTest)return;
   var total=currentTest.tasks.length,done=0;
   currentTest.tasks.forEach(function(t,i){
-    if(t.type==='input'){
-      var mi=answerInputs[i];
-      if(mi&&mi.getValue().trim())done++;
-    }else{
-      if(choicePicks[i]!==undefined)done++;
-    }
+    if(t.type==='input'){var mi=answerInputs[i];if(mi&&mi.getValue().trim())done++;}
+    else{if(choicePicks[i]!==undefined)done++;}
   });
   var pct=total?Math.round(done/total*100):0;
   var pf=$('#progressFill');if(pf)pf.style.width=pct+'%';
@@ -1014,7 +1008,7 @@ function updateTimer(){
   el.className='timer'+(pct<10?' critical':(pct<25?' warning':''));
   if(left<=0){
     clearInterval(timerInterval);timerInterval=null;
-    toast('Время вышло! Работа сдаётся автоматически','warn');
+    toast('Время вышло','warn');
     setTimeout(function(){submitTest();},500);
   }
 }
@@ -1024,28 +1018,19 @@ function openTest(test){
   $('#takeTitle').textContent=test.title;
   var host=$('#takeBody');host.innerHTML='';
   var pb=$('#progressBar');if(pb)pb.hidden=false;
-
   var draft=loadDraft(test.id);
   var dh=$('#draftHint');
-  if(draft){
-    if(dh){dh.hidden=false;dh.textContent='💾 Найден черновик от '+fmt(draft.at)+' — ваши ответы восстановлены';}
-  } else {
-    if(dh)dh.hidden=true;
-  }
-
+  if(draft){if(dh){dh.hidden=false;dh.textContent='💾 Черновик от '+fmt(draft.at);}}
+  else{if(dh)dh.hidden=true;}
   test.tasks.forEach(function(task,i){
     var card=document.createElement('div');card.className='card';
     var h=document.createElement('div');h.className='task-head';
-    h.innerHTML='<span class="badge">'+(i+1)+'</span>'+
-      '<span class="pill">'+(task.points||1)+' б.</span>';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(task.points||1)+' б.</span>';
     card.appendChild(h);
     var s=createMathInput(task.statement,true);card.appendChild(s.el);
     if(task.type==='input'){
-      var initial=draft&&draft.answers&&typeof draft.answers[i]==='string'
-        ?draft.answers[i]:'';
-      var mi=createMathInput(initial,false,function(){
-        updateProgress();scheduleDraftSave();
-      });
+      var initial=draft&&draft.answers&&typeof draft.answers[i]==='string'?draft.answers[i]:'';
+      var mi=createMathInput(initial,false,function(){updateProgress();scheduleDraftSave();});
       card.appendChild(mi.el);answerInputs[i]=mi;
     }else{
       var w=document.createElement('div');w.style.marginTop='6px';
@@ -1059,17 +1044,14 @@ function openTest(test){
         var rd=document.createElement('input');rd.type='radio';rd.name='q'+i;
         rd.checked=(picked===j);
         rd.onchange=function(){choicePicks[i]=j;updateProgress();scheduleDraftSave();};
-        var ob=createMathInput(opt.text,true);
-        ob.el.style.flex='1';ob.el.style.margin='0';
+        var ob=createMathInput(opt.text,true);ob.el.style.flex='1';ob.el.style.margin='0';
         lab.appendChild(rd);lab.appendChild(ob.el);w.appendChild(lab);
       });
       card.appendChild(w);
     }
     host.appendChild(card);
   });
-
   updateProgress();
-
   var timer=$('#timerDisplay');
   if(test.settings&&test.settings.timeLimit>0){
     var key='test_start_'+test.id;
@@ -1078,66 +1060,53 @@ function openTest(test){
     testDeadline=started+test.settings.timeLimit*60000;
     if(timer)timer.hidden=false;
     if(timerInterval)clearInterval(timerInterval);
-    updateTimer();
-    timerInterval=setInterval(updateTimer,1000);
+    updateTimer();timerInterval=setInterval(updateTimer,1000);
   }else{
     if(timer)timer.hidden=true;testDeadline=null;
     if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   }
-
-  show('view-take');
-  setTimeout(updateProgress,100);
+  show('view-take');setTimeout(updateProgress,100);
 }
 
 async function submitTest(){
   if(!currentTest)return;
   if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   var answers=currentTest.tasks.map(function(t,i){
-    if(t.type==='input'){
-      var mi=answerInputs[i];
-      return {text:mi?mi.getValue():''};
-    }
+    if(t.type==='input'){var mi=answerInputs[i];return {text:mi?mi.getValue():''};}
     return {index:choicePicks[i]===undefined?-1:choicePicks[i]};
   });
   var started=parseInt(sessionStorage.getItem('test_start_'+currentTest.id))||Date.now();
   try{
-    var r=await api('/tests/'+currentTest.id+'/submit',{method:'POST',body:{
-      answers:answers,startedAt:started}});
-    clearDraft(currentTest.id);
-    sessionStorage.removeItem('test_start_'+currentTest.id);
-    $('#progressBar').hidden=true;
-    $('#draftHint').hidden=true;
-    if(r.expired)toast('Работа сдана после истечения времени','warn');
+    var r=await api('/tests/'+currentTest.id+'/submit',{method:'POST',body:{answers:answers,startedAt:started}});
+    clearDraft(currentTest.id);sessionStorage.removeItem('test_start_'+currentTest.id);
+    $('#progressBar').hidden=true;$('#draftHint').hidden=true;
+    if(r.expired)toast('Работа сдана с опозданием','warn');
     showResult(currentTest,r);
   }catch(e){toast(e.message,'err');}
 }
 
-/* ============ РЕЗУЛЬТАТ ============ */
+/* ============ RESULT ============ */
 function showResult(test,r){
   var card=$('#resultCard');
   var score=r.score,max=r.max;
   var pct=max?Math.round(score/max*100):0;
-  var gradeClass=pct>=80?'':(pct>=60?'mid':'bad');
-  var gradeText=pct>=80?'Отличный результат!':(pct>=60?'Хороший результат':'Стоит повторить');
-
+  var gc=pct>=80?'':(pct>=60?'mid':'bad');
+  var gt=pct>=80?'Отличный результат!':(pct>=60?'Хороший результат':'Стоит повторить');
   card.innerHTML='<h2 style="margin-bottom:20px">'+esc(test.title)+'</h2>'+
     '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
-      '<div class="score-circle" data-grade="'+gradeClass+'" style="--pct:'+pct+'">'+
+      '<div class="score-circle" data-grade="'+gc+'" style="--pct:'+pct+'">'+
         '<div class="val">'+score+' / '+max+'</div><div class="lbl">'+pct+'%</div></div>'+
       '<div style="flex:1;min-width:200px">'+
-        '<div style="font-size:18px;font-weight:600;margin-bottom:6px">'+gradeText+'</div>'+
-        '<div class="muted">Работа отправлена учителю.'+
-          (r.durationMs?' <br>Время: '+fmtDur(r.durationMs):'')+
-          (r.attempt?' <br>Попытка №'+r.attempt:'')+
+        '<div style="font-size:18px;font-weight:600;margin-bottom:6px">'+gt+'</div>'+
+        '<div class="muted">'+
+          (r.durationMs?'Время: '+fmtDur(r.durationMs)+'<br>':'')+
+          (r.attempt?'Попытка №'+r.attempt:'')+
         '</div></div>'+
     '</div>';
-
   test.tasks.forEach(function(task,i){
     var res=r.results[i]||{ok:false};
-    var line=document.createElement('div');
-    line.className='result-line '+(res.ok?'ok':'err');
-    var s=createMathInput(task.statement,true);
-    s.el.style.marginBottom='6px';line.appendChild(s.el);
+    var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
+    var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
     var info=document.createElement('div');info.style.fontSize='13.5px';
     info.innerHTML=res.ok
       ?'<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
@@ -1146,43 +1115,38 @@ function showResult(test,r){
     if(!res.ok&&res.correctAnswer){
       var a=document.createElement('div');a.style.marginTop='10px';
       a.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
-      var mf=createMathInput(res.correctAnswer,true);
-      a.appendChild(mf.el);line.appendChild(a);
+      var mf=createMathInput(res.correctAnswer,true);a.appendChild(mf.el);line.appendChild(a);
     }
     if(!res.ok&&!res.correctAnswer&&r.settings&&!r.settings.showAnswers){
       var n=document.createElement('div');n.className='muted';n.style.marginTop='6px';
-      n.textContent='(Правильный ответ скрыт учителем)';line.appendChild(n);
+      n.textContent='(Ответ скрыт учителем)';line.appendChild(n);
     }
     if(task.type==='choice'&&res.correctIndex!==undefined){
       var a2=document.createElement('div');a2.style.marginTop='10px';
       a2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
-      var mf2=createMathInput(task.options[res.correctIndex].text,true);
-      a2.appendChild(mf2.el);line.appendChild(a2);
+      var mf2=createMathInput(task.options[res.correctIndex].text,true);a2.appendChild(mf2.el);line.appendChild(a2);
     }
     card.appendChild(line);
   });
   show('view-result');
 }
 
-/* ============ РЕЗУЛЬТАТЫ УЧИТЕЛЯ ============ */
+/* ============ TEACHER SUBMISSIONS ============ */
 async function showSubmissions(test){
   currentSubmissionTest=test;
   $('#subsTitle').textContent='Результаты: '+test.title;
-  var body=$('#subsBody');skeleton(body,4);
-  show('view-submissions');
+  var body=$('#subsBody');skeleton(body,4);show('view-submissions');
   try{
     var r=await api('/tests/'+test.id+'/submissions');
     body.innerHTML='';
     if(!r.groups.length){
-      body.innerHTML='<div class="card"><div class="empty">Работа не назначена ни одному классу.</div></div>';
+      body.innerHTML='<div class="card"><div class="empty">Не назначено ни одному классу.</div></div>';
       return;
     }
     r.groups.forEach(function(g){
       var card=document.createElement('div');card.className='card';
       var total=g.submitted.length+g.notSubmitted.length;
-      var avg=g.submitted.length
-        ?Math.round(g.submitted.reduce(function(s,x){
-          return s+(x.max?x.score/x.max:0);},0)/g.submitted.length*100):0;
+      var avg=g.submitted.length?Math.round(g.submitted.reduce(function(s,x){return s+(x.max?x.score/x.max:0);},0)/g.submitted.length*100):0;
       card.innerHTML='<div class="row tight"><h3 style="flex:1;margin:0">'+esc(g.className)+'</h3>'+
         '<span class="pill">сдано: '+g.submitted.length+' / '+total+'</span>'+
         (g.submitted.length?'<span class="pill green">средний: '+avg+'%</span>':'')+'</div>';
@@ -1194,9 +1158,7 @@ async function showSubmissions(test){
           el.innerHTML='<div class="avatar">'+esc((s.studentName[0]||'?').toUpperCase())+'</div>'+
             '<div class="name"><div>'+esc(s.studentName)+
               (s.attempt>1?' <span class="pill" style="font-size:10.5px">попытка '+s.attempt+'</span>':'')+
-            '</div><div class="muted">'+fmt(s.at)+(s.durationMs?' · '+fmtDur(s.durationMs):'')+
-              (s.expired?' <span class="pill red" style="font-size:10.5px">просрочено</span>':'')+
-            '</div></div>'+
+            '</div><div class="muted">'+fmt(s.at)+(s.durationMs?' · '+fmtDur(s.durationMs):'')+'</div></div>'+
             '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+' ('+pct+'%)</div>';
           var b=document.createElement('button');b.className='ghost small';b.textContent='Работа';
           b.onclick=function(){openSubmissionDetail(s.id,test.id);};
@@ -1204,12 +1166,10 @@ async function showSubmissions(test){
         });
       }
       if(g.notSubmitted.length){
-        var h2=document.createElement('h4');h2.className='sec';
-        h2.textContent='Не сдали ('+g.notSubmitted.length+')';card.appendChild(h2);
+        var h2=document.createElement('h4');h2.className='sec';h2.textContent='Не сдали ('+g.notSubmitted.length+')';card.appendChild(h2);
         g.notSubmitted.forEach(function(u){
           var el=document.createElement('div');el.className='stu-row';el.style.opacity='.7';
-          el.innerHTML='<div class="avatar" style="background:#3a465c">'+
-            esc((u.name[0]||'?').toUpperCase())+'</div>'+
+          el.innerHTML='<div class="avatar" style="background:#3a465c">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
             '<div class="name">'+esc(u.name)+'</div><div class="muted">нет сдачи</div>';
           card.appendChild(el);
         });
@@ -1223,15 +1183,11 @@ async function exportCsv(){
   if(!currentSubmissionTest)return;
   try{
     var tk=getToken();
-    var url='/api/tests/'+currentSubmissionTest.id+'/export.csv';
-    var res=await fetch(url,{headers:{Authorization:'Bearer '+tk}});
-    if(!res.ok)throw new Error('Не удалось скачать');
+    var res=await fetch('/api/tests/'+currentSubmissionTest.id+'/export.csv',{headers:{Authorization:'Bearer '+tk}});
+    if(!res.ok)throw new Error('Не удалось');
     var blob=await res.blob();
-    var a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='results.csv';
-    document.body.appendChild(a);a.click();a.remove();
-    toast('CSV скачан','ok');
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='results.csv';
+    document.body.appendChild(a);a.click();a.remove();toast('CSV скачан','ok');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1244,24 +1200,17 @@ async function showAnalytics(){
     body.innerHTML='';
     var card=document.createElement('div');card.className='card';
     card.innerHTML='<h3>📊 Успешность по заданиям</h3>'+
-      '<div class="muted" style="margin-bottom:14px">Процент учеников, справившихся с каждым заданием.</div>';
-    if(!r.analytics||!r.analytics.length){
-      card.innerHTML+='<div class="empty">Нет данных</div>';
-    }
+      '<div class="muted" style="margin-bottom:14px">Процент учеников, справившихся с заданием.</div>';
+    if(!r.analytics||!r.analytics.length)card.innerHTML+='<div class="empty">Нет данных</div>';
     r.analytics.forEach(function(a){
       var color=a.pct>=75?'var(--ok)':(a.pct>=40?'var(--warn)':'var(--err)');
       var row=document.createElement('div');row.className='analytics-row';
       row.innerHTML='<div class="num">'+a.index+'</div>'+
-        '<div class="body">'+
-          '<div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
-            esc(a.statement.replace(/[#*_`~]/g,'').slice(0,70))+
-          '</div>'+
-          '<div class="bar-track"><div class="bar-fill" style="width:'+a.pct+
-            '%;background:'+color+'"></div></div>'+
-        '</div>'+
+        '<div class="body"><div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+          esc(a.statement.replace(/[#*_`~]/g,'').slice(0,70))+'</div>'+
+          '<div class="bar-track"><div class="bar-fill" style="width:'+a.pct+'%;background:'+color+'"></div></div></div>'+
         '<div class="pct" style="color:'+color+'">'+a.pct+'%</div>'+
-        '<div class="muted" style="font-size:11.5px;min-width:60px;text-align:right">'+
-          a.correct+' / '+a.total+'</div>';
+        '<div class="muted" style="font-size:11.5px;min-width:60px;text-align:right">'+a.correct+' / '+a.total+'</div>';
       card.appendChild(row);
     });
     body.appendChild(card);
@@ -1279,9 +1228,9 @@ async function openSubmissionDetail(subId,testId){
     body.innerHTML='';
     var card=document.createElement('div');card.className='card';
     var pct=r.submission.max?Math.round(r.submission.score/r.submission.max*100):0;
-    var gradeClass=pct>=80?'':(pct>=60?'mid':'bad');
+    var gc=pct>=80?'':(pct>=60?'mid':'bad');
     card.innerHTML='<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
-      '<div class="score-circle" data-grade="'+gradeClass+'" style="--pct:'+pct+'">'+
+      '<div class="score-circle" data-grade="'+gc+'" style="--pct:'+pct+'">'+
         '<div class="val">'+r.submission.score+' / '+r.submission.max+'</div>'+
         '<div class="lbl">'+pct+'%</div></div>'+
       '<div class="muted" style="flex:1">'+fmt(r.submission.at)+
@@ -1289,10 +1238,8 @@ async function openSubmissionDetail(subId,testId){
         (r.submission.attempt?'<br>Попытка №'+r.submission.attempt:'')+'</div></div>';
     r.test.tasks.forEach(function(task,i){
       var res=r.submission.results[i]||{ok:false,studentText:''};
-      var line=document.createElement('div');
-      line.className='result-line '+(res.ok?'ok':'err');
-      var s=createMathInput(task.statement,true);
-      s.el.style.marginBottom='6px';line.appendChild(s.el);
+      var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
+      var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
       var info=document.createElement('div');
       info.innerHTML=res.ok
         ?'<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
@@ -1301,19 +1248,16 @@ async function openSubmissionDetail(subId,testId){
       if(task.type==='input'){
         var st=document.createElement('div');st.style.marginTop='10px';
         st.innerHTML='<div class="muted" style="margin-bottom:4px">Ответ ученика:</div>';
-        var mf=createMathInput(res.studentText||'(пусто)',true);
-        st.appendChild(mf.el);line.appendChild(st);
+        var mf=createMathInput(res.studentText||'(пусто)',true);st.appendChild(mf.el);line.appendChild(st);
         if(!res.ok){
           var c=document.createElement('div');c.style.marginTop='10px';
           c.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
-          var mfc=createMathInput(task.answer,true);
-          c.appendChild(mfc.el);line.appendChild(c);
+          var mfc=createMathInput(task.answer,true);c.appendChild(mfc.el);line.appendChild(c);
         }
-      }else if(!res.ok){
+      } else if(!res.ok){
         var c2=document.createElement('div');c2.style.marginTop='10px';
         c2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
-        var mf2=createMathInput(task.options[task.correctIndex].text,true);
-        c2.appendChild(mf2.el);line.appendChild(c2);
+        var mf2=createMathInput(task.options[task.correctIndex].text,true);c2.appendChild(mf2.el);line.appendChild(c2);
       }
       card.appendChild(line);
     });
@@ -1326,7 +1270,441 @@ async function openSubmissionDetail(subId,testId){
   }catch(e){toast(e.message,'err');}
 }
 
-/* ============ СТАРТ ============ */
+/* ============ LIBRARY ============ */
+async function openLibrary(){
+  show('view-library');
+  var host=$('#bookList');skeleton(host,4);
+  var bab=$('#btnAddBook');
+  if(bab)bab.hidden=!canUploadBooks();
+  if(!canUploadBooks())$('#bookUploadForm').hidden=true;
+
+  // фильтр по классам
+  try{
+    var cr=await api('/classes');
+    var sel=$('#bookClassFilter');
+    sel.innerHTML='<option value="">Все классы</option>'+
+      cr.classes.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
+  }catch(e){}
+
+  await searchBooks();
+}
+
+async function searchBooks(){
+  var host=$('#bookList');if(!host)return;
+  skeleton(host,3);
+  try{
+    var q=$('#bookSearch')?$('#bookSearch').value.trim():'';
+    var cid=$('#bookClassFilter')?$('#bookClassFilter').value:'';
+    var sort=$('#bookSort')?$('#bookSort').value:'new';
+    var params='?q='+encodeURIComponent(q)+'&classId='+encodeURIComponent(cid)+'&sort='+encodeURIComponent(sort);
+    var r=await api('/books'+params);
+    host.innerHTML='';
+    if(!r.books.length){
+      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>'+
+        (q||cid?'Ничего не найдено':'Книг пока нет')+'</div></div>';
+      return;
+    }
+    if(bookView==='grid'){
+      var grid=document.createElement('div');grid.className='grid';
+      r.books.forEach(function(b){grid.appendChild(renderBookCard(b));});
+      host.appendChild(grid);
+    } else {
+      r.books.forEach(function(b){host.appendChild(renderBookRow(b));});
+    }
+  }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+
+function renderBookCard(b){
+  var card=document.createElement('div');card.className='book-card';
+  card.innerHTML=
+    '<div class="book-cover"><span>📖</span></div>'+
+    '<div class="book-title">'+esc(b.title)+'</div>'+
+    (b.author?'<div class="book-author">'+esc(b.author)+'</div>':'')+
+    '<div class="book-meta">'+
+      (b.subject?'<span class="pill">'+esc(b.subject)+'</span>':'')+
+      (b.fileSize?'<span class="pill">'+fmtSize(b.fileSize)+'</span>':'')+
+      (b.ownerName?'<span class="pill">'+esc(b.ownerName)+'</span>':'')+
+    '</div>'+
+    (b.description?'<div class="book-desc">'+esc(b.description)+'</div>':'');
+  var actions=document.createElement('div');actions.className='book-actions';
+  if(b.fileName){
+    var d=document.createElement('button');d.className='primary small';d.textContent='📖 Открыть';
+    d.onclick=function(){downloadBook(b.id,false);};actions.appendChild(d);
+    var dn=document.createElement('button');dn.className='ghost small';dn.textContent='⬇ Скачать';
+    dn.onclick=function(){downloadBook(b.id,true);};actions.appendChild(dn);
+  }
+  if(isAdmin()||(isTeacherLike()&&b.ownerId===currentUser.id)){
+    var del=document.createElement('button');del.className='ghost small danger';del.textContent='Удалить';
+    del.onclick=async function(){
+      if(!confirm('Удалить «'+b.title+'»?'))return;
+      try{await api('/books/'+b.id,{method:'DELETE'});toast('Удалено','ok');searchBooks();}
+      catch(e){toast(e.message,'err');}
+    };
+    actions.appendChild(del);
+  }
+  card.appendChild(actions);
+  return card;
+}
+function renderBookRow(b){
+  var el=document.createElement('div');el.className='book-list-row';
+  el.innerHTML='<div class="bicon">📖</div>'+
+    '<div class="binfo"><div class="btitle">'+esc(b.title)+'</div>'+
+    '<div class="bauthor">'+esc(b.author||'—')+(b.subject?' · '+esc(b.subject):'')+
+      (b.fileSize?' · '+fmtSize(b.fileSize):'')+(b.ownerName?' · '+esc(b.ownerName):'')+'</div></div>';
+  var actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px';
+  if(b.fileName){
+    var d=document.createElement('button');d.className='primary small';d.textContent='📖';
+    d.onclick=function(){downloadBook(b.id,false);};actions.appendChild(d);
+    var dn=document.createElement('button');dn.className='ghost small';dn.textContent='⬇';
+    dn.onclick=function(){downloadBook(b.id,true);};actions.appendChild(dn);
+  }
+  if(isAdmin()||(isTeacherLike()&&b.ownerId===currentUser.id)){
+    var del=document.createElement('button');del.className='ghost small danger';del.textContent='✕';
+    del.onclick=async function(){
+      if(!confirm('Удалить?'))return;
+      try{await api('/books/'+b.id,{method:'DELETE'});toast('Удалено','ok');searchBooks();}
+      catch(e){toast(e.message,'err');}
+    };
+    actions.appendChild(del);
+  }
+  el.appendChild(actions);
+  return el;
+}
+
+function downloadBook(id, saveAs){
+  var tk=getToken();
+  fetch('/api/books/'+id+'/download',{headers:{Authorization:'Bearer '+tk}})
+    .then(function(r){if(!r.ok)throw new Error('Ошибка');return r.blob();})
+    .then(function(blob){
+      var url=URL.createObjectURL(blob);
+      if(saveAs){var a=document.createElement('a');a.href=url;a.download='book';document.body.appendChild(a);a.click();a.remove();}
+      else window.open(url,'_blank');
+      setTimeout(function(){URL.revokeObjectURL(url);},60000);
+    })
+    .catch(function(e){toast(e.message,'err');});
+}
+
+async function renderBookClassPicker(){
+  var host=$('#bookClassPicker');if(!host)return;
+  try{
+    var r=await api('/classes');
+    host.innerHTML='';window.__bookClassIds=[];
+    if(!r.classes.length){
+      host.innerHTML='<div class="muted">Нет классов — книга видна всем.</div>';return;
+    }
+    r.classes.forEach(function(c){
+      var lab=document.createElement('label');lab.className='class-pick';
+      var cb=document.createElement('input');cb.type='checkbox';
+      cb.onchange=function(){
+        if(cb.checked)window.__bookClassIds.push(c.id);
+        else window.__bookClassIds=window.__bookClassIds.filter(function(x){return x!==c.id;});
+      };
+      var s=document.createElement('span');
+      s.innerHTML='<b>'+esc(c.name)+'</b> <span class="muted">('+c.studentCount+')</span>';
+      lab.appendChild(cb);lab.appendChild(s);host.appendChild(lab);
+    });
+  }catch(e){}
+}
+
+async function saveBook(){
+  var err=$('#bookErr');if(err)err.textContent='';
+  var title=$('#bookTitle').value.trim();
+  if(!title){if(err)err.textContent='Введите название';return;}
+  var fd=new FormData();
+  fd.append('title',title);
+  fd.append('author',$('#bookAuthor').value.trim());
+  fd.append('subject',$('#bookSubject').value.trim());
+  fd.append('description',$('#bookDescription').value.trim());
+  fd.append('classIds',JSON.stringify(window.__bookClassIds||[]));
+  var f=$('#bookFile').files[0];
+  if(f){
+    if(f.size>25*1024*1024){if(err)err.textContent='Файл больше 25 МБ';return;}
+    fd.append('file',f);
+  }
+  var btn=$('#btnSaveBook');btn.disabled=true;btn.textContent='Загрузка...';
+  try{
+    await apiForm('/books',fd);
+    toast('Книга загружена','ok');
+    ['bookTitle','bookAuthor','bookSubject','bookDescription','bookFile'].forEach(function(id){$('#'+id).value='';});
+    $('#bookUploadForm').hidden=true;window.__bookClassIds=[];
+    searchBooks();
+  }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
+  finally{btn.disabled=false;btn.textContent='Загрузить';}
+}
+
+/* ============ ADMIN ============ */
+async function openAdmin(){
+  if(!isAdmin())return;
+  show('view-admin');
+  var statsHost=$('#adminStats');skeleton(statsHost,3);
+  var listHost=$('#adminUsersList');skeleton(listHost,4);
+  await loadAdminUsers();
+}
+
+async function loadAdminUsers(){
+  try{
+    var q=$('#adminSearch').value.trim();
+    var role=$('#adminRoleFilter').value;
+    var r=await api('/admin/users?q='+encodeURIComponent(q)+'&role='+encodeURIComponent(role));
+
+    // статистика
+    var sh=$('#adminStats');sh.innerHTML='';
+    var stats=[
+      ['👥','Всего',r.stats.total],
+      ['👑','Админов',r.stats.admin],
+      ['🏫','Учителей',r.stats.teacher],
+      ['📚','Библиотекарей',r.stats.librarian],
+      ['🎓','Учеников',r.stats.student],
+      ['📝','Работ',r.stats.tests],
+      ['📖','Книг',r.stats.books]
+    ];
+    stats.forEach(function(s){
+      var c=document.createElement('div');c.className='stat-card';
+      c.innerHTML='<div class="stat-icon">'+s[0]+'</div><div class="stat-value">'+s[2]+'</div><div class="stat-label">'+s[1]+'</div>';
+      sh.appendChild(c);
+    });
+
+    // список
+    var host=$('#adminUsersList');host.innerHTML='';
+    if(!r.users.length){
+      host.innerHTML='<div class="empty">Никого не найдено</div>';return;
+    }
+    r.users.forEach(function(u){
+      var el=document.createElement('div');el.className='admin-row';
+      el.innerHTML='<div class="avatar" data-uid="'+u.id+'"></div>'+
+        '<div class="info"><b>'+esc(u.name)+'</b>'+
+        '<div class="muted">'+esc(u.email)+' · регистрация '+fmtDate(u.createdAt)+'</div>'+
+        '<div class="muted" style="font-size:11.5px;margin-top:2px">'+
+          'Классов: '+u.stats.classes_created+' · В классах: '+u.stats.classes_joined+
+          ' · Сдач: '+u.stats.submissions+' · Книг: '+u.stats.books+'</div></div>';
+      renderAvatar(el.querySelector('.avatar'),u,36);
+
+      var sel=document.createElement('select');
+      ['admin','teacher','librarian','student'].forEach(function(rl){
+        var o=document.createElement('option');o.value=rl;
+        o.textContent={'admin':'👑 Админ','teacher':'🏫 Учитель','librarian':'📚 Библиотекарь','student':'🎓 Ученик'}[rl];
+        if(rl===u.role)o.selected=true;
+        sel.appendChild(o);
+      });
+      sel.disabled=(u.id===currentUser.id);
+      sel.onchange=async function(){
+        try{await api('/admin/users/'+u.id+'/role',{method:'POST',body:{role:sel.value}});
+          toast('Роль изменена','ok');loadAdminUsers();}
+        catch(e){toast(e.message,'err');loadAdminUsers();}
+      };
+      el.appendChild(sel);
+
+      var rp=document.createElement('button');rp.className='ghost small';rp.textContent='🔑';
+      rp.title='Сбросить пароль';
+      rp.onclick=async function(){
+        if(!confirm('Сбросить пароль для '+u.name+'?'))return;
+        try{var res=await api('/admin/users/'+u.id+'/reset-password',{method:'POST'});
+          prompt('Новый пароль (скопируйте):', res.password);
+          toast('Пароль сброшен','ok');
+        }catch(e){toast(e.message,'err');}
+      };
+      el.appendChild(rp);
+
+      var del=document.createElement('button');del.className='ghost small danger';del.textContent='✕';
+      del.title='Удалить';
+      del.disabled=(u.id===currentUser.id);
+      del.onclick=async function(){
+        if(!confirm('Удалить пользователя '+u.name+'?'))return;
+        try{await api('/admin/users/'+u.id,{method:'DELETE'});
+          toast('Удалён','ok');loadAdminUsers();}
+        catch(e){toast(e.message,'err');}
+      };
+      el.appendChild(del);
+      host.appendChild(el);
+    });
+  }catch(e){
+    $('#adminUsersList').innerHTML='<div class="err">'+esc(e.message)+'</div>';
+  }
+}
+
+/* ============ PROFILE STATS ============ */
+async function openProfileStats(){
+  show('view-profile');
+  var host=$('#profileStats');skeleton(host,4);
+  try{
+    var url=isTeacherLike()?'/profile/teacher':'/profile/student';
+    var r=await api(url);
+    host.innerHTML='';
+    var hello=document.createElement('div');hello.className='card';
+    var av=document.createElement('div');av.className='avatar';av.style.cssText='width:56px;height:56px;font-size:22px;float:left;margin-right:14px';
+    hello.appendChild(av);
+    var info=document.createElement('div');
+    info.innerHTML='<h2 style="margin-bottom:4px">'+esc(currentUser.name)+'</h2>'+
+      '<div class="muted">'+roleLabel()+'</div>';
+    hello.appendChild(info);
+    hello.style.overflow='hidden';
+    host.appendChild(hello);
+    renderAvatar(av,currentUser,56);
+
+    var statGrid=document.createElement('div');statGrid.className='grid';
+    var stats=isTeacherLike()
+      ?[['📚','Классов',r.classesCount],['👥','Учеников',r.studentsCount],
+        ['📝','Работ',r.testsCount],['📖','Книг',r.booksCount],
+        ['📥','Сдач',r.submissionsCount],['⭐','Средний балл',r.avgPercent+'%']]
+      :[['📚','Классов',r.classesCount],['📝','Сдач',r.submissionsCount],
+        ['⭐','Средний балл',r.avgPercent+'%'],
+        ['🏆','Всего баллов',r.totalScore+' / '+r.totalMax],
+        ['📖','Книг доступно',r.booksCount]];
+    stats.forEach(function(s){
+      var c=document.createElement('div');c.className='stat-card';
+      c.innerHTML='<div class="stat-icon">'+s[0]+'</div><div class="stat-value">'+s[2]+'</div><div class="stat-label">'+s[1]+'</div>';
+      statGrid.appendChild(c);
+    });
+    host.appendChild(statGrid);
+
+    // прогресс ученика
+    if(!isTeacherLike()&&r.all&&r.all.length){
+      var prog=document.createElement('div');prog.className='card';prog.style.marginTop='16px';
+      prog.innerHTML='<h3>📊 Динамика среднего балла</h3>';
+      var chartWrap=document.createElement('div');chartWrap.className='chart-wrap';
+      var chart=document.createElement('div');chart.className='chart-bars';
+      var sorted=r.all.slice().sort(function(a,b){return a.at-b.at;});
+      sorted.forEach(function(s){
+        var bar=document.createElement('div');bar.className='chart-bar';
+        var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
+        bar.style.cssText='height:'+Math.max(4,s.pct)+'%;background:'+color;
+        bar.title=s.testTitle+' — '+s.pct+'%';
+        bar.dataset.label=new Date(s.at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'});
+        chart.appendChild(bar);
+      });
+      chartWrap.appendChild(chart);
+      prog.appendChild(chartWrap);
+
+      // столбики по работам — те же данные, другой смысл
+      prog.innerHTML+='<h3 style="margin-top:16px">📈 Баллы по работам</h3>';
+      var chartWrap2=document.createElement('div');chartWrap2.className='chart-wrap';
+      var chart2=document.createElement('div');chart2.className='chart-bars';
+      var recent=r.all.slice(0,20).reverse();
+      recent.forEach(function(s){
+        var bar=document.createElement('div');bar.className='chart-bar';
+        var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
+        bar.style.cssText='height:'+Math.max(4,s.pct)+'%;background:'+color;
+        bar.title=s.testTitle+' — '+s.score+'/'+s.max+' ('+s.pct+'%)';
+        bar.dataset.label=s.pct+'%';
+        chart2.appendChild(bar);
+      });
+      chartWrap2.appendChild(chart2);
+      prog.appendChild(chartWrap2);
+
+      // разбивка по классам
+      if(r.classStats&&r.classStats.length){
+        prog.innerHTML+='<h3 style="margin-top:20px">📚 По классам</h3>';
+        r.classStats.forEach(function(c){
+          var row=document.createElement('div');row.className='analytics-row';
+          var color=c.avgPct>=80?'var(--ok)':(c.avgPct>=60?'var(--warn)':'var(--err)');
+          row.innerHTML='<div class="body"><div style="font-size:13.5px">'+esc(c.name)+' <span class="muted">('+c.count+' сдач)</span></div>'+
+            '<div class="bar-track"><div class="bar-fill" style="width:'+c.avgPct+'%;background:'+color+'"></div></div></div>'+
+            '<div class="pct" style="color:'+color+'">'+c.avgPct+'%</div>'+
+            '<div class="muted" style="font-size:11.5px;min-width:90px;text-align:right">лучш. '+c.best+'% · худ. '+c.worst+'%</div>';
+          prog.appendChild(row);
+        });
+      }
+
+      // таблица всех сдач
+      prog.innerHTML+='<h3 style="margin-top:20px">📋 Все результаты</h3>';
+      var table=document.createElement('table');table.className='progress-table';
+      table.innerHTML='<thead><tr><th>Работа</th><th>Класс</th><th>Дата</th><th>Балл</th><th>%</th></tr></thead>';
+      var tbody=document.createElement('tbody');
+      r.all.forEach(function(s){
+        var tr=document.createElement('tr');
+        var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
+        tr.innerHTML='<td>'+esc(s.testTitle)+'</td><td>'+esc(s.className)+'</td>'+
+          '<td>'+fmtDate(s.at)+'</td><td>'+s.score+' / '+s.max+'</td>'+
+          '<td style="color:'+color+';font-weight:600">'+s.pct+'%</td>';
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);prog.appendChild(table);
+
+      var exp=document.createElement('button');exp.className='ghost small';exp.style.marginTop='12px';
+      exp.textContent='📥 Скачать мои результаты (CSV)';
+      exp.onclick=function(){
+        var rows=[['Работа','Класс','Дата','Балл','Макс','%']];
+        r.all.forEach(function(s){
+          rows.push([s.testTitle,s.className,new Date(s.at).toLocaleString('ru-RU'),s.score,s.max,s.pct+'%']);
+        });
+        var csv=rows.map(function(r){return r.map(function(v){
+          v=String(v==null?'':v);
+          if(v.includes(',')||v.includes('"'))return '"'+v.replace(/"/g,'""')+'"';
+          return v;
+        }).join(',');}).join('\r\n');
+        var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+        var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='my_results.csv';
+        document.body.appendChild(a);a.click();a.remove();
+      };
+      prog.appendChild(exp);
+      host.appendChild(prog);
+    }
+
+    // последние сдачи
+    if(r.recent&&r.recent.length){
+      var rec=document.createElement('div');rec.className='card';rec.style.marginTop='16px';
+      rec.innerHTML='<h3>Последние сдачи</h3>';
+      r.recent.forEach(function(s){
+        var pct=s.max?Math.round(s.score/s.max*100):0;
+        var el=document.createElement('div');el.className='stu-row';
+        el.innerHTML='<div class="avatar">'+(isTeacherLike()?esc((s.studentName[0]||'?').toUpperCase()):'📝')+'</div>'+
+          '<div class="name"><div>'+esc(s.testTitle)+
+            (isTeacherLike()&&s.studentName?' · '+esc(s.studentName):'')+
+          '</div><div class="muted">'+fmt(s.at)+'</div></div>'+
+          '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+'</div>';
+        rec.appendChild(el);
+      });
+      host.appendChild(rec);
+    }
+  }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+
+/* ============ EDIT PROFILE ============ */
+function openEditProfile(){
+  if(!currentUser)return;
+  show('view-editprofile');
+  renderAvatar($('#editAvatar'),currentUser,80);
+  $('#editName').value=currentUser.name||'';
+  $('#editEmail').value=currentUser.email||'';
+  $('#editPass').value='';
+  $('#editErr').textContent='';
+}
+
+async function saveEditProfile(){
+  var err=$('#editErr');if(err)err.textContent='';
+  var body={};
+  var n=$('#editName').value.trim();
+  var e=$('#editEmail').value.trim();
+  var p=$('#editPass').value;
+  if(n)body.name=n;
+  if(e)body.email=e;
+  if(p){
+    if(p.length<6){if(err)err.textContent='Пароль от 6 символов';return;}
+    body.password=p;
+  }
+  try{
+    var r=await api('/users/me',{method:'PATCH',body:body});
+    currentUser=r.user;renderTop();
+    toast('Профиль обновлён','ok');
+    openProfileStats();
+  }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
+}
+
+async function uploadAvatar(file){
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('Файл больше 5 МБ','err');return;}
+  var fd=new FormData();fd.append('avatar',file);
+  try{
+    await apiForm('/users/me/avatar',fd);
+    // перезагрузить me
+    var me=await api('/auth/me');
+    currentUser=me.user;renderTop();
+    renderAvatar($('#editAvatar'),currentUser,80);
+    toast('Аватар обновлён','ok');
+  }catch(e){toast(e.message,'err');}
+}
+
+/* ============ AUTOJOIN ============ */
 async function tryAutoJoin(){
   var p=new URLSearchParams(location.search).get('join');
   if(!p)return;
@@ -1339,179 +1717,19 @@ async function tryAutoJoin(){
   }catch(e){toast(e.message,'err');}
 }
 
+/* ============ ENTER APP ============ */
 function enterApp(u){
   currentUser=u;renderTop();
   refreshNotifBadge();
   if(notifTimer)clearInterval(notifTimer);
   notifTimer=setInterval(refreshNotifBadge,30000);
-  if(u.role==='teacher')goTeacher();else goStudent();
+  if(isTeacherLike())goTeacher();
+  else if(u.role==='librarian')openLibrary();
+  else goStudent();
 }
 
+/* ============ BOOT ============ */
 async function boot(){
-  // 1. Получаем username бота для виджета Telegram
   try{
-    var tgInfo = await fetch('/api/telegram/bot-info').then(function(r){return r.json();});
-    if(tgInfo && tgInfo.username) window.TELEGRAM_BOT_USERNAME = tgInfo.username;
-  }catch(e){}
-
-  initEditorFields();
-
-  // 2. Обработчики шапки
-  var bt=$('#btnTheme');
-  if(bt)bt.onclick=function(){
-    var cur=document.documentElement.getAttribute('data-theme');
-    applyTheme(cur==='dark'?'light':'dark');
-  };
-  var bn=$('#btnNotif');
-  if(bn)bn.onclick=function(e){
-    e.stopPropagation();
-    notifOpen=!notifOpen;
-    var p=$('#notifPanel');if(p)p.hidden=!notifOpen;
-    if(notifOpen)loadNotifications();
-  };
-  var bprof=$('#btnProfile');
-  if(bprof)bprof.onclick=openProfile;
-
-  document.addEventListener('click',function(e){
-    if(!notifOpen)return;
-    if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
-    closeNotifPanel();
-  });
-
-  // 3. Профиль — модалка
-  var bcp=$('#btnCloseProfile');
-  if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
-  var pm=$('#profileModal');
-  if(pm)pm.addEventListener('click',function(e){
-    if(e.target.id==='profileModal')$('#profileModal').hidden=true;
-  });
-  $$('.theme-option').forEach(function(b){
-    b.onclick=function(){
-      applyTheme(b.dataset.themeSet);
-      $$('.theme-option').forEach(function(x){x.classList.toggle('active',x===b);});
-    };
-  });
-
-  // 4. Показать пароль
-  $$('.pass-toggle').forEach(function(btn){
-    btn.onclick=function(){
-      var inp=$('#'+btn.dataset.target);if(!inp)return;
-      var isPass=inp.type==='password';
-      inp.type=isPass?'text':'password';
-      btn.textContent=isPass?'🙈':'👁';
-    };
-  });
-
-  // 5. Enter на формах
-  ['loginEmail','loginPass'].forEach(function(id){
-    var el=$('#'+id);
-    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
-  });
-  ['regName','regEmail','regPass'].forEach(function(id){
-    var el=$('#'+id);
-    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});
-  });
-  var jc=$('#joinCode');
-  if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
-
-  // 6. Табы
-  $$('.tab').forEach(function(t){
-    if(!t.dataset.tab)return;
-    t.onclick=function(){
-      $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
-      var isL=t.dataset.tab==='login';
-      $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
-      var ae=$('#authErr');if(ae)ae.textContent='';
-      setTimeout(function(){(isL?$('#loginEmail'):$('#regName')).focus();},50);
-    };
-  });
-  $$('[data-ttab]').forEach(function(t){t.onclick=function(){
-    $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
-    $('#tt-tests').hidden=t.dataset.ttab!=='tests';
-    $('#tt-classes').hidden=t.dataset.ttab!=='classes';
-  };});
-  $$('[data-stab]').forEach(function(t){t.onclick=function(){
-    $$('[data-stab]').forEach(function(x){x.classList.toggle('active',x===t);});
-    $('#st-tests').hidden=t.dataset.stab!=='tests';
-    $('#st-classes').hidden=t.dataset.stab!=='classes';
-  };});
-  $$('.sym-tab').forEach(function(t){
-    t.onclick=function(){
-      $$('.sym-tab').forEach(function(x){x.classList.toggle('active',x===t);});
-      currentSymTab=t.dataset.symtab;
-      buildSymbolBar($('#symbolBar'));
-    };
-  });
-
-  // 7. Кнопки авторизации
-  $('#doLogin').onclick=async function(){
-    var ae=$('#authErr');if(ae)ae.textContent='';
-    try{
-      var r=await api('/auth/login',{method:'POST',body:{
-        email:$('#loginEmail').value.trim(),
-        password:$('#loginPass').value}});
-      setToken(r.token);enterApp(r.user);toast('Добро пожаловать!','ok');
-    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
-  };
-  $('#doRegister').onclick=async function(){
-    var ae=$('#authErr');if(ae)ae.textContent='';
-    try{
-      var r=await api('/auth/register',{method:'POST',body:{
-        name:$('#regName').value.trim(),
-        email:$('#regEmail').value.trim(),
-        password:$('#regPass').value,
-        role:$('#regRole').value}});
-      setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
-    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
-  };
-
-  // 8. Кнопки учителя
-  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
-  var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
-    var name=prompt('Название класса (например: Математика 101)');
-    if(!name||!name.trim())return;
-    try{await api('/classes',{method:'POST',body:{name:name.trim()}});
-      toast('Класс создан','ok');goTeacher();}
-    catch(e){toast(e.message,'err');}
-  };
-  var bbt=$('#btnBackToTeacher');if(bbt)bbt.onclick=goTeacher;
-  var bbfc=$('#btnBackFromClass');if(bbfc)bbfc.onclick=goTeacher;
-  var bbft=$('#btnBackFromTake');if(bbft)bbft.onclick=function(){
-    if(confirm('Выйти? Черновик сохранён — можно продолжить позже.')){
-      if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
-      goStudent();
-    }
-  };
-  var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
-  var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
-
-  // 9. Наверх
-  var tt=$('#toTop');
-  window.addEventListener('scroll',function(){
-    if(tt)tt.classList.toggle('show',window.scrollY>300);
-  });
-  if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
-
-  // 10. Показываем шапку и экран входа
-  renderTop();
-
-  // 11. Проверка токена
-  if(getToken()){
-    try{
-      var r=await api('/auth/me');
-      enterApp(r.user);
-      if(r.user.role==='student')await tryAutoJoin();
-      return;
-    }catch(e){
-      setToken(null);
-    }
-  }
-
-  // 12. Инициализируем Google и Telegram
-  initGoogleLogin();
-  initTelegramLogin();
-  show('view-auth');
-  setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
-}
-document.addEventListener('DOMContentLoaded',boot);
-})();
+    var tgInfo=await fetch('/api/telegram/bot-info').then(function(r){return r.json();});
+    if(tgInfo&&tgInfo.username)window.TELEGRAM_BOT_USERNAME=tgInfo.username;
