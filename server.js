@@ -148,7 +148,7 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_gs_student ON group_students(student_id);
     CREATE INDEX IF NOT EXISTS idx_books_owner ON books(owner_id);
     CREATE INDEX IF NOT EXISTS idx_msg_class ON messages(class_id, created_at DESC);
-        CREATE TABLE IF NOT EXISTS action_logs (
+    CREATE TABLE IF NOT EXISTS action_logs (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       user_name TEXT NOT NULL,
@@ -158,6 +158,20 @@ async function initDB() {
     );
     CREATE INDEX IF NOT EXISTS idx_logs_at ON action_logs(at DESC);
   `);
+}
+
+/* ---------- Логи действий ---------- */
+async function logAction(userId, userName, action, details) {
+  try {
+    await pool.query(
+      `INSERT INTO action_logs (id, user_id, user_name, action, details, at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [uid(), userId, userName, action, details || null, Date.now()]);
+    await pool.query(
+      `DELETE FROM action_logs WHERE id IN (
+         SELECT id FROM action_logs ORDER BY at DESC OFFSET 1000
+       )`);
+  } catch (e) { /* тихо */ }
 }
 
 /* ---------- Хелперы ---------- */
@@ -311,20 +325,6 @@ async function notify(userId, type, title, text, link) {
 
 /* ---------- Express ---------- */
 const app = express();
-// Логи действий
-async function logAction(userId, userName, action, details) {
-  try {
-    await pool.query(
-      `INSERT INTO action_logs (id, user_id, user_name, action, details, at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [uid(), userId, userName, action, details || null, Date.now()]);
-    // Чистим старые — оставляем 1000 последних
-    await pool.query(
-      `DELETE FROM action_logs WHERE id IN (
-         SELECT id FROM action_logs ORDER BY at DESC OFFSET 1000
-       )`);
-  } catch (e) { /* тихо */ }
-}
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
@@ -380,6 +380,7 @@ app.post('/api/auth/register', async (req, res) => {
       `INSERT INTO users (id,name,email,pass,role,link_code,created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [id, name.trim(), e, await bcrypt.hash(password, 10), finalRole, uid() + uid(), Date.now()]);
+    await logAction(id, name.trim(), 'Регистрация', e + ' (' + finalRole + ')');
     const token = jwt.sign({ id, role: finalRole, name: name.trim() }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id, name: name.trim(), role: finalRole } });
   } catch (err) {
@@ -395,7 +396,6 @@ app.post('/api/auth/login', async (req, res) => {
     if (!u || !(await bcrypt.compare(password || '', u.pass)))
       return res.status(401).json({ error: 'Неверный email или пароль' });
 
-    // Автоповышение до админа, если email совпадает с ADMIN_EMAIL
     let role = u.role;
     if (process.env.ADMIN_EMAIL &&
         u.email.toLowerCase().trim() === process.env.ADMIN_EMAIL.toLowerCase().trim() &&
@@ -523,14 +523,12 @@ app.post('/api/users/me/avatar', auth, uploadSmall.single('avatar'), async (req,
     if (!s3) return res.status(400).json({ error: 'Хранилище не настроено' });
 
     const u = await getUserById(req.user.id);
-    // сжимаем до 400x400
     const buf = await sharp(req.file.buffer)
       .resize(400, 400, { fit: 'cover' })
       .jpeg({ quality: 85 })
       .toBuffer();
 
     const key = 'avatars/' + u.id + '_' + Date.now() + '.jpg';
-    // удалить старый
     if (u.avatar_key) await s3Del(u.avatar_key);
     await s3Put(key, buf, 'image/jpeg');
     await pool.query('UPDATE users SET avatar_key=$1 WHERE id=$2', [key, u.id]);
@@ -542,7 +540,6 @@ app.get('/api/users/:id/avatar', async (req, res) => {
   try {
     const u = await getUserById(req.params.id);
     if (!u || !u.avatar_key) {
-      // отдаём прозрачный 1x1 PNG
       const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
       res.setHeader('Content-Type', 'image/png');
       return res.send(png);
@@ -623,6 +620,7 @@ app.post('/api/classes', auth, teacherOnly, async (req, res) => {
     const id = uid();
     await pool.query('INSERT INTO classes (id,name,code,teacher_id,created_at) VALUES ($1,$2,$3,$4,$5)',
       [id, name.trim(), c, req.user.id, Date.now()]);
+    await logAction(req.user.id, req.user.name, 'Создал класс', name.trim() + ' (' + c + ')');
     res.json({ class: { id, name: name.trim(), code: c, teacherId: req.user.id } });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -639,6 +637,7 @@ app.delete('/api/classes/:id', auth, teacherOnly, async (req, res) => {
     for (const g of gs.rows) await pool.query('DELETE FROM group_students WHERE group_id=$1', [g.id]);
     await pool.query('DELETE FROM groups WHERE class_id=$1', [c.id]);
     await pool.query('DELETE FROM messages WHERE class_id=$1', [c.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил класс', c.name);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -851,7 +850,6 @@ app.post('/api/classes/:id/messages', auth, uploadSmall.single('file'), async (r
       [id, c.id, req.user.id, req.user.name, text || null,
        fileKey, fileName, fileType, fileSize, Date.now()]);
 
-    // ограничение: не более 50 вложений в классе
     const cnt = await pool.query(
       'SELECT COUNT(*)::int AS n FROM messages WHERE class_id=$1 AND file_key IS NOT NULL', [c.id]);
     if (cnt.rows[0].n > 50) {
@@ -888,7 +886,6 @@ app.delete('/api/messages/:id', auth, async (req, res) => {
     const r = await pool.query('SELECT * FROM messages WHERE id=$1', [req.params.id]);
     const m = r.rows[0];
     if (!m) return res.status(404).json({ error: 'Сообщение не найдено' });
-    // удалять может только автор
     if (m.user_id !== req.user.id)
       return res.status(403).json({ error: 'Можно удалять только свои сообщения' });
     if (m.file_key) await s3Del(m.file_key);
@@ -930,7 +927,6 @@ app.get('/api/books', auth, async (req, res) => {
       createdAt: Number(b.created_at)
     }));
 
-    // фильтр поиска
     if (search) {
       books = books.filter(b =>
         (b.title || '').toLowerCase().includes(search) ||
@@ -938,11 +934,9 @@ app.get('/api/books', auth, async (req, res) => {
         (b.subject || '').toLowerCase().includes(search) ||
         (b.description || '').toLowerCase().includes(search));
     }
-    // фильтр по классу
     if (filterClass) {
       books = books.filter(b => b.classIds.includes(filterClass));
     }
-    // имена владельцев
     for (const b of books) {
       const u = await getUserById(b.ownerId);
       b.ownerName = u ? u.name : '—';
@@ -978,6 +972,7 @@ app.post('/api/books', auth, canUploadBooks, upload.single('file'), async (req, 
        author ? author.trim() : null, subject ? subject.trim() : null,
        description ? description.trim() : null, JSON.stringify(parsedCids),
        fileKey, fileName, fileType, fileSize, Date.now()]);
+    await logAction(req.user.id, req.user.name, 'Загрузил книгу', title.trim());
 
     for (const cid of parsedCids) {
       const studs = await getStudentsInClass(cid);
@@ -1018,6 +1013,7 @@ app.delete('/api/books/:id', auth, async (req, res) => {
     if (b.file_key) await s3Del(b.file_key);
     if (b.cover_key) await s3Del(b.cover_key);
     await pool.query('DELETE FROM books WHERE id=$1', [b.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил книгу', b.title);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1044,7 +1040,6 @@ app.get('/api/tests', auth, async (req, res) => {
         settings: normSettings(t.settings), unseen: t.unseen
       })) });
     }
-    // student
     const myCids = await getClassIdsForStudent(req.user.id);
     if (!myCids.length) return res.json({ tests: [] });
     const r = await pool.query('SELECT * FROM tests WHERE class_ids ?| $1::text[]', [myCids]);
@@ -1101,6 +1096,7 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
       await notify(sid, 'new_test', 'Новая работа',
         'Учитель назначил «' + title.trim() + '»', { testId: id });
     }
+    await logAction(req.user.id, req.user.name, 'Создал работу', title.trim());
     res.json({ id });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1141,6 +1137,7 @@ app.delete('/api/tests/:id', auth, teacherOnly, async (req, res) => {
       return res.status(403).json({ error: 'Нет доступа' });
     await pool.query('DELETE FROM submissions WHERE test_id=$1', [t.id]);
     await pool.query('DELETE FROM tests WHERE id=$1', [t.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил работу', t.title);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1430,7 +1427,6 @@ app.get('/api/profile/student', auth, async (req, res) => {
       `SELECT COUNT(*)::int AS n FROM books
        WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]`, [myCids])).rows[0].n;
 
-    // полный прогресс
     const all = (await pool.query(
       `SELECT s.id,s.score,s.max,s.at,s.attempt,t.title AS test_title,c.name AS class_name,s.class_id
        FROM submissions s
@@ -1442,7 +1438,6 @@ app.get('/api/profile/student', auth, async (req, res) => {
                    className: r.class_name, classId: r.class_id,
                    pct: r.max ? Math.round(r.score / r.max * 100) : 0 }));
 
-    // разбивка по классам
     const byClass = {};
     all.forEach(s => {
       if (!byClass[s.classId]) byClass[s.classId] = { name: s.className, count: 0, sumPct: 0, best: 0, worst: 100 };
@@ -1468,6 +1463,18 @@ app.get('/api/profile/student', auth, async (req, res) => {
 /* =========================================================
    АДМИН
    ========================================================= */
+app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
+  try{
+    const limit = Math.min(500, parseInt(req.query.limit) || 200);
+    const r = await pool.query(
+      'SELECT * FROM action_logs ORDER BY at DESC LIMIT $1', [limit]);
+    res.json({ logs: r.rows.map(l => ({
+      id: l.id, userId: l.user_id, userName: l.user_name,
+      action: l.action, details: l.details, at: Number(l.at)
+    })) });
+  }catch(e){ res.status(500).json({ error: 'Ошибка' }); }
+});
+
 app.get('/api/admin/users', auth, adminOnly, async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim().toLowerCase();
@@ -1523,15 +1530,21 @@ app.post('/api/admin/users/:id/role', auth, adminOnly, async (req, res) => {
     if (req.params.id === req.user.id)
       return res.status(400).json({ error: 'Нельзя менять свою роль' });
     await pool.query('UPDATE users SET role=$1 WHERE id=$2', [role, req.params.id]);
+    const target = await getUserById(req.params.id);
+    await logAction(req.user.id, req.user.name, 'Сменил роль',
+      (target ? target.name : req.params.id) + ' → ' + role);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 app.post('/api/admin/users/:id/reset-password', auth, adminOnly, async (req, res) => {
   try {
-    const newPass = crypto.randomBytes(4).toString('hex'); // 8 символов
+    const newPass = crypto.randomBytes(4).toString('hex');
     await pool.query('UPDATE users SET pass=$1 WHERE id=$2',
       [await bcrypt.hash(newPass, 10), req.params.id]);
+    const target = await getUserById(req.params.id);
+    await logAction(req.user.id, req.user.name, 'Сбросил пароль',
+      target ? target.name + ' (' + target.email + ')' : req.params.id);
     res.json({ password: newPass });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1542,12 +1555,12 @@ app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'Нельзя удалить себя' });
     const u = await getUserById(req.params.id);
     if (!u) return res.status(404).json({ error: 'Не найден' });
-    // удалить данные
     if (u.avatar_key) await s3Del(u.avatar_key);
     await pool.query('DELETE FROM users WHERE id=$1', [u.id]);
     await pool.query('DELETE FROM class_students WHERE student_id=$1', [u.id]);
     await pool.query('DELETE FROM group_students WHERE student_id=$1', [u.id]);
     await pool.query('DELETE FROM notifications WHERE user_id=$1', [u.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил пользователя', u.name + ' (' + u.email + ')');
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1571,7 +1584,7 @@ app.use((err, req, res, next) => {
   catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
   app.listen(PORT, () => {
     console.log('═══════════════════════════════════');
-    console.log('✅ MathTest v2 запущен');
+    console.log('✅ MathTest v2.1 запущен');
     console.log('🌐 Порт: ' + PORT);
     console.log('🗄️  БД: PostgreSQL');
     console.log('📦 Файлы: ' + (s3 ? 'Backblaze B2' : '❌ не настроены'));
