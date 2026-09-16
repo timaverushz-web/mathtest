@@ -6,6 +6,10 @@
 <title>MathTest — конструктор контрольных работ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+  /* Гарантия: неактивные секции скрыты, даже если CSS не загрузился */
+  .view:not(.active) { display: none !important; }
+</style>
 <link rel="stylesheet" href="/style.css">
 <meta name="theme-color" content="#ff6b1f">
 <link rel="manifest" href="/manifest.json">
@@ -27,6 +31,7 @@
     <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
     <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
@@ -43,6 +48,8 @@
     <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
     <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
   </defs>
 </svg>
 
@@ -97,33 +104,51 @@
 <main>
 
 <!-- ==================== ЛЕНДИНГ ==================== -->
-<section id="view-landing" class="view active">
+<section id="view-landing" class="view">
   <div class="landing">
-    <!-- Декоративные математические символы -->
     <span class="math-deco d1">∑</span>
     <span class="math-deco d2">∫</span>
     <span class="math-deco d3">π</span>
     <span class="math-deco d4">√</span>
 
-    <div class="landing-hero">
-      <div class="landing-badge">
-        <span class="dot"></span>
-        Работает для школы и вуза
+    <div class="hero-2col">
+      <div class="hero-text">
+        <div class="landing-badge">
+          <span class="dot"></span>
+          Работает для школы и вуза
+        </div>
+        <h1 class="landing-h1">
+          Конструктор<br>
+          контрольных<br>
+          по <span class="accent">математике</span>
+        </h1>
+        <p class="landing-sub">
+          Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку. Всё в одном месте.
+        </p>
+        <div class="landing-cta">
+          <button class="primary" id="landingStart">Начать</button>
+          <button class="ghost" id="landingLogin">Войти</button>
+        </div>
       </div>
 
-      <h1 class="landing-h1">
-        Конструктор<br>
-        контрольных работ<br>
-        по <span class="accent">высшей математике</span>
-      </h1>
-
-      <p class="landing-sub">
-        Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку книг. Всё в одном месте — без бумажной волокиты.
-      </p>
-
-      <div class="landing-cta">
-        <button class="primary" id="landingStart">Начать бесплатно</button>
-        <button class="ghost" id="landingLogin">Войти в аккаунт</button>
+      <div class="hero-visual">
+        <div class="stat-badge">
+          <span class="big">100%</span>
+          Автопроверка
+        </div>
+        <span class="big-symbol">∫</span>
+        <div class="formula-card card-1">
+          <div class="fc-label">Формула</div>
+          <div>√16 = 4</div>
+        </div>
+        <div class="formula-card card-2">
+          <div class="fc-label">Интеграл</div>
+          <div>∫₀¹ x² dx</div>
+        </div>
+        <div class="formula-card card-3">
+          <div class="fc-label">Проверено</div>
+          <div style="color:var(--ok);font-weight:800">✓ 8 / 10</div>
+        </div>
       </div>
     </div>
 
@@ -164,29 +189,29 @@
       <div class="landing-feature">
         <div class="lf-icon"><svg><use href="#i-users"/></svg></div>
         <h3>Классы и группы</h3>
-        <p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам. Учитель видит, кто сдал и кто нет.</p>
+        <p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам.</p>
       </div>
       <div class="landing-feature">
         <div class="lf-icon"><svg><use href="#i-book"/></svg></div>
         <h3>Библиотека книг</h3>
-        <p>Загружайте учебники и пособия, выдавайте доступ классам. Ученики читают прямо в браузере или скачивают.</p>
+        <p>Загружайте учебники и пособия, выдавайте доступ классам. Ученики читают прямо в браузере.</p>
       </div>
       <div class="landing-feature">
         <div class="lf-icon"><svg><use href="#i-chat"/></svg></div>
         <h3>Чат класса</h3>
-        <p>Обсуждайте задачи в чате класса. Обмен файлами, уведомления в Telegram — всё под рукой.</p>
+        <p>Обсуждайте задачи в чате класса. Обмен файлами, уведомления в Telegram.</p>
       </div>
       <div class="landing-feature">
         <div class="lf-icon"><svg><use href="#i-crown"/></svg></div>
         <h3>Роли и права</h3>
-        <p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности. Никакой путаницы.</p>
+        <p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности.</p>
       </div>
     </div>
 
     <div class="landing-final">
       <h2>Готовы начать?</h2>
-      <p>Создайте первый класс за 30 секунд. Никаких ограничений, никакой платы.</p>
-      <button class="primary" id="landingStart2">Создать аккаунт</button>
+      <p>Создайте первый класс за 30 секунд. Никаких ограничений и платы.</p>
+      <button class="primary" id="landingStart2">Начать</button>
     </div>
 
     <div class="landing-footer">
@@ -214,7 +239,7 @@
         <div class="pass-wrap">
           <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
           <button type="button" class="pass-toggle" data-target="loginPass">
-            <svg><use href="#i-search"/></svg>
+            <svg><use href="#i-lock"/></svg>
           </button>
         </div>
       </label>
@@ -238,7 +263,7 @@
         <div class="pass-wrap">
           <input id="regPass" type="password" placeholder="••••••••">
           <button type="button" class="pass-toggle" data-target="regPass">
-            <svg><use href="#i-search"/></svg>
+            <svg><use href="#i-lock"/></svg>
           </button>
         </div>
       </label>
@@ -258,11 +283,16 @@
 
 <!-- ==================== УЧИТЕЛЬ ==================== -->
 <section id="view-teacher" class="view">
-  <div class="row" style="margin-bottom:36px">
+  <div class="row" style="margin-bottom:24px">
     <h1 class="page-title" style="flex:1">Кабинет</h1>
     <button class="primary" id="btnNewClass"><svg><use href="#i-plus"/></svg> Класс</button>
     <button class="primary" id="btnNewTest"><svg><use href="#i-plus"/></svg> Работа</button>
   </div>
+
+  <div class="dash-summary" id="teacherSummary"></div>
+
+  <div class="quick-actions" id="teacherQuickActions"></div>
+
   <div class="tabs">
     <button class="tab active" data-ttab="tests">Работы</button>
     <button class="tab" data-ttab="classes">Классы</button>
@@ -286,10 +316,10 @@
   <div class="card">
     <h3>Настройки работы</h3>
     <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-      <label>⏱ Время (минут, 0 = без ограничения)
+      <label>Время (минут, 0 = без ограничения)
         <input id="setTimeLimit" type="number" value="0" min="0">
       </label>
-      <label>🎯 Попыток (0 = без ограничения)
+      <label>Попыток (0 = без ограничения)
         <input id="setAttempts" type="number" value="1" min="0">
       </label>
     </div>
@@ -393,7 +423,10 @@
 
 <!-- ==================== УЧЕНИК ==================== -->
 <section id="view-student" class="view">
-  <h1 class="page-title" style="margin-bottom:36px">Мой кабинет</h1>
+  <h1 class="page-title" style="margin-bottom:24px">Мой кабинет</h1>
+
+  <div class="dash-summary" id="studentSummary"></div>
+
   <div class="tabs">
     <button class="tab active" data-stab="tests">Мои работы</button>
     <button class="tab" data-stab="classes">Мои классы</button>
@@ -414,15 +447,15 @@
 
 <!-- ==================== ПРОХОЖДЕНИЕ ==================== -->
 <section id="view-take" class="view">
-  <div class="row" style="margin-bottom:36px">
+  <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 id="takeTitle" class="page-title" style="margin:0;flex:1"></h1>
-    <button class="primary" id="btnSubmitTest">Завершить</button>
+    <button class="primary" id="btnSubmitTest"><svg><use href="#i-check"/></svg> Завершить</button>
   </div>
-  <div class="progress-bar" id="progressBar">
-    <span class="progress-text" id="progressText">Заполнено: 0 из 0</span>
-    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    <span class="progress-text" id="progressPct">0%</span>
+  <div class="take-slider" id="takeSlider">
+    <div class="ts-info" id="tsInfo">Задача <b>1</b> из <b>1</b></div>
+    <div class="ts-track"><div class="ts-fill" id="tsFill" style="width:0%"></div></div>
+    <div class="ts-dots" id="tsDots"></div>
     <div class="timer" id="timerDisplay" hidden>00:00</div>
   </div>
   <div class="draft-hint" id="draftHint" hidden></div>
