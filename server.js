@@ -21,6 +21,20 @@ const code = () => {
   return s;
 };
 
+const DEFAULT_SETTINGS = {
+  timeLimit:   0,     // минут, 0 = без ограничения
+  attempts:    1,     // попыток, 0 = без ограничения
+  showAnswers: true   // показывать правильный ответ после сдачи
+};
+function normSettings(s) {
+  s = s || {};
+  return {
+    timeLimit:   Math.max(0, parseInt(s.timeLimit)  || 0),
+    attempts:    Math.max(0, parseInt(s.attempts)   || 0),
+    showAnswers: s.showAnswers !== false
+  };
+}
+
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -37,9 +51,14 @@ function teacherOnly(req, res, next) {
   if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Только для учителя' });
   next();
 }
+function escapeCsv(v) {
+  v = String(v == null ? '' : v);
+  if (v.includes(',') || v.includes('"') || v.includes('\n')) return '"' + v.replace(/"/g, '""') + '"';
+  return v;
+}
 
 /* =========================================================
-   АУТЕНТИФИКАЦИЯ (без подтверждения почты)
+   АУТЕНТИФИКАЦИЯ
    ========================================================= */
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, role } = req.body || {};
@@ -47,11 +66,9 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Заполните все поля' });
   if (password.length < 6)
     return res.status(400).json({ error: 'Пароль минимум 6 символов' });
-
   const e = email.toLowerCase().trim();
   if (db.users.some(u => u.email === e))
     return res.status(409).json({ error: 'Email уже занят' });
-
   const user = {
     id: uid(), name: name.trim(), email: e, role,
     pass: await bcrypt.hash(password, 10), createdAt: Date.now()
@@ -76,12 +93,9 @@ app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
    КЛАССЫ
    ========================================================= */
 app.get('/api/classes', auth, (req, res) => {
-  let list;
-  if (req.user.role === 'teacher') {
-    list = db.classes.filter(c => c.teacherId === req.user.id);
-  } else {
-    list = db.classes.filter(c => c.studentIds.includes(req.user.id));
-  }
+  let list = req.user.role === 'teacher'
+    ? db.classes.filter(c => c.teacherId === req.user.id)
+    : db.classes.filter(c => c.studentIds.includes(req.user.id));
   const enriched = list.map(c => {
     const teacher = db.users.find(u => u.id === c.teacherId);
     return {
@@ -135,12 +149,10 @@ app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Класс не найден' });
   if (c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
-
   const students = c.studentIds.map(id => {
     const u = db.users.find(x => x.id === id);
     return u ? { id: u.id, name: u.name, email: u.email } : null;
   }).filter(Boolean);
-
   const classTests = db.tests
     .filter(t => (t.classIds || []).includes(c.id))
     .map(t => {
@@ -152,7 +164,6 @@ app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
         unseen: subs.filter(s => !s.seen).length
       };
     });
-
   res.json({ class: { id: c.id, name: c.name, code: c.code }, students, tests: classTests });
 });
 
@@ -173,37 +184,43 @@ app.get('/api/tests', auth, (req, res) => {
     list = list.map(t => ({
       id: t.id, title: t.title, tasks: t.tasks,
       classIds: t.classIds || [],
+      settings: normSettings(t.settings),
       unseen: db.submissions.filter(s => s.testId === t.id && !s.seen).length
     }));
   } else {
     const myCids = db.classes.filter(c => c.studentIds.includes(req.user.id)).map(c => c.id);
     list = db.tests
       .filter(t => (t.classIds || []).some(id => myCids.includes(id)))
-      .map(t => ({
-        id: t.id,
-        title: t.title,
-        tasks: t.tasks.map(x => {
-          const c = { id: x.id, type: x.type, statement: x.statement, points: x.points };
-          if (x.type === 'choice') c.options = x.options;
-          return c;
-        }),
-        classIds: (t.classIds || []).filter(id => myCids.includes(id)),
-        mySubmission: (() => {
-          const s = db.submissions.filter(x => x.testId === t.id && x.studentId === req.user.id).pop();
-          return s ? { score: s.score, max: s.max, at: s.at } : null;
-        })()
-      }));
+      .map(t => {
+        const mySubs = db.submissions.filter(x => x.testId === t.id && x.studentId === req.user.id);
+        const lastSub = mySubs.sort((a,b) => b.at - a.at)[0];
+        return {
+          id: t.id,
+          title: t.title,
+          tasks: t.tasks.map(x => {
+            const c = { id: x.id, type: x.type, statement: x.statement, points: x.points };
+            if (x.type === 'choice') c.options = x.options;
+            return c;
+          }),
+          classIds: (t.classIds || []).filter(id => myCids.includes(id)),
+          settings: normSettings(t.settings),
+          attemptsUsed: mySubs.length,
+          mySubmission: lastSub ? { score: lastSub.score, max: lastSub.max, at: lastSub.at } : null
+        };
+      });
   }
   res.json({ tests: list });
 });
 
 app.post('/api/tests', auth, teacherOnly, (req, res) => {
-  const { title, tasks, classIds } = req.body || {};
+  const { title, tasks, classIds, settings } = req.body || {};
   if (!title || !Array.isArray(tasks) || !tasks.length)
     return res.status(400).json({ error: 'Нужно название и задания' });
   const t = {
     id: uid(), ownerId: req.user.id, title: title.trim(),
-    tasks, classIds: classIds || [], createdAt: Date.now()
+    tasks, classIds: classIds || [],
+    settings: normSettings(settings),
+    createdAt: Date.now()
   };
   db.tests.push(t); save();
   res.json({ id: t.id });
@@ -212,10 +229,26 @@ app.post('/api/tests', auth, teacherOnly, (req, res) => {
 app.put('/api/tests/:id', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
   if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
-  const { title, tasks, classIds } = req.body || {};
+  const { title, tasks, classIds, settings } = req.body || {};
   t.title = title; t.tasks = tasks; t.classIds = classIds || [];
+  t.settings = normSettings(settings);
   save();
   res.json({ ok: true });
+});
+
+app.post('/api/tests/:id/duplicate', auth, teacherOnly, (req, res) => {
+  const t = db.tests.find(x => x.id === req.params.id);
+  if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  const copy = {
+    id: uid(), ownerId: req.user.id,
+    title: t.title + ' (копия)',
+    tasks: JSON.parse(JSON.stringify(t.tasks)),
+    classIds: [],
+    settings: normSettings(t.settings),
+    createdAt: Date.now()
+  };
+  db.tests.push(copy); save();
+  res.json({ id: copy.id });
 });
 
 app.delete('/api/tests/:id', auth, teacherOnly, (req, res) => {
@@ -228,7 +261,7 @@ app.delete('/api/tests/:id', auth, teacherOnly, (req, res) => {
 });
 
 /* =========================================================
-   СДАЧА + автопроверка
+   АВТОПРОВЕРКА
    ========================================================= */
 let nerdamer = null;
 try { nerdamer = require('nerdamer/all'); } catch (e) { try { nerdamer = require('nerdamer'); } catch (e2) {} }
@@ -258,6 +291,9 @@ function isCorrect(student, correct, tol = 1e-6) {
   return false;
 }
 
+/* =========================================================
+   СДАЧА РАБОТЫ
+   ========================================================= */
 app.post('/api/tests/:id/submit', auth, (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ error: 'Только для учеников' });
   const t = db.tests.find(x => x.id === req.params.id);
@@ -266,6 +302,20 @@ app.post('/api/tests/:id/submit', auth, (req, res) => {
   const myCids = db.classes.filter(c => c.studentIds.includes(req.user.id)).map(c => c.id);
   const classId = (t.classIds || []).find(id => myCids.includes(id));
   if (!classId) return res.status(403).json({ error: 'Работа не для вашего класса' });
+
+  const settings = normSettings(t.settings);
+
+  /* проверка лимита попыток */
+  const myAttempts = db.submissions.filter(s => s.testId === t.id && s.studentId === req.user.id).length;
+  if (settings.attempts > 0 && myAttempts >= settings.attempts) {
+    return res.status(400).json({ error: 'Достигнут лимит попыток (' + settings.attempts + ')' });
+  }
+
+  /* проверка времени */
+  const startedAt = Number(req.body.startedAt) || Date.now();
+  const durationMs = Date.now() - startedAt;
+  const expired = settings.timeLimit > 0 &&
+                  durationMs > (settings.timeLimit * 60000) + 30000;
 
   const answers = req.body.answers || [];
   const results = t.tasks.map((task, i) => {
@@ -281,14 +331,39 @@ app.post('/api/tests/:id/submit', auth, (req, res) => {
 
   const sub = {
     id: uid(), testId: t.id, studentId: req.user.id, studentName: req.user.name,
-    classId, score, max, results, at: Date.now(), seen: false
+    classId, score, max, results,
+    attempt: myAttempts + 1,
+    startedAt, at: Date.now(),
+    durationMs,
+    expired: !!expired,
+    seen: false
   };
   db.submissions.push(sub); save();
-  res.json({ id: sub.id, score, max, results });
+
+  /* возвращаем клиенту результаты + правильные ответы (если разрешено) */
+  const resultsFull = results.map((r, i) => {
+    const task = t.tasks[i];
+    const out = { ok: r.ok, studentText: r.studentText };
+    if (settings.showAnswers && !r.ok) {
+      if (task.type === 'input') out.correctAnswer = task.answer;
+      else out.correctIndex = task.correctIndex;
+    }
+    return out;
+  });
+
+  res.json({
+    id: sub.id,
+    score, max,
+    results: resultsFull,
+    attempt: sub.attempt,
+    durationMs,
+    expired: sub.expired,
+    settings
+  });
 });
 
 /* =========================================================
-   РЕЗУЛЬТАТЫ
+   РЕЗУЛЬТАТЫ + АНАЛИТИКА
    ========================================================= */
 app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
@@ -303,8 +378,12 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
     if (!cls) return null;
     const subs = db.submissions
       .filter(s => s.testId === t.id && s.classId === cid)
-      .map(s => ({ id: s.id, studentId: s.studentId, studentName: s.studentName,
-                   score: s.score, max: s.max, at: s.at }));
+      .sort((a, b) => b.at - a.at)
+      .map(s => ({
+        id: s.id, studentId: s.studentId, studentName: s.studentName,
+        score: s.score, max: s.max, at: s.at,
+        attempt: s.attempt, durationMs: s.durationMs, expired: s.expired
+      }));
     const submittedIds = new Set(subs.map(s => s.studentId));
     const notSubmitted = cls.studentIds
       .filter(sid => !submittedIds.has(sid))
@@ -313,7 +392,67 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
     return { classId: cid, className: cls.name, submitted: subs, notSubmitted };
   }).filter(Boolean);
 
-  res.json({ groups });
+  /* аналитика по заданиям */
+  const relevantSubs = db.submissions.filter(s => s.testId === t.id && classIds.includes(s.classId));
+  const perTask = t.tasks.map((task, i) => {
+    let correct = 0, total = 0;
+    relevantSubs.forEach(s => {
+      total++;
+      if (s.results[i] && s.results[i].ok) correct++;
+    });
+    return {
+      index: i + 1,
+      statement: task.statement,
+      points: task.points || 1,
+      correct, total,
+      pct: total ? Math.round(correct / total * 100) : 0
+    };
+  });
+
+  res.json({
+    groups,
+    analytics: perTask,
+    settings: normSettings(t.settings)
+  });
+});
+
+/* ---------- экспорт в CSV ---------- */
+app.get('/api/tests/:id/export.csv', auth, teacherOnly, (req, res) => {
+  const t = db.tests.find(x => x.id === req.params.id);
+  if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+
+  const subs = db.submissions.filter(s => s.testId === t.id).sort((a, b) => a.at - b.at);
+  const taskCount = t.tasks.length;
+
+  const headers = ['Ученик', 'Класс', 'Дата', 'Попытка', 'Балл', 'Макс', '%', 'Время'];
+  for (let i = 1; i <= taskCount; i++) headers.push('Задание ' + i);
+
+  const rows = subs.map(s => {
+    const cls = db.classes.find(c => c.id === s.classId);
+    const pct = s.max ? Math.round(s.score / s.max * 100) : 0;
+    const dur = s.durationMs ? Math.round(s.durationMs / 1000) + ' с' : '';
+    const row = [
+      s.studentName,
+      cls ? cls.name : '—',
+      new Date(s.at).toLocaleString('ru-RU'),
+      s.attempt || 1,
+      s.score, s.max, pct + '%',
+      dur
+    ];
+    for (let i = 0; i < taskCount; i++) {
+      const r = s.results[i];
+      row.push(r ? (r.ok ? '✓' : '✗') : '');
+    }
+    return row;
+  });
+
+  const csv = [headers, ...rows].map(r => r.map(escapeCsv).join(',')).join('\r\n');
+  const bom = '\uFEFF';
+  const safeTitle = t.title.replace(/[^\p{L}\p{N}\-_]+/gu, '_').slice(0, 40);
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="results_' + safeTitle + '.csv"');
+  res.send(bom + csv);
 });
 
 app.get('/api/submissions/:id', auth, (req, res) => {
@@ -335,7 +474,11 @@ app.get('/api/submissions/:id', auth, (req, res) => {
   });
 
   res.json({
-    submission: { id: s.id, score: s.score, max: s.max, at: s.at, results: s.results },
+    submission: {
+      id: s.id, score: s.score, max: s.max, at: s.at,
+      results: s.results, attempt: s.attempt,
+      durationMs: s.durationMs, expired: s.expired
+    },
     test: { id: t.id, title: t.title, tasks }
   });
 });
