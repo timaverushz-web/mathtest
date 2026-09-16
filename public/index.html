@@ -44,35 +44,39 @@
       <button class="tab active" data-tab="login" style="flex:1">Вход</button>
       <button class="tab" data-tab="reg" style="flex:1">Регистрация</button>
     </div>
+
     <div id="loginForm">
       <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
       <label>Пароль<div class="pass-wrap"><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="loginPass">👁</button></div></label>
-                  <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
+      <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
 
-      <div style="margin-top:16px;text-align:center">
-        <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:16px 0">
-          <div style="flex:1;height:1px;background:var(--line)"></div>
-          <span>или войдите через</span>
-          <div style="flex:1;height:1px;background:var(--line)"></div>
-        </div>
+      <div class="social-login">
+        <div class="social-divider"><span>или войдите через</span></div>
 
         <div id="g_id_onload"
              data-client_id="279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com"
              data-callback="handleGoogleLogin"
              data-auto_prompt="false"></div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-size="large"
-             data-theme="outline"
-             data-shape="rectangular"
-             data-logo_alignment="center"
-             data-width="320"></div>
 
-        <div id="tgLoginWrap" style="display:flex;justify-content:center;margin-top:12px"></div>
-        <p class="err" id="googleLoginErr" style="text-align:center;margin-top:8px"></p>
-        <p class="err" id="tgLoginErr" style="text-align:center;margin-top:8px"></p>
+        <div class="social-buttons">
+          <div class="social-btn-box">
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="center"
+                 data-width="320"></div>
+          </div>
+          <div class="social-btn-box" id="tgLoginWrap"></div>
+        </div>
+
+        <p class="err" id="googleLoginErr"></p>
+        <p class="err" id="tgLoginErr"></p>
       </div>
     </div>
+
     <div id="regForm" hidden>
       <label>Имя<input id="regName" placeholder="Иван Петров"></label>
       <label>Email<input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
@@ -80,6 +84,7 @@
       <label>Роль<select id="regRole"><option value="teacher">Учитель</option><option value="student">Ученик</option></select></label>
       <button class="primary" id="doRegister" style="width:100%;margin-top:8px">Создать аккаунт →</button>
     </div>
+
     <p class="err" id="authErr" style="text-align:center"></p>
   </div>
 </section>
