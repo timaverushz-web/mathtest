@@ -16,9 +16,11 @@
   <div class="brand"><span class="sigma">∑</span><span>MathTest</span></div>
   <div class="spacer"></div>
   <button class="icon-btn" id="btnTheme" title="Переключить тему">🌙</button>
+  <button class="icon-btn" id="btnLibrary" title="Библиотека">📚</button>
   <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
     🔔<span class="notif-badge" id="notifBadge" hidden>0</span>
   </button>
+  <button class="icon-btn" id="btnAdmin" title="Админ-панель" hidden>👑</button>
   <button class="icon-btn" id="btnProfile" title="Профиль">⚙️</button>
   <div id="userBox"></div>
 </header>
@@ -35,6 +37,7 @@
 
 <main>
 
+<!-- ==================== АВТОРИЗАЦИЯ ==================== -->
 <section id="view-auth" class="view active">
   <div class="card narrow">
     <h2 style="text-align:center;margin-bottom:20px">
@@ -47,31 +50,20 @@
 
     <div id="loginForm">
       <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
-      <label>Пароль<div class="pass-wrap"><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="loginPass">👁</button></div></label>
+      <label>Пароль
+        <div class="pass-wrap">
+          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="pass-toggle" data-target="loginPass">👁</button>
+        </div>
+      </label>
       <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
 
       <div class="social-login">
         <div class="social-divider"><span>или войдите через</span></div>
-
-        <div id="g_id_onload"
-             data-client_id="279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com"
-             data-callback="handleGoogleLogin"
-             data-auto_prompt="false"></div>
-
         <div class="social-buttons">
-          <div class="social-btn-box">
-            <div class="g_id_signin"
-                 data-type="standard"
-                 data-shape="rectangular"
-                 data-theme="outline"
-                 data-text="signin_with"
-                 data-size="large"
-                 data-logo_alignment="center"
-                 data-width="320"></div>
-          </div>
-          <div class="social-btn-box" id="tgLoginWrap"></div>
+          <div class="social-btn-fixed" id="googleBtnBox"></div>
+          <div class="social-btn-fixed" id="tgLoginWrap"></div>
         </div>
-
         <p class="err" id="googleLoginErr"></p>
         <p class="err" id="tgLoginErr"></p>
       </div>
@@ -80,8 +72,19 @@
     <div id="regForm" hidden>
       <label>Имя<input id="regName" placeholder="Иван Петров"></label>
       <label>Email<input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
-      <label>Пароль (от 6 символов)<div class="pass-wrap"><input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="regPass">👁</button></div></label>
-      <label>Роль<select id="regRole"><option value="teacher">Учитель</option><option value="student">Ученик</option></select></label>
+      <label>Пароль (от 6 символов)
+        <div class="pass-wrap">
+          <input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••">
+          <button type="button" class="pass-toggle" data-target="regPass">👁</button>
+        </div>
+      </label>
+      <label>Роль
+        <select id="regRole">
+          <option value="student">Ученик</option>
+          <option value="teacher">Учитель</option>
+          <option value="librarian">Библиотекарь</option>
+        </select>
+      </label>
       <button class="primary" id="doRegister" style="width:100%;margin-top:8px">Создать аккаунт →</button>
     </div>
 
@@ -89,6 +92,7 @@
   </div>
 </section>
 
+<!-- ==================== УЧИТЕЛЬ ==================== -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:18px">
     <h2 style="margin:0;flex:1">Кабинет учителя</h2>
@@ -103,6 +107,7 @@
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
+<!-- ==================== РЕДАКТОР ==================== -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackToTeacher">← Назад</button>
@@ -135,7 +140,12 @@
   <div class="two-col">
     <div class="card">
       <h3>Конструктор задания</h3>
-      <label>Тип задания<select id="taskType"><option value="input">Ввод ответа (формула / число)</option><option value="choice">Выбор варианта</option></select></label>
+      <label>Тип задания
+        <select id="taskType">
+          <option value="input">Ввод ответа (формула / число)</option>
+          <option value="choice">Выбор варианта</option>
+        </select>
+      </label>
       <div class="muted" style="margin-top:14px">Условие задания</div>
       <div id="statementHost"></div>
       <div class="muted" style="margin-top:14px">Символы — клик вставит в последнее активное поле</div>
@@ -164,6 +174,7 @@
   </div>
 </section>
 
+<!-- ==================== КЛАСС ==================== -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromClass">← Назад</button>
@@ -172,6 +183,7 @@
     <div id="classCodeBig" class="code-box"></div>
     <button class="small" id="btnCopyInvite" title="Скопировать ссылку-приглашение">🔗 Ссылка</button>
   </div>
+
   <div class="two-col">
     <div class="card">
       <h3>Ученики <span id="classStuCount" class="pill">0</span></h3>
@@ -184,12 +196,28 @@
       <div id="classGroups" style="margin-top:12px"></div>
     </div>
   </div>
+
+  <div class="card">
+    <h3>💬 Чат класса</h3>
+    <div id="chatBox" class="chat-box">
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <button class="ghost small" id="btnChatFile" title="Прикрепить файл (до 5 МБ)">📎</button>
+        <input type="file" id="chatFileInput" hidden>
+        <input id="chatText" placeholder="Сообщение..." maxlength="1000">
+        <button class="primary small" id="btnChatSend">Отправить</button>
+      </div>
+      <div class="muted" id="chatFileName" style="margin-top:6px"></div>
+    </div>
+  </div>
+
   <div class="card">
     <h3>Работы класса</h3>
     <div id="classTests"></div>
   </div>
 </section>
 
+<!-- ==================== УЧЕНИК ==================== -->
 <section id="view-student" class="view">
   <h2 style="margin-bottom:18px">Кабинет ученика</h2>
   <div class="tabs">
@@ -210,6 +238,7 @@
   </div>
 </section>
 
+<!-- ==================== ПРОХОЖДЕНИЕ ==================== -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromTake">← Назад</button>
@@ -226,11 +255,13 @@
   <div id="takeBody"></div>
 </section>
 
+<!-- ==================== РЕЗУЛЬТАТ ==================== -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack">← К списку работ</button>
 </section>
 
+<!-- ==================== РЕЗУЛЬТАТЫ УЧИТЕЛЯ ==================== -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromSubs">← Назад</button>
@@ -241,8 +272,125 @@
   <div id="subsBody"></div>
 </section>
 
+<!-- ==================== БИБЛИОТЕКА ==================== -->
+<section id="view-library" class="view">
+  <div class="row" style="margin-bottom:18px">
+    <button class="ghost" id="btnBackFromLibrary">← Назад</button>
+    <h2 style="margin:0;flex:1">📚 Библиотека</h2>
+    <button class="primary" id="btnAddBook" hidden>+ Загрузить книгу</button>
+  </div>
+
+  <div class="card" id="bookUploadForm" hidden>
+    <h3>Загрузить книгу</h3>
+    <div class="two-col">
+      <label>Название<input id="bookTitle" placeholder="Математический анализ, том 1"></label>
+      <label>Автор<input id="bookAuthor" placeholder="Иванов И.И."></label>
+    </div>
+    <div class="two-col">
+      <label>Предмет<input id="bookSubject" placeholder="Математика"></label>
+      <label>Файл (PDF, EPUB, DJVU, DOCX — до 25 МБ)
+        <input id="bookFile" type="file" accept=".pdf,.epub,.djvu,.docx,.doc,.pptx,.ppt,.txt,image/*">
+      </label>
+    </div>
+    <label>Описание<textarea id="bookDescription" rows="3" placeholder="Краткое описание"></textarea></label>
+    <label>Доступно классам</label>
+    <div id="bookClassPicker"></div>
+    <p class="muted" style="font-size:12px;margin-top:6px">
+      Если ни один класс не отмечен — книга видна <b>всем</b>.
+    </p>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="btnSaveBook">Загрузить</button>
+      <button class="ghost" id="btnCancelBook">Отмена</button>
+    </div>
+    <p class="err" id="bookErr"></p>
+  </div>
+
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+    <input id="bookSearch" placeholder="🔍 Поиск по названию, автору, предмету..." style="flex:1;min-width:220px;margin:0">
+    <select id="bookClassFilter" style="width:auto;margin:0">
+      <option value="">Все классы</option>
+    </select>
+    <select id="bookSort" style="width:auto;margin:0">
+      <option value="new">Сначала новые</option>
+      <option value="title">По названию</option>
+      <option value="author">По автору</option>
+    </select>
+    <button class="ghost small" id="btnBookView" title="Переключить вид">📋 Список</button>
+  </div>
+
+  <div id="bookList"></div>
+</section>
+
+<!-- ==================== АДМИН-ПАНЕЛЬ ==================== -->
+<section id="view-admin" class="view">
+  <div class="row" style="margin-bottom:18px">
+    <button class="ghost" id="btnBackFromAdmin">← Назад</button>
+    <h2 style="margin:0;flex:1">👑 Админ-панель</h2>
+  </div>
+
+  <div id="adminStats" class="grid" style="margin-bottom:16px"></div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <input id="adminSearch" placeholder="🔍 Поиск по имени или email" style="flex:1;min-width:220px;margin:0">
+      <select id="adminRoleFilter" style="width:auto;margin:0">
+        <option value="">Все роли</option>
+        <option value="admin">Администратор</option>
+        <option value="teacher">Учитель</option>
+        <option value="librarian">Библиотекарь</option>
+        <option value="student">Ученик</option>
+      </select>
+    </div>
+    <div id="adminUsersList"></div>
+  </div>
+</section>
+
+<!-- ==================== ЛИЧНЫЙ КАБИНЕТ ==================== -->
+<section id="view-profile" class="view">
+  <div class="row" style="margin-bottom:18px">
+    <button class="ghost" id="btnBackFromProfile">← Назад</button>
+    <h2 style="margin:0;flex:1">👤 Личный кабинет</h2>
+    <button class="primary small" id="btnEditProfile">✏️ Редактировать</button>
+  </div>
+  <div id="profileStats"></div>
+</section>
+
+<!-- ==================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ==================== -->
+<section id="view-editprofile" class="view">
+  <div class="row" style="margin-bottom:18px">
+    <button class="ghost" id="btnBackFromEditProfile">← Назад</button>
+    <h2 style="margin:0;flex:1">✏️ Редактирование профиля</h2>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:center;gap:16px">
+      <div class="avatar" id="editAvatar" style="width:80px;height:80px;font-size:32px"></div>
+      <div>
+        <button class="primary small" id="btnUploadAvatar">📷 Загрузить фото</button>
+        <input type="file" id="avatarInput" hidden accept="image/*">
+        <div class="muted" style="margin-top:6px">JPG, PNG, WebP — до 5 МБ</div>
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--line-soft);margin:16px 0">
+
+    <label>Имя<input id="editName"></label>
+    <label>Email<input id="editEmail" type="email"></label>
+    <label>Новый пароль (оставьте пустым, чтобы не менять)
+      <input id="editPass" type="password" placeholder="••••••••">
+    </label>
+
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="btnSaveProfile">Сохранить</button>
+      <button class="ghost" id="btnCancelEdit">Отмена</button>
+    </div>
+    <p class="err" id="editErr"></p>
+  </div>
+</section>
+
 </main>
 
+<!-- ==================== МОДАЛКА ПРОФИЛЯ ==================== -->
 <div id="profileModal" class="modal-overlay" hidden>
   <div class="modal-card">
     <div class="modal-head">
