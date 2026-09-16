@@ -148,6 +148,15 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_gs_student ON group_students(student_id);
     CREATE INDEX IF NOT EXISTS idx_books_owner ON books(owner_id);
     CREATE INDEX IF NOT EXISTS idx_msg_class ON messages(class_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS action_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      user_name TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_logs_at ON action_logs(at DESC);
   `);
 }
 
@@ -302,8 +311,29 @@ async function notify(userId, type, title, text, link) {
 
 /* ---------- Express ---------- */
 const app = express();
+// Логи действий
+async function logAction(userId, userName, action, details) {
+  try {
+    await pool.query(
+      `INSERT INTO action_logs (id, user_id, user_name, action, details, at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [uid(), userId, userName, action, details || null, Date.now()]);
+    // Чистим старые — оставляем 1000 последних
+    await pool.query(
+      `DELETE FROM action_logs WHERE id IN (
+         SELECT id FROM action_logs ORDER BY at DESC OFFSET 1000
+       )`);
+  } catch (e) { /* тихо */ }
+}
 app.use(express.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('sw.js')) {
+      res.setHeader('Service-Worker-Allowed', '/');
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
