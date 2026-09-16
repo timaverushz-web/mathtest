@@ -1,0 +1,25 @@
+{
+  "name": "MathTest — контрольные работы",
+  "short_name": "MathTest",
+  "description": "Конструктор контрольных работ по высшей математике",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1018",
+  "theme_color": "#5b8dff",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
