@@ -12,6 +12,7 @@
   --accent:#3a72f0;--accent-2:#7048e8;--ok:#0f9d58;--warn:#d98600;--err:#e63946;
   --shadow:0 10px 30px -12px rgba(0,20,60,.14);
 }
+[hidden]{display:none!important}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
