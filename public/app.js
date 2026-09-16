@@ -32,13 +32,6 @@ function applyTheme(t){
   try{saved=localStorage.getItem(THEME_KEY)||'dark';}catch(e){}
   applyTheme(saved);
 })();
-document.addEventListener('DOMContentLoaded',function(){
-  var b=$('#btnTheme');
-  if(b) b.onclick=function(){
-    var cur=document.documentElement.getAttribute('data-theme');
-    applyTheme(cur==='dark'?'light':'dark');
-  };
-});
 
 /* ============ ТОСТЫ ============ */
 function toast(msg,type){
@@ -65,7 +58,11 @@ async function api(path,opts){
   var r=await fetch('/api'+path,{method:opts.method||'GET',headers:headers,
     body:opts.body?JSON.stringify(opts.body):undefined});
   var data=await r.json().catch(function(){return {};});
-  if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;throw e;}
+  if(!r.ok){
+    var e=new Error(data.error||'Ошибка');e.status=r.status;
+    if(r.status===401){setToken(null);}
+    throw e;
+  }
   return data;
 }
 
@@ -181,6 +178,7 @@ var stmtInput=null,ansInput=null;
 var timerInterval=null,testDeadline=null;
 var draftTimer=null;
 var notifOpen=false;
+var notifTimer=null;
 
 function show(id){
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
@@ -195,10 +193,20 @@ function skeleton(host,lines){
   host.innerHTML=html;
 }
 
+/* ============ ШАПКА ============ */
 function renderTop(){
   var box=$('#userBox');
   if(!box)return;
-  if(!currentUser){box.innerHTML='';return;}
+  var bn=$('#btnNotif');
+  var bp=$('#btnProfile');
+  if(!currentUser){
+    box.innerHTML='';
+    if(bn)bn.style.display='none';
+    if(bp)bp.style.display='none';
+    return;
+  }
+  if(bn)bn.style.display='';
+  if(bp)bp.style.display='';
   var role=currentUser.role==='teacher'?'учитель':'ученик';
   var initial=(currentUser.name[0]||'?').toUpperCase();
   box.innerHTML='<div class="user-chip"><div class="avatar">'+esc(initial)+'</div>'+
@@ -208,25 +216,17 @@ function renderTop(){
   var lo=$('#btnLogout');if(lo)lo.onclick=logout;
 }
 function logout(){
-  setToken(null);currentUser=null;renderTop();show('view-auth');
+  setToken(null);currentUser=null;
+  if(notifTimer){clearInterval(notifTimer);notifTimer=null;}
+  renderTop();show('view-auth');
   toast('Вы вышли','info');
 }
 
 /* ============ УВЕДОМЛЕНИЯ ============ */
-document.addEventListener('DOMContentLoaded',function(){
-  var bn=$('#btnNotif');
-  if(bn)bn.onclick=function(e){
-    e.stopPropagation();
-    notifOpen=!notifOpen;
-    var p=$('#notifPanel');if(p)p.hidden=!notifOpen;
-    if(notifOpen)loadNotifications();
-  };
-});
-document.addEventListener('click',function(e){
-  if(!notifOpen)return;
-  if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
-  notifOpen=false;var p=$('#notifPanel');if(p)p.hidden=true;
-});
+function closeNotifPanel(){
+  notifOpen=false;
+  var p=$('#notifPanel');if(p)p.hidden=true;
+}
 
 async function refreshNotifBadge(){
   if(!currentUser)return;
@@ -260,7 +260,7 @@ async function loadNotifications(){
       el.onclick=async function(){
         try{await api('/notifications/'+n.id+'/read',{method:'POST'});}catch(e){}
         el.classList.remove('unread');
-        notifOpen=false;var pp=$('#notifPanel');if(pp)pp.hidden=true;
+        closeNotifPanel();
         if(n.type==='submission'&&n.link&&n.link.testId&&currentUser.role==='teacher'){
           try{
             var rr=await api('/tests');
@@ -277,122 +277,9 @@ async function loadNotifications(){
   }catch(e){list.innerHTML='<div class="err" style="padding:16px">'+esc(e.message)+'</div>';}
 }
 
-/* ============ ИНИЦИАЛИЗАЦИЯ UI ============ */
-document.addEventListener('DOMContentLoaded',function(){
-  // Показать пароль
-  $$('.pass-toggle').forEach(function(btn){
-    btn.onclick=function(){
-      var inp=$('#'+btn.dataset.target);if(!inp)return;
-      var isPass=inp.type==='password';
-      inp.type=isPass?'text':'password';
-      btn.textContent=isPass?'🙈':'👁';
-    };
-  });
-  ['loginEmail','loginPass'].forEach(function(id){
-    var el=$('#'+id);
-    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
-  });
-  ['regName','regEmail','regPass'].forEach(function(id){
-    var el=$('#'+id);
-    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});
-  });
-  var jc=$('#joinCode');
-  if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
-
-  // Табы
-  $$('.tab').forEach(function(t){if(!t.dataset.tab)return;t.onclick=function(){
-    $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
-    var isL=t.dataset.tab==='login';
-    $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
-    var ae=$('#authErr');if(ae)ae.textContent='';
-    setTimeout(function(){(isL?$('#loginEmail'):$('#regName')).focus();},50);
-  };});
-  $$('[data-ttab]').forEach(function(t){t.onclick=function(){
-    $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
-    $('#tt-tests').hidden=t.dataset.ttab!=='tests';
-    $('#tt-classes').hidden=t.dataset.ttab!=='classes';
-  };});
-  $$('[data-stab]').forEach(function(t){t.onclick=function(){
-    $$('[data-stab]').forEach(function(x){x.classList.toggle('active',x===t);});
-    $('#st-tests').hidden=t.dataset.stab!=='tests';
-    $('#st-classes').hidden=t.dataset.stab!=='classes';
-  };});
-  $$('.sym-tab').forEach(function(t){
-    t.onclick=function(){
-      $$('.sym-tab').forEach(function(x){x.classList.toggle('active',x===t);});
-      currentSymTab=t.dataset.symtab;
-      buildSymbolBar($('#symbolBar'));
-    };
-  });
-
-  // Кнопки авторизации
-  $('#doLogin').onclick=async function(){
-    var ae=$('#authErr');if(ae)ae.textContent='';
-    try{
-      var r=await api('/auth/login',{method:'POST',body:{
-        email:$('#loginEmail').value.trim(),
-        password:$('#loginPass').value}});
-      setToken(r.token);enterApp(r.user);toast('Добро пожаловать!','ok');
-    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
-  };
-  $('#doRegister').onclick=async function(){
-    var ae=$('#authErr');if(ae)ae.textContent='';
-    try{
-      var r=await api('/auth/register',{method:'POST',body:{
-        name:$('#regName').value.trim(),
-        email:$('#regEmail').value.trim(),
-        password:$('#regPass').value,
-        role:$('#regRole').value}});
-      setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
-    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
-  };
-
-  // Профиль
-  var bp=$('#btnProfile');
-  if(bp)bp.onclick=openProfile;
-  var bcp=$('#btnCloseProfile');
-  if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
-  var pm=$('#profileModal');
-  if(pm)pm.addEventListener('click',function(e){
-    if(e.target.id==='profileModal')$('#profileModal').hidden=true;
-  });
-  $$('.theme-option').forEach(function(b){
-    b.onclick=function(){
-      applyTheme(b.dataset.themeSet);
-      $$('.theme-option').forEach(function(x){x.classList.toggle('active',x===b);});
-    };
-  });
-
-  // Кнопки учителя
-  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
-  var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
-    var name=prompt('Название класса (например: Математика 101)');
-    if(!name||!name.trim())return;
-    try{await api('/classes',{method:'POST',body:{name:name.trim()}});
-      toast('Класс создан','ok');goTeacher();}
-    catch(e){toast(e.message,'err');}
-  };
-  var bbt=$('#btnBackToTeacher');if(bbt)bbt.onclick=goTeacher;
-  var bbfc=$('#btnBackFromClass');if(bbfc)bbfc.onclick=goTeacher;
-  var bbft=$('#btnBackFromTake');if(bbft)bbft.onclick=function(){
-    if(confirm('Выйти? Черновик сохранён — можно продолжить позже.')){
-      if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
-      goStudent();
-    }
-  };
-  var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
-  var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
-
-  // Наверх
-  var tt=$('#toTop');
-  window.addEventListener('scroll',function(){
-    if(tt)tt.classList.toggle('show',window.scrollY>300);
-  });
-  if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
-});
-
 /* ============ ПРОФИЛЬ ============ */
 async function openProfile(){
+  if(!currentUser){toast('Сначала войдите в систему','warn');return;}
   var pm=$('#profileModal');if(!pm)return;
   pm.hidden=false;
   $('#profAvatar').textContent=(currentUser.name[0]||'?').toUpperCase();
@@ -556,7 +443,6 @@ async function openClassView(id){
       catch(e){toast('Не удалось скопировать','err');}
     };
 
-    // Ученики
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
     if(!r.students.length){
@@ -581,7 +467,6 @@ async function openClassView(id){
       el.appendChild(b);stu.appendChild(el);
     });
 
-    // Группы
     var gr=$('#classGroups');gr.innerHTML='';
     if(!(r.class.groups||[]).length){
       gr.innerHTML='<div class="empty" style="padding:16px">Групп пока нет</div>';
@@ -627,7 +512,6 @@ async function openClassView(id){
       gr.appendChild(el);
     });
 
-    // Кнопка рассылки
     var oldB=$('#btnBroadcast');if(oldB)oldB.remove();
     var bb=document.createElement('button');
     bb.id='btnBroadcast';bb.className='primary small';
@@ -651,7 +535,6 @@ async function openClassView(id){
     var tgCard=$('#classGroups').parentNode;
     tgCard.appendChild(bb);
 
-    // Работы класса
     var ts=$('#classTests');ts.innerHTML='';
     if(!r.tests.length)ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
@@ -1367,23 +1250,163 @@ async function tryAutoJoin(){
 function enterApp(u){
   currentUser=u;renderTop();
   refreshNotifBadge();
-  setInterval(refreshNotifBadge,30000);
+  if(notifTimer)clearInterval(notifTimer);
+  notifTimer=setInterval(refreshNotifBadge,30000);
   if(u.role==='teacher')goTeacher();else goStudent();
 }
 
 async function boot(){
   initEditorFields();
+
+  // Обработчики шапки
+  var bt=$('#btnTheme');
+  if(bt)bt.onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    applyTheme(cur==='dark'?'light':'dark');
+  };
+  var bn=$('#btnNotif');
+  if(bn)bn.onclick=function(e){
+    e.stopPropagation();
+    notifOpen=!notifOpen;
+    var p=$('#notifPanel');if(p)p.hidden=!notifOpen;
+    if(notifOpen)loadNotifications();
+  };
+  var bprof=$('#btnProfile');
+  if(bprof)bprof.onclick=openProfile;
+
+  // Закрытие панели уведомлений по клику снаружи
+  document.addEventListener('click',function(e){
+    if(!notifOpen)return;
+    if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
+    closeNotifPanel();
+  });
+
+  // Профиль — модалка
+  var bcp=$('#btnCloseProfile');
+  if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
+  var pm=$('#profileModal');
+  if(pm)pm.addEventListener('click',function(e){
+    if(e.target.id==='profileModal')$('#profileModal').hidden=true;
+  });
+  $$('.theme-option').forEach(function(b){
+    b.onclick=function(){
+      applyTheme(b.dataset.themeSet);
+      $$('.theme-option').forEach(function(x){x.classList.toggle('active',x===b);});
+    };
+  });
+
+  // Показать пароль
+  $$('.pass-toggle').forEach(function(btn){
+    btn.onclick=function(){
+      var inp=$('#'+btn.dataset.target);if(!inp)return;
+      var isPass=inp.type==='password';
+      inp.type=isPass?'text':'password';
+      btn.textContent=isPass?'🙈':'👁';
+    };
+  });
+
+  // Enter на формах
+  ['loginEmail','loginPass'].forEach(function(id){
+    var el=$('#'+id);
+    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
+  });
+  ['regName','regEmail','regPass'].forEach(function(id){
+    var el=$('#'+id);
+    if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});
+  });
+  var jc=$('#joinCode');
+  if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
+
+  // Табы
+  $$('.tab').forEach(function(t){
+    if(!t.dataset.tab)return;
+    t.onclick=function(){
+      $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
+      var isL=t.dataset.tab==='login';
+      $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
+      var ae=$('#authErr');if(ae)ae.textContent='';
+      setTimeout(function(){(isL?$('#loginEmail'):$('#regName')).focus();},50);
+    };
+  });
+  $$('[data-ttab]').forEach(function(t){t.onclick=function(){
+    $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
+    $('#tt-tests').hidden=t.dataset.ttab!=='tests';
+    $('#tt-classes').hidden=t.dataset.ttab!=='classes';
+  };});
+  $$('[data-stab]').forEach(function(t){t.onclick=function(){
+    $$('[data-stab]').forEach(function(x){x.classList.toggle('active',x===t);});
+    $('#st-tests').hidden=t.dataset.stab!=='tests';
+    $('#st-classes').hidden=t.dataset.stab!=='classes';
+  };});
+  $$('.sym-tab').forEach(function(t){
+    t.onclick=function(){
+      $$('.sym-tab').forEach(function(x){x.classList.toggle('active',x===t);});
+      currentSymTab=t.dataset.symtab;
+      buildSymbolBar($('#symbolBar'));
+    };
+  });
+
+  // Кнопки авторизации
+  $('#doLogin').onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    try{
+      var r=await api('/auth/login',{method:'POST',body:{
+        email:$('#loginEmail').value.trim(),
+        password:$('#loginPass').value}});
+      setToken(r.token);enterApp(r.user);toast('Добро пожаловать!','ok');
+    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+  };
+  $('#doRegister').onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    try{
+      var r=await api('/auth/register',{method:'POST',body:{
+        name:$('#regName').value.trim(),
+        email:$('#regEmail').value.trim(),
+        password:$('#regPass').value,
+        role:$('#regRole').value}});
+      setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
+    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+  };
+
+  // Кнопки учителя
+  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
+  var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
+    var name=prompt('Название класса (например: Математика 101)');
+    if(!name||!name.trim())return;
+    try{await api('/classes',{method:'POST',body:{name:name.trim()}});
+      toast('Класс создан','ok');goTeacher();}
+    catch(e){toast(e.message,'err');}
+  };
+  var bbt=$('#btnBackToTeacher');if(bbt)bbt.onclick=goTeacher;
+  var bbfc=$('#btnBackFromClass');if(bbfc)bbfc.onclick=goTeacher;
+  var bbft=$('#btnBackFromTake');if(bbft)bbft.onclick=function(){
+    if(confirm('Выйти? Черновик сохранён — можно продолжить позже.')){
+      if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+      goStudent();
+    }
+  };
+  var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
+  var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
+
+  // Наверх
+  var tt=$('#toTop');
+  window.addEventListener('scroll',function(){
+    if(tt)tt.classList.toggle('show',window.scrollY>300);
+  });
+  if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
+
+  // Показываем экран входа до проверки токена
+  renderTop();
+
   if(getToken()){
     try{
       var r=await api('/auth/me');
-      currentUser=r.user;
-      renderTop();
-      refreshNotifBadge();
-      setInterval(refreshNotifBadge,30000);
-      if(currentUser.role==='teacher')await goTeacher();
-      else { await goStudent(); await tryAutoJoin(); }
+      enterApp(r.user);
+      if(r.user.role==='student')await tryAutoJoin();
       return;
-    }catch(e){setToken(null);}
+    }catch(e){
+      setToken(null);
+    }
   }
   show('view-auth');
   setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
