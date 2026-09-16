@@ -1,28 +1,25 @@
 /* ==========================================================
-   MathTest — Bold Dark UI
-   Референс: Yandex KIT — глубокий чёрный, крупная типографика,
-   яркие плоские акценты, много воздуха
+   MathSum Premium
+   Дизайн-система: глубокий чёрный, огромная типографика,
+   математические символы как графика, один смелый акцент
    ========================================================== */
 
 :root, [data-theme="dark"] {
-  /* Фон — глубокий чёрный, без синевы */
-  --bg:         #0a0a0a;
-  --bg-soft:    #0f0f0f;
-  --panel:      #141414;
-  --panel-2:    #1a1a1a;
-  --panel-hover:#222222;
-  --border:     #2a2a2a;
-  --border-soft:#1a1a1a;
+  --bg:         #08080a;
+  --bg-soft:    #0e0e10;
+  --panel:      #141416;
+  --panel-2:    #1a1a1d;
+  --panel-hover:#1f1f23;
+  --border:     #2a2a2e;
+  --border-soft:#1a1a1d;
 
-  /* Текст — чистый белый и холодный серый */
   --text:   #ffffff;
-  --text-2: #9ca3af;
-  --text-3: #5b5b5b;
+  --text-2: #a1a1a8;
+  --text-3: #5a5a62;
 
-  /* Акцент по умолчанию — ярко-оранжевый как Yandex */
   --accent:       #ff6b1f;
   --accent-hover: #ff5a05;
-  --accent-soft:  rgba(255, 107, 31, .15);
+  --accent-soft:  rgba(255, 107, 31, .14);
   --accent-text:  #ffffff;
 
   --ok:   #22c55e;
@@ -42,29 +39,7 @@
   --trans-fast: .14s cubic-bezier(.4, 0, .2, 1);
 }
 
-/* Цветовые схемы */
-[data-palette="blue"][data-theme="dark"] {
-  --accent:       #3b82f6;
-  --accent-hover: #2563eb;
-  --accent-soft:  rgba(59, 130, 246, .15);
-}
-[data-palette="violet"][data-theme="dark"] {
-  --accent:       #a855f7;
-  --accent-hover: #9333ea;
-  --accent-soft:  rgba(168, 85, 247, .15);
-}
-[data-palette="emerald"][data-theme="dark"] {
-  --accent:       #10b981;
-  --accent-hover: #059669;
-  --accent-soft:  rgba(16, 185, 129, .15);
-}
-[data-palette="orange"][data-theme="dark"] {
-  --accent:       #ff6b1f;
-  --accent-hover: #ff5a05;
-  --accent-soft:  rgba(255, 107, 31, .15);
-}
-
-/* Светлая тема — для тех, кому нужно */
+/* Светлая тема — для тех, кому надо */
 [data-theme="light"] {
   --bg:         #ffffff;
   --bg-soft:    #fafafa;
@@ -73,27 +48,36 @@
   --panel-hover:#ebebed;
   --border:     #e4e4e7;
   --border-soft:#efeff1;
-
-  --text:   #09090b;
-  --text-2: #52525b;
-  --text-3: #a1a1aa;
-
+  --text:       #09090b;
+  --text-2:     #52525b;
+  --text-3:     #a1a1aa;
   --accent:       #ff6b1f;
   --accent-hover: #ff5a05;
   --accent-soft:  rgba(255, 107, 31, .1);
-  --accent-text:  #ffffff;
-
   --ok:   #16a34a;
   --warn: #d97706;
   --err:  #dc2626;
-
   --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
   --shadow:    0 12px 40px -12px rgba(0,0,0,.12);
   --shadow-lg: 0 32px 80px -32px rgba(0,0,0,.2);
 }
 
+/* Палитры применяются всегда, после темы */
+[data-palette="orange"] {
+  --accent: #ff6b1f; --accent-hover: #ff5a05; --accent-soft: rgba(255,107,31,.14);
+}
+[data-palette="blue"] {
+  --accent: #3b82f6; --accent-hover: #2563eb; --accent-soft: rgba(59,130,246,.14);
+}
+[data-palette="violet"] {
+  --accent: #a855f7; --accent-hover: #9333ea; --accent-soft: rgba(168,85,247,.14);
+}
+[data-palette="emerald"] {
+  --accent: #10b981; --accent-hover: #059669; --accent-soft: rgba(16,185,129,.14);
+}
+
 /* ==========================================================
-   Базовые стили
+   Базовое
    ========================================================== */
 [hidden] { display: none !important; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -105,7 +89,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
                "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
@@ -121,49 +105,52 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
 /* ==========================================================
-   Верхняя панель — минималистичная, на чёрном
+   Шапка — минималистичная
    ========================================================== */
 #topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 20px 32px;
-  background: var(--bg);
+  gap: 6px;
+  padding: 16px 32px;
+  background: rgba(8, 8, 10, .75);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--border-soft);
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(20px);
 }
+[data-theme="light"] #topbar { background: rgba(255, 255, 255, .85); }
 
 .brand {
-  font-weight: 800;
-  font-size: 19px;
+  font-weight: 900;
+  font-size: 18px;
   letter-spacing: -0.03em;
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
   user-select: none;
+  transition: var(--trans-fast);
 }
 .brand .sigma {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: var(--accent);
   color: var(--accent-text);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 0;
   transition: transform var(--trans);
 }
-.brand:hover .sigma { transform: rotate(-8deg) scale(1.06); }
+.brand:hover .sigma { transform: rotate(-10deg) scale(1.08); }
 
 .spacer { flex: 1; }
 
-/* Иконочные кнопки */
 .icon-btn {
   width: 44px;
   height: 44px;
@@ -179,23 +166,18 @@ body {
   cursor: pointer;
   transition: var(--trans);
 }
-.icon-btn svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 2;
-  transition: transform var(--trans-fast);
-}
+.icon-btn svg { width: 20px; height: 20px; stroke-width: 2; transition: transform var(--trans-fast); }
 .icon-btn:hover {
   background: var(--panel-2);
   color: var(--text);
 }
 .icon-btn:hover svg { transform: scale(1.08); }
-.icon-btn:active { transform: scale(.95); }
+.icon-btn:active { transform: scale(.94); }
 
 .notif-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 3px;
+  right: 3px;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
@@ -218,13 +200,14 @@ body {
 .user-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--panel-2);
   border: 1px solid var(--border-soft);
   border-radius: 99px;
-  padding: 5px 8px 5px 6px;
+  padding: 5px 10px 5px 6px;
   font-size: 14px;
   transition: var(--trans);
+  margin-left: 6px;
 }
 .user-chip:hover { border-color: var(--border); background: var(--panel-hover); }
 .user-chip .role { color: var(--text-3); font-size: 12px; }
@@ -240,7 +223,7 @@ body {
   background: var(--accent);
   color: var(--accent-text);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   background-size: cover;
   background-position: center;
 }
@@ -254,86 +237,369 @@ body {
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   transition: var(--trans-fast);
 }
 .logout-btn:hover { color: var(--text); background: var(--panel); }
 
 /* ==========================================================
-   Основной контент — много воздуха
+   Main
    ========================================================== */
 main {
-  max-width: 1280px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 56px 32px 120px;
+  padding: 40px 32px 120px;
 }
 
-.view {
-  display: none;
-  animation: view-in .35s cubic-bezier(.4, 0, .2, 1);
-}
-.view.active { display: block; }
+.view { display: none; }
+.view.active { display: block; animation: view-in .35s cubic-bezier(.4, 0, .2, 1); }
 @keyframes view-in {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: none; }
 }
 
 /* ==========================================================
-   Карточки — крупные блоки без лишних рамок
+   LANDING — приветственная страница
+   ========================================================== */
+#view-landing {
+  margin: -40px -32px 0;
+}
+
+.landing {
+  padding: 80px 40px 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Декоративные математические символы */
+.landing .math-deco {
+  position: absolute;
+  font-family: "Times New Roman", Georgia, serif;
+  font-weight: 400;
+  color: var(--text);
+  opacity: .05;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  z-index: 0;
+}
+.landing .math-deco.d1 { font-size: 280px; top: 60px; left: -60px; transform: rotate(-12deg); }
+.landing .math-deco.d2 { font-size: 200px; top: 120px; right: -20px; transform: rotate(15deg); }
+.landing .math-deco.d3 { font-size: 160px; top: 520px; left: 40%; opacity: .03; }
+.landing .math-deco.d4 { font-size: 240px; bottom: -40px; right: 60px; transform: rotate(-8deg); }
+
+.landing-hero {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  padding: 20px 0 80px;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-radius: 99px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 40px;
+  letter-spacing: -0.005em;
+}
+.landing-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: dot-pulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(34,197,94,.15);
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+.landing-h1 {
+  font-size: clamp(48px, 8.5vw, 116px);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+  margin-bottom: 32px;
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.landing-h1 .accent {
+  color: var(--accent);
+  position: relative;
+  display: inline-block;
+}
+.landing-h1 .accent::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 10px;
+  background: var(--accent-soft);
+  z-index: -1;
+  border-radius: 4px;
+}
+
+.landing-sub {
+  font-size: clamp(16px, 1.5vw, 19px);
+  color: var(--text-2);
+  max-width: 620px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.landing-cta {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 80px;
+}
+.landing-cta button {
+  padding: 22px 44px;
+  font-size: 17px;
+  font-weight: 800;
+  border-radius: var(--radius);
+  letter-spacing: -0.01em;
+}
+
+/* Строка статистики — как у 100балльного */
+.landing-stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 64px;
+  flex-wrap: wrap;
+  padding: 40px 0 80px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+.landing-stat {
+  text-align: center;
+}
+.landing-stat .ls-value {
+  font-size: clamp(36px, 4vw, 54px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.landing-stat .ls-value.accent { color: var(--accent); }
+.landing-stat .ls-label {
+  font-size: 12px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
+
+/* Фичи */
+.landing-section-title {
+  font-size: clamp(32px, 4vw, 56px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 0 0 48px;
+  padding-top: 80px;
+  max-width: 800px;
+}
+.landing-section-title .muted { color: var(--text-3); font-weight: 900; }
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  padding-bottom: 80px;
+}
+.landing-feature {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px;
+  border: 1px solid var(--border-soft);
+  transition: var(--trans);
+  position: relative;
+  overflow: hidden;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.landing-feature:hover {
+  border-color: var(--accent);
+  transform: translateY(-6px);
+  box-shadow: var(--shadow);
+}
+.landing-feature .lf-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 26px;
+  color: var(--accent);
+  flex: none;
+}
+.landing-feature .lf-icon svg { width: 26px; height: 26px; stroke-width: 2; }
+.landing-feature h3 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+  line-height: 1.15;
+}
+.landing-feature p {
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+/* Финальный CTA */
+.landing-final {
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+  padding: 80px 60px;
+  text-align: center;
+  border: 1px solid var(--border-soft);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+.landing-final::before {
+  content: '';
+  position: absolute;
+  top: -200px;
+  right: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 60%);
+  pointer-events: none;
+}
+.landing-final h2 {
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-bottom: 24px;
+  position: relative;
+}
+.landing-final p {
+  font-size: 17px;
+  color: var(--text-2);
+  max-width: 520px;
+  margin: 0 auto 40px;
+  position: relative;
+}
+.landing-final button {
+  padding: 22px 44px;
+  font-size: 17px;
+  font-weight: 800;
+  position: relative;
+}
+
+.landing-footer {
+  text-align: center;
+  padding: 60px 20px 40px;
+  color: var(--text-3);
+  font-size: 13px;
+  border-top: 1px solid var(--border-soft);
+  margin: 0 -32px;
+}
+
+/* ==========================================================
+   ЭКРАН ВХОДА
+   ========================================================== */
+#view-auth {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+  padding: 48px 44px;
+  border: 1px solid var(--border-soft);
+  position: relative;
+  overflow: hidden;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: -150px;
+  right: -150px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 60%);
+  pointer-events: none;
+}
+.auth-card > * { position: relative; }
+
+.auth-title {
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.auth-sub {
+  color: var(--text-2);
+  text-align: center;
+  margin-bottom: 32px;
+  font-size: 15px;
+}
+
+/* ==========================================================
+   ОБЩИЕ КОМПОНЕНТЫ
    ========================================================== */
 .card {
   background: var(--panel);
   border-radius: var(--radius-lg);
   padding: 32px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   transition: var(--trans);
-  position: relative;
   border: 1px solid var(--border-soft);
 }
-.card:hover { border-color: var(--border); }
-.card.narrow { max-width: 480px; margin: 100px auto; padding: 40px; }
-
+.card.narrow { max-width: 480px; margin: 100px auto; }
 .card h2 {
-  font-size: 32px;
-  margin-bottom: 24px;
+  font-size: 28px;
+  margin-bottom: 22px;
   letter-spacing: -0.03em;
-  font-weight: 800;
-  line-height: 1.15;
+  font-weight: 900;
 }
 .card h3 {
   font-size: 19px;
   margin-bottom: 16px;
   letter-spacing: -0.02em;
-  font-weight: 700;
-}
-
-/* ==========================================================
-   Типографика — крупная, как в референсе
-   ========================================================== */
-h1 {
-  font-size: 72px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-}
-h2 {
-  font-size: 44px;
   font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-h3 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
-/* Заголовки страниц — те, что в шапках экранов */
+h1 { font-size: 72px; font-weight: 900; letter-spacing: -0.04em; line-height: 1.05; }
+h2 { font-size: 44px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+
 .page-title {
-  font-size: 56px;
+  font-size: clamp(40px, 6vw, 72px);
   font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.045em;
+  line-height: 1;
   margin: 0;
 }
 
@@ -343,22 +609,20 @@ h4.sec {
   font-size: 11px;
   letter-spacing: 2px;
   margin: 32px 0 14px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.muted  { color: var(--text-2); font-size: 14px; }
-.err    { color: var(--err);    min-height: 20px; font-size: 14px; }
-.ok     { color: var(--ok);     min-height: 20px; font-size: 14px; }
+.muted { color: var(--text-2); font-size: 14px; }
+.err   { color: var(--err);   min-height: 20px; font-size: 14px; }
+.ok    { color: var(--ok);    min-height: 20px; font-size: 14px; }
 
-/* ==========================================================
-   Формы
-   ========================================================== */
+/* Формы */
 label {
   display: block;
-  margin: 18px 0;
+  margin: 16px 0;
   color: var(--text-2);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -378,7 +642,7 @@ textarea {
   color: var(--text);
   font: inherit;
   font-size: 15px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   transition: var(--trans);
   outline: none;
 }
@@ -412,9 +676,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .pass-toggle svg { width: 18px; height: 18px; }
 .pass-toggle:hover { color: var(--text); background: var(--panel); }
 
-/* ==========================================================
-   Кнопки — крупные, жирные, с иконками
-   ========================================================== */
+/* Кнопки */
 button {
   cursor: pointer;
   font: inherit;
@@ -453,7 +715,7 @@ button.primary {
 button.primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  box-shadow: 0 12px 32px -8px var(--accent-soft);
+  box-shadow: 0 16px 40px -10px var(--accent-soft);
 }
 button.primary:disabled { opacity: .4; cursor: not-allowed; }
 
@@ -478,25 +740,9 @@ button.danger:hover {
 
 button.block { width: 100%; }
 
-/* Крупная CTA-кнопка — как в Yandex KIT */
-button.cta {
-  padding: 20px 40px;
-  font-size: 17px;
-  font-weight: 800;
-  border-radius: var(--radius);
-}
-
-/* ==========================================================
-   Раскладки
-   ========================================================== */
-.row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-}
-.row.tight { margin-bottom: 14px; }
+/* Раскладки */
+.row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.row.tight { margin-bottom: 12px; }
 
 .grid {
   display: grid;
@@ -504,20 +750,14 @@ button.cta {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
-.two-col {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: 1fr 1fr;
-}
+.two-col { display: grid; gap: 24px; grid-template-columns: 1fr 1fr; }
 @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 
-/* ==========================================================
-   Табы — крупнее
-   ========================================================== */
+/* Табы */
 .tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   padding: 6px;
   background: var(--panel);
   border-radius: var(--radius);
@@ -530,7 +770,7 @@ button.cta {
   padding: 12px 22px;
   border-radius: 12px;
   color: var(--text-2);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   transition: var(--trans-fast);
 }
@@ -541,9 +781,7 @@ button.cta {
   font-weight: 800;
 }
 
-/* ==========================================================
-   Бейджи и пилюли
-   ========================================================== */
+/* Бейджи и пилюли */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -560,7 +798,7 @@ button.cta {
 }
 .badge.red   { background: var(--err); }
 .badge.gray  { background: var(--panel-2); color: var(--text-2); }
-.badge.green { background: var(--ok); color: #fff; }
+.badge.green { background: var(--ok); }
 .badge.warn  { background: var(--warn); color: #000; }
 
 .pill {
@@ -573,16 +811,14 @@ button.cta {
   align-items: center;
   gap: 6px;
   background: var(--panel-2);
-  font-weight: 600;
+  font-weight: 700;
 }
 .pill.blue  { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .pill.green { border-color: rgba(34,197,94,.4); color: var(--ok); background: rgba(34,197,94,.08); }
 .pill.red   { border-color: rgba(239,68,68,.4); color: var(--err); background: rgba(239,68,68,.08); }
 .pill.warn  { border-color: rgba(245,158,11,.4); color: var(--warn); background: rgba(245,158,11,.08); }
 
-/* ==========================================================
-   Строки списков
-   ========================================================== */
+/* Строки */
 .stu-row {
   display: flex;
   align-items: center;
@@ -602,7 +838,7 @@ button.cta {
 .stu-row .name { flex: 1; min-width: 0; }
 .stu-row .name .muted { font-size: 12.5px; }
 .stu-row .score {
-  font-weight: 800;
+  font-weight: 900;
   min-width: 90px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -610,13 +846,11 @@ button.cta {
   letter-spacing: -0.02em;
 }
 
-/* ==========================================================
-   Карточки класса
-   ========================================================== */
+/* Класс / Работа */
 .class-card {
   background: var(--panel);
   border-radius: var(--radius-lg);
-  padding: 26px;
+  padding: 28px;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
@@ -632,16 +866,16 @@ button.cta {
 }
 .class-card h4 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
 }
 
 .code-box {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 20px;
-  letter-spacing: 4px;
-  font-weight: 800;
+  letter-spacing: 5px;
+  font-weight: 900;
   background: var(--accent-soft);
   border: 2px solid var(--accent);
   color: var(--accent);
@@ -657,9 +891,6 @@ button.cta {
   transform: scale(1.03);
 }
 
-/* ==========================================================
-   Карточки работы
-   ========================================================== */
 .test-card {
   background: var(--panel);
   border-radius: var(--radius-lg);
@@ -675,9 +906,9 @@ button.cta {
 }
 .test-card h4 {
   margin: 0 0 12px;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
 }
 .test-card .meta {
   color: var(--text-2);
@@ -689,9 +920,7 @@ button.cta {
 }
 .test-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* ==========================================================
-   Выбор классов
-   ========================================================== */
+/* Выбор классов */
 .class-pick {
   display: flex;
   align-items: center;
@@ -718,9 +947,7 @@ button.cta {
   flex: none;
 }
 
-/* ==========================================================
-   Редактор формул
-   ========================================================== */
+/* Редактор формул */
 .mi-wrap { margin: 12px 0 18px; }
 .mi-input {
   width: 100%;
@@ -768,7 +995,7 @@ button.cta {
   color: var(--text-2);
   cursor: pointer;
   transition: var(--trans-fast);
-  font-weight: 600;
+  font-weight: 700;
 }
 .sym-tab:hover { border-color: var(--accent); color: var(--accent); }
 .sym-tab.active {
@@ -793,7 +1020,6 @@ button.cta {
   color: var(--accent);
 }
 
-/* Варианты ответа */
 .option-row { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
 .option-row input[type=radio] {
   width: 22px;
@@ -806,9 +1032,7 @@ button.cta {
 .option-row .mi-wrap { flex: 1; margin: 0; }
 .option-row .mi-input { min-height: 56px; }
 
-/* ==========================================================
-   Результат
-   ========================================================== */
+/* Результат */
 .result-line {
   padding: 22px 26px;
   border-radius: var(--radius-lg);
@@ -857,14 +1081,12 @@ button.cta {
   font-size: 13px;
   color: var(--text-2);
   margin-top: 4px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .score-circle[data-grade="bad"] { background: conic-gradient(var(--err)  calc(var(--pct) * 1%), var(--border) 0); }
 .score-circle[data-grade="mid"] { background: conic-gradient(var(--warn) calc(var(--pct) * 1%), var(--border) 0); }
 
-/* ==========================================================
-   Прогресс и таймер
-   ========================================================== */
+/* Прогресс и таймер */
 .progress-bar {
   position: sticky;
   top: 84px;
@@ -898,13 +1120,13 @@ button.cta {
   font-size: 13.5px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .timer {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
   padding: 8px 18px;
   border-radius: 12px;
@@ -926,12 +1148,10 @@ button.cta {
   border-radius: var(--radius);
   margin-bottom: 18px;
   display: inline-block;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* ==========================================================
-   Пустые состояния — крупнее
-   ========================================================== */
+/* Пустые состояния */
 .empty {
   color: var(--text-2);
   padding: 80px 32px;
@@ -946,11 +1166,9 @@ button.cta {
   opacity: .3;
   filter: grayscale(1);
 }
-.empty b { color: var(--text); font-weight: 700; }
+.empty b { color: var(--text); font-weight: 800; }
 
-/* ==========================================================
-   Скелетоны
-   ========================================================== */
+/* Скелетоны */
 .skeleton { display: flex; flex-direction: column; gap: 14px; }
 .sk-line {
   height: 18px;
@@ -964,9 +1182,7 @@ button.cta {
 .sk-line.w80 { width: 80%; }
 @keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* ==========================================================
-   Тосты
-   ========================================================== */
+/* Тосты */
 #toasts {
   position: fixed;
   top: 100px;
@@ -990,7 +1206,7 @@ button.cta {
   align-items: flex-start;
   gap: 14px;
   font-size: 14.5px;
-  font-weight: 500;
+  font-weight: 600;
   animation: toast-in .35s cubic-bezier(.34, 1.56, .64, 1);
   border-left: 4px solid var(--accent);
 }
@@ -1002,9 +1218,7 @@ button.cta {
 @keyframes toast-in { from { transform: translateX(120%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-out { to { transform: translateX(120%); opacity: 0; } }
 
-/* ==========================================================
-   Кнопка вверх
-   ========================================================== */
+/* Кнопка наверх */
 #toTop {
   position: fixed;
   bottom: 32px;
@@ -1032,9 +1246,7 @@ button.cta {
   transform: translateY(-3px);
 }
 
-/* ==========================================================
-   Уведомления (панель)
-   ========================================================== */
+/* Уведомления */
 .notif-panel {
   position: fixed;
   top: 88px;
@@ -1056,9 +1268,8 @@ button.cta {
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-soft);
-  font-weight: 800;
+  font-weight: 900;
   font-size: 16px;
-  letter-spacing: -0.01em;
 }
 .notif-list { max-height: 480px; overflow-y: auto; }
 .notif-item {
@@ -1074,13 +1285,11 @@ button.cta {
 .notif-item.unread { background: var(--accent-soft); border-left: 3px solid var(--accent); }
 .notif-item .ni-icon { font-size: 22px; flex: none; margin-top: 2px; }
 .notif-item .ni-body { flex: 1; min-width: 0; }
-.notif-item .ni-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.notif-item .ni-title { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
 .notif-item .ni-text { font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
 .notif-item .ni-time { font-size: 11.5px; color: var(--text-3); }
 
-/* ==========================================================
-   Аналитика
-   ========================================================== */
+/* Аналитика */
 .analytics-row {
   display: flex;
   align-items: center;
@@ -1092,12 +1301,7 @@ button.cta {
   transition: var(--trans);
 }
 .analytics-row:hover { background: var(--panel-hover); }
-.analytics-row .num {
-  font-weight: 800;
-  color: var(--text-3);
-  font-size: 15px;
-  min-width: 28px;
-}
+.analytics-row .num { font-weight: 900; color: var(--text-3); font-size: 15px; min-width: 28px; }
 .analytics-row .body { flex: 1; min-width: 0; }
 .analytics-row .bar-track {
   height: 10px;
@@ -1112,7 +1316,7 @@ button.cta {
   transition: width .6s cubic-bezier(.4, 0, .2, 1);
 }
 .analytics-row .pct {
-  font-weight: 800;
+  font-weight: 900;
   font-variant-numeric: tabular-nums;
   min-width: 64px;
   text-align: right;
@@ -1120,9 +1324,7 @@ button.cta {
   letter-spacing: -0.02em;
 }
 
-/* ==========================================================
-   Группы
-   ========================================================== */
+/* Группы */
 .group-card {
   background: var(--panel-2);
   border-radius: var(--radius);
@@ -1130,7 +1332,7 @@ button.cta {
   margin-bottom: 12px;
 }
 .group-card .gc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.group-card .gc-head h5 { flex: 1; margin: 0; font-size: 15px; font-weight: 700; }
+.group-card .gc-head h5 { flex: 1; margin: 0; font-size: 15px; font-weight: 800; }
 .group-card .gc-students { display: flex; flex-wrap: wrap; gap: 8px; }
 .group-chip {
   font-size: 13px;
@@ -1143,7 +1345,7 @@ button.cta {
   gap: 8px;
   transition: var(--trans-fast);
   border: 1px solid var(--border-soft);
-  font-weight: 600;
+  font-weight: 700;
 }
 .group-chip:hover { border-color: var(--accent); }
 .group-chip button {
@@ -1154,14 +1356,11 @@ button.cta {
   cursor: pointer;
   font-size: 15px;
   line-height: 1;
-  transition: var(--trans-fast);
   font-weight: 700;
 }
 .group-chip button:hover { color: var(--err); }
 
-/* ==========================================================
-   Модалка
-   ========================================================== */
+/* Модалка */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1199,12 +1398,11 @@ button.cta {
 .modal-head h3 {
   margin: 0;
   font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 900;
+  letter-spacing: -0.025em;
 }
 #profileBody { padding: 32px; }
 
-/* Telegram-кнопка */
 .tg-link {
   display: inline-flex;
   align-items: center;
@@ -1215,7 +1413,7 @@ button.cta {
   color: #fff;
   border-radius: var(--radius);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 14.5px;
   border: none;
   cursor: pointer;
@@ -1223,7 +1421,6 @@ button.cta {
 }
 .tg-link:hover { background: #1d8dc0; transform: translateY(-2px); box-shadow: var(--shadow); }
 
-/* Тема и палитра */
 .theme-picker { display: flex; gap: 12px; }
 .theme-option {
   flex: 1;
@@ -1235,7 +1432,7 @@ button.cta {
   font-size: 14px;
   cursor: pointer;
   transition: var(--trans);
-  font-weight: 600;
+  font-weight: 700;
 }
 .theme-option:hover { border-color: var(--accent); }
 .theme-option.active { border-color: var(--accent); background: var(--accent-soft); }
@@ -1260,10 +1457,8 @@ button.cta {
 .palette-option[data-pal="violet"]  { background: #a855f7; }
 .palette-option[data-pal="emerald"] { background: #10b981; }
 
-/* ==========================================================
-   Соц. вход
-   ========================================================== */
-.social-login { margin-top: 32px; width: 100%; }
+/* Соц. вход */
+.social-login { margin-top: 28px; width: 100%; }
 .social-divider {
   display: flex;
   align-items: center;
@@ -1271,7 +1466,7 @@ button.cta {
   color: var(--text-3);
   font-size: 12.5px;
   margin: 16px 0 22px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .social-divider::before, .social-divider::after {
   content: "";
@@ -1295,9 +1490,7 @@ button.cta {
 .social-login .err { text-align: center; margin-top: 12px; min-height: 0; }
 .social-login .err:empty { display: none; }
 
-/* ==========================================================
-   Библиотека
-   ========================================================== */
+/* Библиотека */
 .book-card {
   background: var(--panel);
   border-radius: var(--radius-lg);
@@ -1324,7 +1517,7 @@ button.cta {
   font-size: 60px;
 }
 .book-cover svg { width: 60px; height: 60px; color: var(--accent); stroke-width: 1.5; }
-.book-title { font-weight: 800; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em; }
+.book-title { font-weight: 900; font-size: 18px; margin-bottom: 6px; letter-spacing: -0.02em; }
 .book-author { font-size: 13.5px; color: var(--text-2); margin-bottom: 12px; }
 .book-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .book-desc {
@@ -1356,12 +1549,10 @@ button.cta {
 }
 .book-list-row .bicon { font-size: 34px; flex: none; }
 .book-list-row .binfo { flex: 1; min-width: 0; }
-.book-list-row .btitle { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+.book-list-row .btitle { font-weight: 800; font-size: 16px; }
 .book-list-row .bauthor { font-size: 13px; color: var(--text-2); margin-top: 2px; }
 
-/* ==========================================================
-   Чат
-   ========================================================== */
+/* Чат */
 .chat-box {
   display: flex;
   flex-direction: column;
@@ -1410,10 +1601,10 @@ button.cta {
   margin-bottom: 6px;
   font-size: 12px;
   color: var(--text-3);
-  font-weight: 500;
+  font-weight: 600;
 }
 .chat-msg.own .chat-msg-head { color: rgba(255,255,255,.75); }
-.chat-msg-head b { color: var(--text); font-size: 14px; font-weight: 700; }
+.chat-msg-head b { color: var(--text); font-size: 14px; font-weight: 800; }
 .chat-msg.own .chat-msg-head b { color: var(--accent-text); }
 .chat-msg-text { font-size: 14.5px; word-break: break-word; white-space: pre-wrap; line-height: 1.55; }
 .chat-msg-file {
@@ -1427,7 +1618,7 @@ button.cta {
   font-size: 13.5px;
   cursor: pointer;
   transition: var(--trans-fast);
-  font-weight: 600;
+  font-weight: 700;
 }
 .chat-msg-file:hover { background: rgba(255,255,255,.16); }
 .chat-msg-del {
@@ -1459,9 +1650,7 @@ button.cta {
   border-radius: var(--radius);
 }
 
-/* ==========================================================
-   Плавающий чат поддержки
-   ========================================================== */
+/* Плавающий чат поддержки */
 #supportBtn {
   position: fixed;
   bottom: 32px;
@@ -1491,8 +1680,8 @@ button.cta {
 #supportBtn svg { width: 28px; height: 28px; stroke-width: 2; }
 #supportBtn .support-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 3px;
+  right: 3px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -1543,14 +1732,14 @@ button.cta {
   flex: none;
 }
 .support-head .support-info { flex: 1; min-width: 0; }
-.support-head .support-info b { font-size: 15.5px; display: block; margin-bottom: 2px; font-weight: 700; }
+.support-head .support-info b { font-size: 15.5px; display: block; margin-bottom: 2px; font-weight: 800; }
 .support-head .support-info .muted {
   font-size: 12.5px;
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--ok);
-  font-weight: 600;
+  font-weight: 700;
 }
 .support-head .support-info .muted::before {
   content: "";
@@ -1560,10 +1749,6 @@ button.cta {
   background: var(--ok);
   display: inline-block;
   animation: dot-pulse 1.8s ease-in-out infinite;
-}
-@keyframes dot-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .4; }
 }
 .support-close {
   width: 36px;
@@ -1616,7 +1801,7 @@ button.cta {
   opacity: .65;
   margin-top: 6px;
   display: block;
-  font-weight: 500;
+  font-weight: 600;
 }
 .support-quick {
   display: flex;
@@ -1629,7 +1814,7 @@ button.cta {
   padding: 9px 16px;
   background: var(--panel-2);
   border-color: var(--border-soft);
-  font-weight: 600;
+  font-weight: 700;
 }
 .support-quick button:hover { border-color: var(--accent); color: var(--accent); }
 .support-input-row {
@@ -1647,9 +1832,7 @@ button.cta {
   border-radius: var(--radius);
 }
 
-/* ==========================================================
-   Админ
-   ========================================================== */
+/* Админ */
 .admin-row {
   display: flex;
   align-items: center;
@@ -1664,19 +1847,17 @@ button.cta {
 .admin-row:hover { background: var(--panel-hover); }
 .admin-row .avatar { width: 44px; height: 44px; font-size: 16px; }
 .admin-row .info { flex: 1; min-width: 240px; }
-.admin-row .info b { font-size: 15px; font-weight: 700; }
+.admin-row .info b { font-size: 15px; font-weight: 800; }
 .admin-row .info .muted { font-size: 13px; }
 .admin-row select {
   padding: 10px 14px;
   margin: 0;
   width: auto;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* ==========================================================
-   Статистика — крупные карточки
-   ========================================================== */
+/* Статистика */
 .stat-card {
   background: var(--panel);
   border-radius: var(--radius-lg);
@@ -1696,7 +1877,7 @@ button.cta {
 }
 .stat-icon { font-size: 36px; margin-bottom: 12px; }
 .stat-value {
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 900;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -1712,9 +1893,7 @@ button.cta {
   font-weight: 800;
 }
 
-/* ==========================================================
-   Таблицы
-   ========================================================== */
+/* Таблицы */
 .progress-table {
   width: 100%;
   border-collapse: collapse;
@@ -1734,9 +1913,7 @@ button.cta {
 }
 .progress-table tr:hover td { background: var(--panel-2); }
 
-/* ==========================================================
-   Графики
-   ========================================================== */
+/* Графики */
 .chart-wrap {
   background: var(--bg-soft);
   border-radius: var(--radius);
@@ -1775,12 +1952,10 @@ button.cta {
   font-size: 11px;
   color: var(--text-3);
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* ==========================================================
-   Логи
-   ========================================================== */
+/* Логи */
 .log-row {
   display: flex;
   align-items: flex-start;
@@ -1799,22 +1974,20 @@ button.cta {
   flex: none;
   min-width: 120px;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
 }
 .log-row .log-who {
-  font-weight: 800;
+  font-weight: 900;
   flex: none;
   min-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.log-row .log-action { flex: 1; color: var(--text); font-weight: 500; }
+.log-row .log-action { flex: 1; color: var(--text); font-weight: 600; }
 .log-row .log-details { color: var(--text-2); font-size: 13px; margin-top: 4px; }
 
-/* ==========================================================
-   Бэкапы
-   ========================================================== */
+/* Бэкапы */
 .backup-row {
   display: flex;
   align-items: center;
@@ -1828,12 +2001,10 @@ button.cta {
 }
 .backup-row:hover { background: var(--panel-hover); }
 .backup-row .bi-info { flex: 1; min-width: 240px; }
-.backup-row .bi-info b { font-size: 14.5px; font-weight: 700; }
+.backup-row .bi-info b { font-size: 14.5px; font-weight: 800; }
 .backup-row .bi-info .muted { font-size: 13px; }
 
-/* ==========================================================
-   CSV импорт
-   ========================================================== */
+/* CSV импорт */
 .csv-result-block {
   background: var(--panel-2);
   border-radius: var(--radius);
@@ -1843,21 +2014,18 @@ button.cta {
 .csv-result-block h4 {
   margin: 0 0 14px;
   font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-weight: 900;
 }
 .csv-result-block .pill { margin: 3px; }
 
-/* ==========================================================
-   Мобильная нижняя навигация
-   ========================================================== */
+/* Мобильная навигация */
 #mobile-nav {
   display: none;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(10, 10, 10, .95);
+  background: rgba(8, 8, 10, .95);
   backdrop-filter: blur(24px) saturate(180%);
   border-top: 1px solid var(--border-soft);
   padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
@@ -1881,7 +2049,7 @@ button.cta {
   gap: 4px;
   padding: 10px 6px;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: 12px;
   transition: var(--trans-fast);
 }
@@ -1889,9 +2057,7 @@ button.cta {
 #mobile-nav button.active { color: var(--accent); background: var(--accent-soft); }
 #mobile-nav button:hover { background: transparent; transform: none; color: var(--accent); }
 
-/* ==========================================================
-   Мобильная адаптация
-   ========================================================== */
+/* Мобильная адаптация */
 @media (max-width: 720px) {
   main { padding: 32px 18px 120px; }
   #topbar { padding: 14px 18px; gap: 8px; }
@@ -1920,11 +2086,18 @@ button.cta {
   #supportPanel { bottom: 168px; left: 12px; right: 12px; width: auto; height: calc(100vh - 240px); }
   #mobile-nav { display: block; }
   #toTop { bottom: 100px; right: 16px; width: 48px; height: 48px; }
+  .landing { padding: 40px 20px 0; }
+  .landing-stats-row { gap: 32px; padding: 32px 0 60px; }
+  .landing-final { padding: 48px 28px; }
+  .landing-cta button { padding: 16px 28px; font-size: 15px; }
+  .landing-section-title { padding-top: 48px; margin-bottom: 28px; }
+  .auth-card { padding: 36px 28px; }
+  .auth-title { font-size: 30px; }
 }
 
 @media (max-width: 480px) {
   .grid { grid-template-columns: 1fr; }
-  .stat-value { font-size: 32px; }
+  .stat-value { font-size: 34px; }
   h1 { font-size: 32px; }
   .page-title { font-size: 28px; }
 }
