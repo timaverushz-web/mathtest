@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const path    = require('path');
+const crypto  = require('crypto');
 const { Pool } = require('pg');
 
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
@@ -196,7 +197,7 @@ async function studentSeesTest(studentId, test) {
   return true;
 }
 
-/* ---------- Telegram ---------- */
+/* ---------- Telegram-бот ---------- */
 let bot = null;
 if (TG_TOKEN) {
   try {
@@ -268,7 +269,6 @@ async function notify(userId, type, title, text, link) {
       `INSERT INTO notifications (id, user_id, type, title, text, link, read, at)
        VALUES ($1,$2,$3,$4,$5,$6,false,$7)`,
       [uid(), userId, type, title, text, link ? JSON.stringify(link) : null, Date.now()]);
-    // подрезаем если > 80
     await pool.query(
       `DELETE FROM notifications WHERE id IN (
          SELECT id FROM notifications WHERE user_id=$1 ORDER BY at DESC OFFSET 80
@@ -346,7 +346,91 @@ app.get('/api/auth/me', auth, async (req, res) => {
 });
 
 /* =========================================================
-   TELEGRAM
+   TELEGRAM LOGIN WIDGET
+   ========================================================= */
+app.get('/api/telegram/bot-info', async (req, res) => {
+  if (!bot) return res.json({ username: null });
+  try {
+    const me = await bot.getMe();
+    res.json({ username: me.username });
+  } catch (e) {
+    res.json({ username: null });
+  }
+});
+
+app.post('/api/auth/telegram', async (req, res) => {
+  try {
+    if (!TG_TOKEN) return res.status(400).json({ error: 'Telegram не настроен' });
+    const data = req.body || {};
+
+    if (!data.id || !data.hash || !data.auth_date)
+      return res.status(400).json({ error: 'Некорректные данные от Telegram' });
+
+    const age = Math.floor(Date.now() / 1000) - Number(data.auth_date);
+    if (age > 86400)
+      return res.status(400).json({ error: 'Ссылка авторизации устарела' });
+
+    const checkHash = data.hash;
+    const pairs = Object.keys(data)
+      .filter(k => k !== 'hash')
+      .map(k => k + '=' + data[k])
+      .sort()
+      .join('\n');
+
+    const secretKey = crypto.createHash('sha256').update(TG_TOKEN).digest();
+    const computed = crypto.createHmac('sha256', secretKey)
+      .update(pairs).digest('hex');
+
+    if (computed !== checkHash)
+      return res.status(401).json({ error: 'Подпись Telegram неверна' });
+
+    const tgId = String(data.id);
+    const existing = await pool.query(
+      'SELECT * FROM users WHERE telegram_chat_id=$1', [tgId]);
+    let user = existing.rows[0];
+
+    if (!user) {
+      const email = 'tg_' + tgId + '@telegram.local';
+      const byEmail = await getUserByEmail(email);
+      if (byEmail) {
+        user = byEmail;
+      } else {
+        const id = uid();
+        const name = [data.first_name, data.last_name].filter(Boolean).join(' ')
+                     || data.username || ('tg_' + tgId);
+        await pool.query(
+          `INSERT INTO users (id, name, email, pass, role, telegram_chat_id, telegram_username, link_code, created_at)
+           VALUES ($1,$2,$3,$4,'student',$5,$6,$7,$8)`,
+          [id, name, email, 'tg_no_password', tgId,
+           data.username ? '@' + data.username : null,
+           uid() + uid(), Date.now()]);
+        user = await getUserById(id);
+      }
+    }
+
+    if (!user.telegram_chat_id) {
+      await pool.query(
+        'UPDATE users SET telegram_chat_id=$1, telegram_username=$2 WHERE id=$3',
+        [tgId, data.username ? '@' + data.username : null, user.id]);
+      user.telegram_chat_id = tgId;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name },
+      SECRET, { expiresIn: '30d' });
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, role: user.role }
+    });
+  } catch (e) {
+    console.error('telegram auth error:', e.message);
+    res.status(500).json({ error: 'Ошибка авторизации через Telegram' });
+  }
+});
+
+/* =========================================================
+   TELEGRAM (профиль)
    ========================================================= */
 app.get('/api/telegram/link', auth, async (req, res) => {
   const u = await getUserById(req.user.id);
@@ -657,13 +741,11 @@ app.get('/api/tests', auth, async (req, res) => {
       return res.json({ tests: list });
     }
 
-    // student
     const myCids = await getClassIdsForStudent(req.user.id);
     if (!myCids.length) return res.json({ tests: [] });
     const r = await pool.query(
       'SELECT * FROM tests WHERE class_ids ?| $1::text[]',
       [myCids]);
-    const myGids = await getGroupIdsForStudent(req.user.id);
     const out = [];
     for (const t of r.rows) {
       const visible = await studentSeesTest(req.user.id, t);
@@ -708,7 +790,6 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
        JSON.stringify(classIds || []), JSON.stringify(groupIds || []),
        JSON.stringify(normSettings(settings)), Date.now()]);
 
-    // уведомления ученикам класса
     const cids = classIds || [];
     const recipients = new Set();
     for (const cid of cids) {
@@ -719,7 +800,6 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
       await notify(sid, 'new_test', 'Новая работа',
         'Учитель назначил «' + title.trim() + '»', { testId: id });
     }
-    // telegram
     for (const cid of cids) {
       const studs = await getStudentsInClass(cid);
       for (const s of studs) {
@@ -968,7 +1048,6 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, async (req, res) => {
       groups.push({ classId: cid, className: cls.name, submitted: subs, notSubmitted });
     }
 
-    // аналитика
     const relR = await pool.query(
       `SELECT results FROM submissions WHERE test_id=$1 AND class_id = ANY($2)`,
       [t.id, classIds]);
