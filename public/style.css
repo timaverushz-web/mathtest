@@ -6,6 +6,15 @@
   --shadow:0 10px 30px -12px rgba(0,0,0,.55);
   --trans:.18s cubic-bezier(.4,0,.2,1);
 }
+[data-palette="green"][data-theme="dark"]{
+  --accent:#31d07b;--accent-2:#20a862;
+}
+[data-palette="purple"][data-theme="dark"]{
+  --accent:#8b5cff;--accent-2:#6c3ee8;
+}
+[data-palette="orange"][data-theme="dark"]{
+  --accent:#ff8c42;--accent-2:#e56c1c;
+}
 [data-theme="light"]{
   --bg:#f4f6fb;--bg-soft:#ffffff;--panel:#ffffff;--panel-2:#eef1f7;
   --line:#d5dbe6;--line-soft:#e4e9f1;--text:#1a2233;--muted:#677690;
@@ -453,6 +462,30 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .chart-bar::after{content:attr(data-label);position:absolute;bottom:-20px;
   left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted);white-space:nowrap}
 .chart-line{width:100%;height:180px;display:block}
+
+/* Palette picker */
+.palette-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.palette-option{
+  aspect-ratio:1;border-radius:12px;border:2px solid transparent;cursor:pointer;
+  transition:var(--trans);position:relative;
+}
+.palette-option:hover{transform:scale(1.05)}
+.palette-option.active{border-color:var(--text);box-shadow:0 0 0 3px rgba(255,255,255,.15)}
+.palette-option[data-pal="blue"]{background:linear-gradient(135deg,#5b8dff,#8b5cff)}
+.palette-option[data-pal="green"]{background:linear-gradient(135deg,#31d07b,#20a862)}
+.palette-option[data-pal="purple"]{background:linear-gradient(135deg,#8b5cff,#6c3ee8)}
+.palette-option[data-pal="orange"]{background:linear-gradient(135deg,#ff8c42,#e56c1c)}
+
+/* Logs */
+.log-row{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;
+  background:var(--bg-soft);border:1px solid var(--line-soft);
+  border-radius:10px;margin-bottom:6px;font-size:13.5px}
+.log-row .log-time{font-size:11.5px;color:var(--muted);flex:none;
+  min-width:100px;font-variant-numeric:tabular-nums}
+.log-row .log-who{font-weight:600;flex:none;min-width:120px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-row .log-action{flex:1;color:var(--text)}
+.log-row .log-details{color:var(--muted);font-size:12.5px;margin-top:2px}
 
 /* Mobile */
 @media(max-width:640px){
