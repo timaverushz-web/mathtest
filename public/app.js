@@ -1733,3 +1733,212 @@ async function boot(){
   try{
     var tgInfo=await fetch('/api/telegram/bot-info').then(function(r){return r.json();});
     if(tgInfo&&tgInfo.username)window.TELEGRAM_BOT_USERNAME=tgInfo.username;
+  }catch(e){}
+
+  initEditorFields();
+
+  // Theme
+  var bt=$('#btnTheme');if(bt)bt.onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    applyTheme(cur==='dark'?'light':'dark');
+  };
+  // Notif
+  var bn=$('#btnNotif');if(bn)bn.onclick=function(e){
+    e.stopPropagation();notifOpen=!notifOpen;
+    var p=$('#notifPanel');if(p)p.hidden=!notifOpen;
+    if(notifOpen)loadNotifications();
+  };
+  document.addEventListener('click',function(e){
+    if(!notifOpen)return;
+    if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
+    closeNotifPanel();
+  });
+  // Profile
+  var bp=$('#btnProfile');if(bp)bp.onclick=openProfile;
+  var bcp=$('#btnCloseProfile');if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
+  var pm=$('#profileModal');if(pm)pm.addEventListener('click',function(e){
+    if(e.target.id==='profileModal')$('#profileModal').hidden=true;
+  });
+  $$('.theme-option').forEach(function(b){
+    b.onclick=function(){
+      applyTheme(b.dataset.themeSet);
+      $$('.theme-option').forEach(function(x){x.classList.toggle('active',x===b);});
+    };
+  });
+  // Library
+  var blib=$('#btnLibrary');if(blib)blib.onclick=openLibrary;
+  var bbfl=$('#btnBackFromLibrary');if(bbfl)bbfl.onclick=function(){
+    if(isTeacherLike())goTeacher();else if(currentUser.role==='librarian')goTeacher();else goStudent();
+  };
+  var bab=$('#btnAddBook');if(bab)bab.onclick=function(){
+    $('#bookUploadForm').hidden=false;renderBookClassPicker();
+  };
+  var bcb=$('#btnCancelBook');if(bcb)bcb.onclick=function(){
+    $('#bookUploadForm').hidden=true;$('#bookErr').textContent='';
+  };
+  var bsb=$('#btnSaveBook');if(bsb)bsb.onclick=saveBook;
+  var bs=$('#bookSearch');if(bs){var tmr;bs.addEventListener('input',function(){
+    clearTimeout(tmr);tmr=setTimeout(searchBooks,250);
+  });}
+  var bcf=$('#bookClassFilter');if(bcf)bcf.onchange=searchBooks;
+  var bsort=$('#bookSort');if(bsort)bsort.onchange=searchBooks;
+  var bbv=$('#btnBookView');if(bbv)bbv.onclick=function(){
+    bookView=bookView==='grid'?'list':'grid';
+    bbv.textContent=bookView==='grid'?'📋 Список':'▦ Плитки';
+    searchBooks();
+  };
+  // Admin
+  var badm=$('#btnAdmin');if(badm)badm.onclick=openAdmin;
+  var bbfa=$('#btnBackFromAdmin');if(bbfa)bbfa.onclick=function(){
+    if(isTeacherLike())goTeacher();else goStudent();
+  };
+  var as=$('#adminSearch');if(as){var t2;as.addEventListener('input',function(){
+    clearTimeout(t2);t2=setTimeout(loadAdminUsers,250);
+  });}
+  var arf=$('#adminRoleFilter');if(arf)arf.onchange=loadAdminUsers;
+  // Profile stats
+  var bbfp=$('#btnBackFromProfile');if(bbfp)bbfp.onclick=function(){
+    if(isTeacherLike())goTeacher();else goStudent();
+  };
+  var bep=$('#btnEditProfile');if(bep)bep.onclick=openEditProfile;
+  var bbfep=$('#btnBackFromEditProfile');if(bbfep)bbfep.onclick=openProfileStats;
+  var bsp=$('#btnSaveProfile');if(bsp)bsp.onclick=saveEditProfile;
+  var bce=$('#btnCancelEdit');if(bce)bce.onclick=openProfileStats;
+  var bua=$('#btnUploadAvatar');if(bua)bua.onclick=function(){$('#avatarInput').click();};
+  var ai=$('#avatarInput');if(ai)ai.onchange=function(){if(this.files[0])uploadAvatar(this.files[0]);};
+  // Chat
+  var bcf2=$('#btnChatFile');if(bcf2)bcf2.onclick=function(){$('#chatFileInput').click();};
+  var cfi=$('#chatFileInput');if(cfi)cfi.onchange=function(){
+    var f=this.files[0];if(!f)return;
+    if(f.size>5*1024*1024){toast('Файл больше 5 МБ','err');this.value='';return;}
+    $('#chatFileName').textContent='📎 '+f.name+' ('+fmtSize(f.size)+')';
+  };
+  var bcs=$('#btnChatSend');if(bcs)bcs.onclick=sendChatMessage;
+  var ct=$('#chatText');if(ct)ct.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}
+  });
+  // tabs
+  $$('.tab').forEach(function(t){
+    if(!t.dataset.tab)return;
+    t.onclick=function(){
+      $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
+      var isL=t.dataset.tab==='login';
+      $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
+      var ae=$('#authErr');if(ae)ae.textContent='';
+      setTimeout(function(){(isL?$('#loginEmail'):$('#regName')).focus();},50);
+    };
+  });
+  $$('[data-ttab]').forEach(function(t){t.onclick=function(){
+    $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
+    $('#tt-tests').hidden=t.dataset.ttab!=='tests';
+    $('#tt-classes').hidden=t.dataset.ttab!=='classes';
+  };});
+  $$('[data-stab]').forEach(function(t){t.onclick=function(){
+    $$('[data-stab]').forEach(function(x){x.classList.toggle('active',x===t);});
+    $('#st-tests').hidden=t.dataset.stab!=='tests';
+    $('#st-classes').hidden=t.dataset.stab!=='classes';
+  };});
+  $$('.sym-tab').forEach(function(t){
+    t.onclick=function(){
+      $$('.sym-tab').forEach(function(x){x.classList.toggle('active',x===t);});
+      currentSymTab=t.dataset.symtab;buildSymbolBar($('#symbolBar'));
+    };
+  });
+  // Auth
+  $('#doLogin').onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    try{
+      var r=await api('/auth/login',{method:'POST',body:{
+        email:$('#loginEmail').value.trim(),password:$('#loginPass').value}});
+      setToken(r.token);enterApp(r.user);toast('Добро пожаловать!','ok');
+    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+  };
+  $('#doRegister').onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    try{
+      var r=await api('/auth/register',{method:'POST',body:{
+        name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),
+        password:$('#regPass').value,role:$('#regRole').value}});
+      setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
+    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+  };
+  // Enter on forms
+  ['loginEmail','loginPass'].forEach(function(id){
+    var el=$('#'+id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
+  });
+  ['regName','regEmail','regPass'].forEach(function(id){
+    var el=$('#'+id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});
+  });
+  var jc=$('#joinCode');if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
+  // Password toggles
+  $$('.pass-toggle').forEach(function(btn){
+    btn.onclick=function(){
+      var inp=$('#'+btn.dataset.target);if(!inp)return;
+      var p=inp.type==='password';
+      inp.type=p?'text':'password';btn.textContent=p?'🙈':'👁';
+    };
+  });
+  // Teacher buttons
+  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
+  var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
+    var name=prompt('Название класса (например: Математика 101)');
+    if(!name||!name.trim())return;
+    try{await api('/classes',{method:'POST',body:{name:name.trim()}});toast('Класс создан','ok');goTeacher();}
+    catch(e){toast(e.message,'err');}
+  };
+  var bbt=$('#btnBackToTeacher');if(bbt)bbt.onclick=goTeacher;
+  var bbfc=$('#btnBackFromClass');if(bbfc)bbfc.onclick=function(){
+    if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
+    if(isTeacherLike())goTeacher();else goStudent();
+  };
+  var bbft=$('#btnBackFromTake');if(bbft)bbft.onclick=function(){
+    if(confirm('Выйти? Черновик сохранён.')){
+      if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+      goStudent();
+    }
+  };
+  var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
+  var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
+  // To top
+  var tt=$('#toTop');
+  window.addEventListener('scroll',function(){if(tt)tt.classList.toggle('show',window.scrollY>300);});
+  if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
+
+  renderTop();
+
+  if(getToken()){
+    try{
+      var r=await api('/auth/me');
+      enterApp(r.user);
+      if(r.user.role==='student')await tryAutoJoin();
+      return;
+    }catch(e){setToken(null);}
+  }
+
+  initGoogleLogin();
+  initTelegramLogin();
+  show('view-auth');
+  setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
+}
+
+/* ============ CHAT SEND ============ */
+async function sendChatMessage(){
+  if(!currentClassId)return;
+  var text=$('#chatText').value.trim();
+  var fileInput=$('#chatFileInput');
+  var file=fileInput.files[0];
+  if(!text&&!file)return;
+  var fd=new FormData();
+  if(text)fd.append('text',text);
+  if(file)fd.append('file',file);
+  try{
+    await apiForm('/classes/'+currentClassId+'/messages',fd);
+    $('#chatText').value='';
+    fileInput.value='';
+    $('#chatFileName').textContent='';
+    await loadChatMessages(currentClassId,false);
+  }catch(e){toast(e.message,'err');}
+}
+
+document.addEventListener('DOMContentLoaded',boot);
+})();
