@@ -199,12 +199,12 @@ app.post('/api/auth/login', async (req, res) => {
 });
 app.get('/api/auth/me', auth, (req, res) => {
   const u = db.users.find(x => x.id === req.user.id);
+  if (!u) return res.status(401).json({ error: 'Сессия устарела. Войдите заново.' });
   res.json({ user: {
     id: u.id, name: u.name, role: u.role,
     telegram: u.telegram ? { username: u.telegram.username } : null
   }});
 });
-
 /* =========================================================
    TELEGRAM
    ========================================================= */
@@ -221,11 +221,7 @@ app.get('/api/telegram/link', auth, (req, res) => {
 });
 app.post('/api/telegram/unlink', auth, (req, res) => {
   const u = db.users.find(x => x.id === req.user.id);
-  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
-  u.telegram = null; save();
-  res.json({ ok: true });
-});
-
+  if (!u) return res.status(401).json({ error: 'Сессия устарела. Войдите заново.' });
 /* =========================================================
    КЛАССЫ
    ========================================================= */
@@ -768,6 +764,21 @@ app.get('/api/submissions/:id', auth, (req, res) => {
     },
     test: { id: t.id, title: t.title, tasks }
   });
+});
+
+/* favicon — тихо отдаём 204, чтобы не сыпалось SendStream.error */
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+/* 404 для статики — отдаём index.html, чтобы SPA-роутинг работал */
+app.get(/^\/(?!api\/).*/, (req, res, next) => {
+  if (req.path.includes('.')) return next(); // файлы .css, .js, .png — пропускаем
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+/* Глобальный обработчик ошибок — сервер не падает от одной ошибки */
+app.use((err, req, res, next) => {
+  console.error('❌ Ошибка:', err.message);
+  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 app.listen(PORT, () => {
