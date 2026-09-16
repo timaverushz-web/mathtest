@@ -9,9 +9,14 @@ const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT      = process.env.PORT || 3000;
 
 /* ---------- хранилище ---------- */
-let db = { users: [], classes: [], tests: [], submissions: [] };
+let db = { users: [], classes: [], tests: [], submissions: [], notifications: [] };
 if (fs.existsSync(DATA_FILE)) {
-  try { db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
+  try {
+    const loaded = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    db = Object.assign(db, loaded);
+    db.notifications = db.notifications || [];
+    (db.classes || []).forEach(c => { c.groups = c.groups || []; });
+  } catch (e) {}
 }
 function save() { fs.writeFileSync(DATA_FILE, JSON.stringify(db), 'utf8'); }
 const uid  = () => Math.random().toString(36).slice(2, 10);
@@ -21,11 +26,22 @@ const code = () => {
   return s;
 };
 
-const DEFAULT_SETTINGS = {
-  timeLimit:   0,     // минут, 0 = без ограничения
-  attempts:    1,     // попыток, 0 = без ограничения
-  showAnswers: true   // показывать правильный ответ после сдачи
-};
+/* ---------- уведомления ---------- */
+function notify(userId, type, title, text, link) {
+  db.notifications.push({
+    id: uid(), userId, type, title, text,
+    link: link || null, read: false, at: Date.now()
+  });
+  const mine = db.notifications
+    .filter(n => n.userId === userId)
+    .sort((a, b) => b.at - a.at);
+  if (mine.length > 80) {
+    const toDrop = new Set(mine.slice(80).map(n => n.id));
+    db.notifications = db.notifications.filter(n => !toDrop.has(n.id));
+  }
+}
+
+const DEFAULT_SETTINGS = { timeLimit: 0, attempts: 1, showAnswers: true };
 function normSettings(s) {
   s = s || {};
   return {
@@ -57,6 +73,29 @@ function escapeCsv(v) {
   return v;
 }
 
+/* ---------- «видит ли ученик работу» ---------- */
+function myClassIds(studentId) {
+  return db.classes.filter(c => c.studentIds.includes(studentId)).map(c => c.id);
+}
+function myGroupIds(studentId) {
+  const out = [];
+  db.classes.forEach(c => {
+    (c.groups || []).forEach(g => {
+      if (g.studentIds.includes(studentId)) out.push(g.id);
+    });
+  });
+  return out;
+}
+function studentSeesTest(studentId, test) {
+  const cids = myClassIds(studentId);
+  if (!(test.classIds || []).some(id => cids.includes(id))) return false;
+  if (test.groupIds && test.groupIds.length > 0) {
+    const gids = myGroupIds(studentId);
+    if (!test.groupIds.some(id => gids.includes(id))) return false;
+  }
+  return true;
+}
+
 /* =========================================================
    АУТЕНТИФИКАЦИЯ
    ========================================================= */
@@ -77,7 +116,6 @@ app.post('/api/auth/register', async (req, res) => {
   const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
 });
-
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   const u = db.users.find(x => x.email === (email || '').toLowerCase().trim());
@@ -86,7 +124,6 @@ app.post('/api/auth/login', async (req, res) => {
   const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: u.id, name: u.name, role: u.role } });
 });
-
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
 
 /* =========================================================
@@ -98,11 +135,16 @@ app.get('/api/classes', auth, (req, res) => {
     : db.classes.filter(c => c.studentIds.includes(req.user.id));
   const enriched = list.map(c => {
     const teacher = db.users.find(u => u.id === c.teacherId);
+    const myGroups = (c.groups || []).filter(g =>
+      req.user.role !== 'student' || g.studentIds.includes(req.user.id));
     return {
       id: c.id, name: c.name, code: c.code,
       teacherId: c.teacherId,
       teacherName: teacher ? teacher.name : '—',
-      studentCount: c.studentIds.length
+      studentCount: c.studentIds.length,
+      groups: req.user.role === 'teacher'
+        ? (c.groups || []).map(g => ({ id: g.id, name: g.name, count: g.studentIds.length }))
+        : myGroups.map(g => ({ id: g.id, name: g.name }))
     };
   });
   res.json({ classes: enriched });
@@ -114,7 +156,7 @@ app.post('/api/classes', auth, teacherOnly, (req, res) => {
   let c;
   do { c = code(); } while (db.classes.some(x => x.code === c));
   const cls = { id: uid(), name: name.trim(), code: c,
-                teacherId: req.user.id, studentIds: [], createdAt: Date.now() };
+                teacherId: req.user.id, studentIds: [], groups: [], createdAt: Date.now() };
   db.classes.push(cls); save();
   res.json({ class: cls });
 });
@@ -135,13 +177,17 @@ app.post('/api/classes/join', auth, (req, res) => {
   if (c.studentIds.includes(req.user.id))
     return res.status(400).json({ error: 'Вы уже в этом классе' });
   c.studentIds.push(req.user.id); save();
+  notify(c.teacherId, 'join', 'Новый ученик в классе',
+    req.user.name + ' присоединился к «' + c.name + '»', null);
   res.json({ class: { id: c.id, name: c.name } });
 });
 
 app.post('/api/classes/:id/leave', auth, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Класс не найден' });
-  c.studentIds = c.studentIds.filter(id => id !== req.user.id); save();
+  c.studentIds = c.studentIds.filter(id => id !== req.user.id);
+  (c.groups || []).forEach(g => { g.studentIds = g.studentIds.filter(id => id !== req.user.id); });
+  save();
   res.json({ ok: true });
 });
 
@@ -151,7 +197,9 @@ app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
   if (c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
   const students = c.studentIds.map(id => {
     const u = db.users.find(x => x.id === id);
-    return u ? { id: u.id, name: u.name, email: u.email } : null;
+    if (!u) return null;
+    const groups = (c.groups || []).filter(g => g.studentIds.includes(id)).map(g => g.id);
+    return { id: u.id, name: u.name, email: u.email, groupIds: groups };
   }).filter(Boolean);
   const classTests = db.tests
     .filter(t => (t.classIds || []).includes(c.id))
@@ -159,18 +207,65 @@ app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
       const subs = db.submissions.filter(s => s.testId === t.id && s.classId === c.id);
       return {
         id: t.id, title: t.title,
-        submitted: subs.length,
-        total: students.length,
-        unseen: subs.filter(s => !s.seen).length
+        submitted: subs.length, total: students.length,
+        unseen: subs.filter(s => !s.seen).length,
+        groupIds: t.groupIds || []
       };
     });
-  res.json({ class: { id: c.id, name: c.name, code: c.code }, students, tests: classTests });
+  res.json({
+    class: { id: c.id, name: c.name, code: c.code,
+             groups: (c.groups || []).map(g => ({ id: g.id, name: g.name, studentIds: g.studentIds.slice() })) },
+    students, tests: classTests
+  });
 });
 
 app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
-  c.studentIds = c.studentIds.filter(id => id !== req.params.sid); save();
+  c.studentIds = c.studentIds.filter(id => id !== req.params.sid);
+  (c.groups || []).forEach(g => { g.studentIds = g.studentIds.filter(id => id !== req.params.sid); });
+  save();
+  res.json({ ok: true });
+});
+
+/* ---------- группы внутри класса ---------- */
+app.post('/api/classes/:id/groups', auth, teacherOnly, (req, res) => {
+  const c = db.classes.find(x => x.id === req.params.id);
+  if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  const { name } = req.body || {};
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Введите название группы' });
+  c.groups = c.groups || [];
+  const g = { id: uid(), name: name.trim(), studentIds: [] };
+  c.groups.push(g); save();
+  res.json({ group: g });
+});
+
+app.delete('/api/classes/:id/groups/:gid', auth, teacherOnly, (req, res) => {
+  const c = db.classes.find(x => x.id === req.params.id);
+  if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  c.groups = (c.groups || []).filter(g => g.id !== req.params.gid);
+  save();
+  res.json({ ok: true });
+});
+
+app.post('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, (req, res) => {
+  const c = db.classes.find(x => x.id === req.params.id);
+  if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  const g = (c.groups || []).find(x => x.id === req.params.gid);
+  if (!g) return res.status(404).json({ error: 'Группа не найдена' });
+  if (!c.studentIds.includes(req.params.sid)) return res.status(400).json({ error: 'Ученик не в классе' });
+  if (!g.studentIds.includes(req.params.sid)) g.studentIds.push(req.params.sid);
+  save();
+  res.json({ ok: true });
+});
+
+app.delete('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, (req, res) => {
+  const c = db.classes.find(x => x.id === req.params.id);
+  if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  const g = (c.groups || []).find(x => x.id === req.params.gid);
+  if (!g) return res.status(404).json({ error: 'Группа не найдена' });
+  g.studentIds = g.studentIds.filter(id => id !== req.params.sid);
+  save();
   res.json({ ok: true });
 });
 
@@ -180,23 +275,22 @@ app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, (req, res) => {
 app.get('/api/tests', auth, (req, res) => {
   let list;
   if (req.user.role === 'teacher') {
-    list = db.tests.filter(t => t.ownerId === req.user.id);
-    list = list.map(t => ({
+    list = db.tests.filter(t => t.ownerId === req.user.id).map(t => ({
       id: t.id, title: t.title, tasks: t.tasks,
       classIds: t.classIds || [],
+      groupIds: t.groupIds || [],
       settings: normSettings(t.settings),
       unseen: db.submissions.filter(s => s.testId === t.id && !s.seen).length
     }));
   } else {
-    const myCids = db.classes.filter(c => c.studentIds.includes(req.user.id)).map(c => c.id);
     list = db.tests
-      .filter(t => (t.classIds || []).some(id => myCids.includes(id)))
+      .filter(t => studentSeesTest(req.user.id, t))
       .map(t => {
         const mySubs = db.submissions.filter(x => x.testId === t.id && x.studentId === req.user.id);
-        const lastSub = mySubs.sort((a,b) => b.at - a.at)[0];
+        const lastSub = mySubs.sort((a, b) => b.at - a.at)[0];
+        const myCids = myClassIds(req.user.id);
         return {
-          id: t.id,
-          title: t.title,
+          id: t.id, title: t.title,
           tasks: t.tasks.map(x => {
             const c = { id: x.id, type: x.type, statement: x.statement, points: x.points };
             if (x.type === 'choice') c.options = x.options;
@@ -213,24 +307,36 @@ app.get('/api/tests', auth, (req, res) => {
 });
 
 app.post('/api/tests', auth, teacherOnly, (req, res) => {
-  const { title, tasks, classIds, settings } = req.body || {};
+  const { title, tasks, classIds, groupIds, settings } = req.body || {};
   if (!title || !Array.isArray(tasks) || !tasks.length)
     return res.status(400).json({ error: 'Нужно название и задания' });
   const t = {
     id: uid(), ownerId: req.user.id, title: title.trim(),
-    tasks, classIds: classIds || [],
-    settings: normSettings(settings),
-    createdAt: Date.now()
+    tasks, classIds: classIds || [], groupIds: groupIds || [],
+    settings: normSettings(settings), createdAt: Date.now()
   };
   db.tests.push(t); save();
+
+  // уведомить учеников, кому назначена работа
+  const recipients = db.classes
+    .filter(c => (t.classIds || []).includes(c.id))
+    .flatMap(c => c.studentIds);
+  const unique = [...new Set(recipients)];
+  unique.forEach(sid => {
+    notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + t.title + '»',
+      { testId: t.id });
+  });
+  save();
+
   res.json({ id: t.id });
 });
 
 app.put('/api/tests/:id', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
   if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
-  const { title, tasks, classIds, settings } = req.body || {};
-  t.title = title; t.tasks = tasks; t.classIds = classIds || [];
+  const { title, tasks, classIds, groupIds, settings } = req.body || {};
+  t.title = title; t.tasks = tasks;
+  t.classIds = classIds || []; t.groupIds = groupIds || [];
   t.settings = normSettings(settings);
   save();
   res.json({ ok: true });
@@ -243,7 +349,7 @@ app.post('/api/tests/:id/duplicate', auth, teacherOnly, (req, res) => {
     id: uid(), ownerId: req.user.id,
     title: t.title + ' (копия)',
     tasks: JSON.parse(JSON.stringify(t.tasks)),
-    classIds: [],
+    classIds: [], groupIds: [],
     settings: normSettings(t.settings),
     createdAt: Date.now()
   };
@@ -257,6 +363,28 @@ app.delete('/api/tests/:id', auth, teacherOnly, (req, res) => {
   db.tests = db.tests.filter(x => x.id !== t.id);
   db.submissions = db.submissions.filter(s => s.testId !== t.id);
   save();
+  res.json({ ok: true });
+});
+
+/* =========================================================
+   УВЕДОМЛЕНИЯ
+   ========================================================= */
+app.get('/api/notifications', auth, (req, res) => {
+  const list = db.notifications
+    .filter(n => n.userId === req.user.id)
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 50);
+  const unread = list.filter(n => !n.read).length;
+  res.json({ notifications: list, unread });
+});
+app.post('/api/notifications/read-all', auth, (req, res) => {
+  db.notifications.forEach(n => { if (n.userId === req.user.id) n.read = true; });
+  save(); res.json({ ok: true });
+});
+app.post('/api/notifications/:id/read', auth, (req, res) => {
+  const n = db.notifications.find(x => x.id === req.params.id && x.userId === req.user.id);
+  if (!n) return res.status(404).json({ error: 'Не найдено' });
+  n.read = true; save();
   res.json({ ok: true });
 });
 
@@ -292,26 +420,24 @@ function isCorrect(student, correct, tol = 1e-6) {
 }
 
 /* =========================================================
-   СДАЧА РАБОТЫ
+   СДАЧА
    ========================================================= */
 app.post('/api/tests/:id/submit', auth, (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ error: 'Только для учеников' });
   const t = db.tests.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ error: 'Работа не найдена' });
+  if (!studentSeesTest(req.user.id, t)) return res.status(403).json({ error: 'Работа не для вас' });
 
-  const myCids = db.classes.filter(c => c.studentIds.includes(req.user.id)).map(c => c.id);
-  const classId = (t.classIds || []).find(id => myCids.includes(id));
+  const cids = myClassIds(req.user.id);
+  const classId = (t.classIds || []).find(id => cids.includes(id));
   if (!classId) return res.status(403).json({ error: 'Работа не для вашего класса' });
 
   const settings = normSettings(t.settings);
-
-  /* проверка лимита попыток */
   const myAttempts = db.submissions.filter(s => s.testId === t.id && s.studentId === req.user.id).length;
   if (settings.attempts > 0 && myAttempts >= settings.attempts) {
     return res.status(400).json({ error: 'Достигнут лимит попыток (' + settings.attempts + ')' });
   }
 
-  /* проверка времени */
   const startedAt = Number(req.body.startedAt) || Date.now();
   const durationMs = Date.now() - startedAt;
   const expired = settings.timeLimit > 0 &&
@@ -334,13 +460,17 @@ app.post('/api/tests/:id/submit', auth, (req, res) => {
     classId, score, max, results,
     attempt: myAttempts + 1,
     startedAt, at: Date.now(),
-    durationMs,
-    expired: !!expired,
-    seen: false
+    durationMs, expired: !!expired, seen: false
   };
-  db.submissions.push(sub); save();
+  db.submissions.push(sub);
 
-  /* возвращаем клиенту результаты + правильные ответы (если разрешено) */
+  // уведомить учителя
+  const pct = max ? Math.round(score / max * 100) : 0;
+  notify(t.ownerId, 'submission', 'Новая сдача: ' + req.user.name,
+    '«' + t.title + '» — ' + score + '/' + max + ' (' + pct + '%)',
+    { testId: t.id, submissionId: sub.id });
+  save();
+
   const resultsFull = results.map((r, i) => {
     const task = t.tasks[i];
     const out = { ok: r.ok, studentText: r.studentText };
@@ -352,18 +482,13 @@ app.post('/api/tests/:id/submit', auth, (req, res) => {
   });
 
   res.json({
-    id: sub.id,
-    score, max,
-    results: resultsFull,
-    attempt: sub.attempt,
-    durationMs,
-    expired: sub.expired,
-    settings
+    id: sub.id, score, max, results: resultsFull,
+    attempt: sub.attempt, durationMs, expired: sub.expired, settings
   });
 });
 
 /* =========================================================
-   РЕЗУЛЬТАТЫ + АНАЛИТИКА
+   РЕЗУЛЬТАТЫ
    ========================================================= */
 app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
@@ -385,74 +510,63 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
         attempt: s.attempt, durationMs: s.durationMs, expired: s.expired
       }));
     const submittedIds = new Set(subs.map(s => s.studentId));
-    const notSubmitted = cls.studentIds
+
+    // если работа для группы — фильтруем состав
+    let targetStudentIds = cls.studentIds.slice();
+    if (t.groupIds && t.groupIds.length > 0) {
+      const inGroups = new Set();
+      (cls.groups || []).forEach(g => {
+        if (t.groupIds.includes(g.id)) g.studentIds.forEach(id => inGroups.add(id));
+      });
+      targetStudentIds = targetStudentIds.filter(id => inGroups.has(id));
+    }
+
+    const notSubmitted = targetStudentIds
       .filter(sid => !submittedIds.has(sid))
       .map(sid => { const u = db.users.find(u => u.id === sid); return u ? { id: u.id, name: u.name } : null; })
       .filter(Boolean);
+
     return { classId: cid, className: cls.name, submitted: subs, notSubmitted };
   }).filter(Boolean);
 
-  /* аналитика по заданиям */
   const relevantSubs = db.submissions.filter(s => s.testId === t.id && classIds.includes(s.classId));
   const perTask = t.tasks.map((task, i) => {
     let correct = 0, total = 0;
-    relevantSubs.forEach(s => {
-      total++;
-      if (s.results[i] && s.results[i].ok) correct++;
-    });
+    relevantSubs.forEach(s => { total++; if (s.results[i] && s.results[i].ok) correct++; });
     return {
-      index: i + 1,
-      statement: task.statement,
-      points: task.points || 1,
-      correct, total,
+      index: i + 1, statement: task.statement,
+      points: task.points || 1, correct, total,
       pct: total ? Math.round(correct / total * 100) : 0
     };
   });
 
-  res.json({
-    groups,
-    analytics: perTask,
-    settings: normSettings(t.settings)
-  });
+  res.json({ groups, analytics: perTask, settings: normSettings(t.settings) });
 });
 
-/* ---------- экспорт в CSV ---------- */
 app.get('/api/tests/:id/export.csv', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
   if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
-
   const subs = db.submissions.filter(s => s.testId === t.id).sort((a, b) => a.at - b.at);
   const taskCount = t.tasks.length;
-
   const headers = ['Ученик', 'Класс', 'Дата', 'Попытка', 'Балл', 'Макс', '%', 'Время'];
   for (let i = 1; i <= taskCount; i++) headers.push('Задание ' + i);
-
   const rows = subs.map(s => {
     const cls = db.classes.find(c => c.id === s.classId);
     const pct = s.max ? Math.round(s.score / s.max * 100) : 0;
     const dur = s.durationMs ? Math.round(s.durationMs / 1000) + ' с' : '';
-    const row = [
-      s.studentName,
-      cls ? cls.name : '—',
-      new Date(s.at).toLocaleString('ru-RU'),
-      s.attempt || 1,
-      s.score, s.max, pct + '%',
-      dur
-    ];
+    const row = [s.studentName, cls ? cls.name : '—', new Date(s.at).toLocaleString('ru-RU'),
+                 s.attempt || 1, s.score, s.max, pct + '%', dur];
     for (let i = 0; i < taskCount; i++) {
       const r = s.results[i];
       row.push(r ? (r.ok ? '✓' : '✗') : '');
     }
     return row;
   });
-
   const csv = [headers, ...rows].map(r => r.map(escapeCsv).join(',')).join('\r\n');
-  const bom = '\uFEFF';
   const safeTitle = t.title.replace(/[^\p{L}\p{N}\-_]+/gu, '_').slice(0, 40);
-
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="results_' + safeTitle + '.csv"');
-  res.send(bom + csv);
+  res.send('\uFEFF' + csv);
 });
 
 app.get('/api/submissions/:id', auth, (req, res) => {
@@ -460,19 +574,15 @@ app.get('/api/submissions/:id', auth, (req, res) => {
   if (!s) return res.status(404).json({ error: 'Сдача не найдена' });
   const t = db.tests.find(x => x.id === s.testId);
   if (!t) return res.status(404).json({ error: 'Работа не найдена' });
-
   const isTeacher = t.ownerId === req.user.id;
   const isStudent = s.studentId === req.user.id;
   if (!isTeacher && !isStudent) return res.status(403).json({ error: 'Нет доступа' });
-
   const tasks = t.tasks.map((task, i) => {
     const r = s.results[i] || { ok: false };
     if (isTeacher || r.ok) return task;
-    const c = { ...task };
-    delete c.answer; delete c.correctIndex;
+    const c = { ...task }; delete c.answer; delete c.correctIndex;
     return c;
   });
-
   res.json({
     submission: {
       id: s.id, score: s.score, max: s.max, at: s.at,
