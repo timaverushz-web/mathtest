@@ -388,41 +388,22 @@ button[disabled]{opacity:.5;cursor:not-allowed}
   width:100%;
 }
 
-.social-btn-box{
-  width:100%;
-  max-width:320px;
-  height:44px;
-  border-radius:10px;
-  overflow:hidden;
-  position:relative;
-  background:#ffffff;
-  border:1px solid var(--line);
+/* Обе кнопки — строго 240×40, по центру */
+.social-btn-fixed{
+  width:240px;
+  height:40px;
   display:flex;
   align-items:center;
   justify-content:center;
-  box-sizing:border-box;
+  overflow:hidden;
+  border-radius:6px;
 }
 
-/* Google / Telegram iframe — растягиваем ровно по контейнеру */
-.social-btn-box iframe{
-  position:absolute !important;
-  top:0 !important;
-  left:0 !important;
-  width:100% !important;
-  height:100% !important;
-  border:none !important;
-  border-radius:10px !important;
+.social-btn-fixed iframe,
+.social-btn-fixed > div,
+.social-btn-fixed *{
+  max-width:240px !important;
   box-shadow:none !important;
-  background:transparent !important;
-}
-
-/* Скрываем возможные «лишние» прослойки Google */
-.social-btn-box > div{
-  width:100% !important;
-  height:100% !important;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
 }
 
 .social-login .err{
@@ -430,10 +411,6 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 }
 .social-login .err:empty{display:none}
 
-/* Мобильная адаптация */
-@media(max-width:400px){
-  .social-btn-box{max-width:100%;}
-}
 /* Mobile */
 @media(max-width:640px){
   main{padding:18px 14px 70px}
@@ -450,4 +427,5 @@ button[disabled]{opacity:.5;cursor:not-allowed}
   .score-circle{--size:110px}
   .score-circle .val{font-size:20px}
   .notif-panel{left:10px;right:10px;width:auto}
+  .social-btn-fixed{width:100%;max-width:240px;}
 }
