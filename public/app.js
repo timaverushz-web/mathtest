@@ -2381,4 +2381,60 @@ async function boot(){
   $('#doRegister').onclick=async function(){
     var ae=$('#authErr');if(ae)ae.textContent='';
     try{
-      var r=await api('/auth/register',{method:'POST',body:{name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),password:$('#reg
+      var r=await api('/auth/register',{method:'POST',body:{name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),password:$('#regPass').value,role:$('#regRole').value}});
+      setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
+    }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+  };
+  ['loginEmail','loginPass'].forEach(function(id){var el=$('#'+id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});});
+  ['regName','regEmail','regPass'].forEach(function(id){var el=$('#'+id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});});
+  var jc=$('#joinCode');if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
+  $$('.pass-toggle').forEach(function(btn){
+    btn.onclick=function(){
+      var inp=$('#'+btn.dataset.target);if(!inp)return;
+      var p=inp.type==='password';
+      inp.type=p?'text':'password';
+    };
+  });
+
+  /* Кнопки учителя */
+  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
+  var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
+    var name=prompt('Название класса (например: Математика 101)');
+    if(!name||!name.trim())return;
+    try{await api('/classes',{method:'POST',body:{name:name.trim()}});toast('Класс создан','ok');goTeacher();}
+    catch(e){toast(e.message,'err');}
+  };
+  var bbt=$('#btnBackToTeacher');if(bbt)bbt.onclick=goTeacher;
+  var bbfc=$('#btnBackFromClass');if(bbfc)bbfc.onclick=function(){
+    if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
+    if(isTeacherLike())goTeacher();else goStudent();
+  };
+  var bbft=$('#btnBackFromTake');if(bbft)bbft.onclick=function(){
+    if(confirm('Выйти? Черновик сохранён.')){if(timerInterval){clearInterval(timerInterval);timerInterval=null;}goStudent();}
+  };
+  var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
+  var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
+
+  /* Наверх */
+  var tt=$('#toTop');
+  window.addEventListener('scroll',function(){if(tt)tt.classList.toggle('show',window.scrollY>400);});
+  if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
+
+  renderTop();
+
+  if(getToken()){
+    try{
+      var r=await api('/auth/me');
+      enterApp(r.user);
+      if(r.user.role==='student')await tryAutoJoin();
+      return;
+    }catch(e){setToken(null);}
+  }
+
+  initGoogleLogin();
+  initTelegramLogin();
+  show('view-landing');
+  setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
+}
+document.addEventListener('DOMContentLoaded',function(){registerSW();boot();});
+})();
