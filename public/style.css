@@ -381,37 +381,36 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 }
 .social-buttons{
   display:flex;flex-direction:column;gap:10px;
-  align-items:center;width:100%;
+  align-items:center;
 }
 .social-btn-box{
-  width:100%;max-width:340px;height:44px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:10px;overflow:hidden;
+  width:340px;
+  max-width:100%;
+  height:44px;
+  border-radius:10px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  position:relative;
 }
 .social-btn-box > div,
-.social-btn-box > iframe{
-  width:100% !important;
-  height:44px !important;
+.social-btn-box > iframe,
+.social-btn-box *{
   max-width:100% !important;
 }
-/* Google widget внутри */
-.social-btn-box .g_id_signin > div,
-.social-btn-box .g_id_signin iframe{
-  width:100% !important;
-  height:44px !important;
-  border-radius:10px !important;
-  border:1px solid var(--line) !important;
-  box-shadow:none !important;
-  background:var(--bg-soft) !important;
-}
-/* Telegram widget внутри */
-#tgLoginWrap iframe{
-  width:100% !important;
+.social-btn-box iframe{
+  width:340px !important;
   height:44px !important;
   border:none !important;
   border-radius:10px !important;
   box-shadow:none !important;
-  overflow:hidden !important;
+  display:block;
+  margin:0 auto;
+}
+.social-btn-box > div > div{
+  box-shadow:none !important;
 }
 .social-login .err{
   text-align:center;margin-top:10px;min-height:0;
