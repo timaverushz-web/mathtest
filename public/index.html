@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="dark">
+<html lang="ru" data-theme="dark" data-palette="orange">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,34 +7,82 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <link rel="stylesheet" href="/style.css">
-<meta name="theme-color" content="#5b8dff">
+<meta name="theme-color" content="#ff6b1f">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MathTest">
 </head>
 <body>
+
+<!-- SVG-спрайт иконок — используется через <use href="#i-name"> -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4 5 5-7 5 7 4-5v11H3z"/><path d="M3 18h18"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+  </defs>
+</svg>
 
 <div id="toasts"></div>
 
 <header id="topbar">
-  <div class="brand"><span class="sigma">∑</span><span>MathTest</span></div>
+  <div class="brand">
+    <span class="sigma">∑</span>
+    <span>MathTest</span>
+  </div>
   <div class="spacer"></div>
-  <button class="icon-btn" id="btnDashboard" title="Дашборд" hidden>📊</button>
-  <button class="icon-btn" id="btnTheme" title="Переключить тему">🌙</button>
-  <button class="icon-btn" id="btnPalette" title="Цветовая схема">🎨</button>
-  <button class="icon-btn" id="btnLibrary" title="Библиотека">📚</button>
-  <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
-    🔔<span class="notif-badge" id="notifBadge" hidden>0</span>
+
+  <button class="icon-btn" id="btnDashboard" title="Дашборд" hidden>
+    <svg><use href="#i-chart"/></svg>
   </button>
-  <button class="icon-btn" id="btnAdmin" title="Админ-панель" hidden>👑</button>
-  <button class="icon-btn" id="btnProfile" title="Профиль">⚙️</button>
+  <button class="icon-btn" id="btnLibrary" title="Библиотека">
+    <svg><use href="#i-book"/></svg>
+  </button>
+  <button class="icon-btn" id="btnTheme" title="Переключить тему">
+    <svg id="themeIcon"><use href="#i-moon"/></svg>
+  </button>
+  <button class="icon-btn" id="btnPalette" title="Цветовая схема">
+    <svg><use href="#i-palette"/></svg>
+  </button>
+  <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
+    <svg><use href="#i-bell"/></svg>
+    <span class="notif-badge" id="notifBadge" hidden>0</span>
+  </button>
+  <button class="icon-btn" id="btnAdmin" title="Админ-панель" hidden>
+    <svg><use href="#i-crown"/></svg>
+  </button>
+  <button class="icon-btn" id="btnProfile" title="Профиль">
+    <svg><use href="#i-settings"/></svg>
+  </button>
   <div id="userBox"></div>
 </header>
 
-<button id="toTop" title="Наверх">↑</button>
+<button id="toTop" title="Наверх">
+  <svg><use href="#i-arrow-up"/></svg>
+</button>
 
 <div class="notif-panel" id="notifPanel" hidden>
   <div class="notif-head">
@@ -49,10 +97,10 @@
 <!-- АВТОРИЗАЦИЯ -->
 <section id="view-auth" class="view active">
   <div class="card narrow">
-    <h2 style="text-align:center;margin-bottom:20px">
-      <span class="gradient-text">Конструктор контрольных работ</span>
+    <h2 style="text-align:center;margin-bottom:28px">
+      <span class="gradient-text">Добро пожаловать</span>
     </h2>
-    <div class="tabs" style="width:100%;justify-content:center;display:flex">
+    <div class="tabs" style="width:100%;justify-content:center;display:flex;margin-bottom:24px">
       <button class="tab active" data-tab="login" style="flex:1">Вход</button>
       <button class="tab" data-tab="reg" style="flex:1">Регистрация</button>
     </div>
@@ -62,10 +110,13 @@
       <label>Пароль
         <div class="pass-wrap">
           <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
-          <button type="button" class="pass-toggle" data-target="loginPass">👁</button>
+          <button type="button" class="pass-toggle" data-target="loginPass">
+            <svg><use href="#i-search"/></svg>
+          </button>
         </div>
       </label>
-      <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
+      <button class="primary block" id="doLogin" style="margin-top:12px">Войти</button>
+
       <div class="social-login">
         <div class="social-divider"><span>или войдите через</span></div>
         <div class="social-buttons">
@@ -79,11 +130,13 @@
 
     <div id="regForm" hidden>
       <label>Имя<input id="regName" placeholder="Иван Петров"></label>
-      <label>Email<input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Email<input id="regEmail" type="email" placeholder="you@example.com"></label>
       <label>Пароль (от 6 символов)
         <div class="pass-wrap">
-          <input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••">
-          <button type="button" class="pass-toggle" data-target="regPass">👁</button>
+          <input id="regPass" type="password" placeholder="••••••••">
+          <button type="button" class="pass-toggle" data-target="regPass">
+            <svg><use href="#i-search"/></svg>
+          </button>
         </div>
       </label>
       <label>Роль
@@ -93,7 +146,7 @@
           <option value="librarian">Библиотекарь</option>
         </select>
       </label>
-      <button class="primary" id="doRegister" style="width:100%;margin-top:8px">Создать аккаунт →</button>
+      <button class="primary block" id="doRegister" style="margin-top:12px">Создать аккаунт</button>
     </div>
 
     <p class="err" id="authErr" style="text-align:center"></p>
@@ -102,10 +155,10 @@
 
 <!-- УЧИТЕЛЬ -->
 <section id="view-teacher" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <h2 style="margin:0;flex:1">Кабинет учителя</h2>
-    <button class="primary" id="btnNewClass">+ Класс</button>
-    <button class="primary" id="btnNewTest">+ Работа</button>
+  <div class="row" style="margin-bottom:36px">
+    <h1 class="page-title" style="flex:1">Кабинет</h1>
+    <button class="primary" id="btnNewClass"><svg><use href="#i-plus"/></svg> Класс</button>
+    <button class="primary" id="btnNewTest"><svg><use href="#i-plus"/></svg> Работа</button>
   </div>
   <div class="tabs">
     <button class="tab active" data-ttab="tests">Работы</button>
@@ -117,29 +170,29 @@
 
 <!-- РЕДАКТОР -->
 <section id="view-editor" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackToTeacher">← Назад</button>
-    <input id="testTitle" placeholder="Название работы" style="flex:1;min-width:200px;margin:0;font-size:16px;font-weight:600">
-    <button class="primary" id="btnSaveTest">Сохранить</button>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackToTeacher"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <input id="testTitle" placeholder="Название работы" style="flex:1;min-width:260px;margin:0;font-size:18px;font-weight:700">
+    <button class="primary" id="btnSaveTest"><svg><use href="#i-save"/></svg> Сохранить</button>
   </div>
   <div class="card">
     <h3>Кому назначить работу</h3>
-    <div class="muted" style="margin-bottom:10px">Отметьте классы. Если у класса есть группы — можно ограничить работу только группой.</div>
+    <div class="muted" style="margin-bottom:14px">Отметьте классы. Если у класса есть группы — можно ограничить работу только группой.</div>
     <div id="classPicker"></div>
   </div>
   <div class="card">
-    <h3>⚙️ Настройки работы</h3>
+    <h3>Настройки работы</h3>
     <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-      <label>⏱ Время на работу (минут, 0 = без ограничения)
+      <label>⏱ Время (минут, 0 = без ограничения)
         <input id="setTimeLimit" type="number" value="0" min="0">
       </label>
       <label>🎯 Попыток (0 = без ограничения)
         <input id="setAttempts" type="number" value="1" min="0">
       </label>
     </div>
-    <label class="class-pick" style="margin-top:10px">
+    <label class="class-pick" style="margin-top:12px">
       <input type="checkbox" id="setShowAnswers" checked>
-      <span>👁 Показывать ученику правильные ответы после сдачи</span>
+      <span>Показывать ученику правильные ответы после сдачи</span>
     </label>
   </div>
   <div class="two-col">
@@ -151,9 +204,9 @@
           <option value="choice">Выбор варианта</option>
         </select>
       </label>
-      <div class="muted" style="margin-top:14px">Условие задания</div>
+      <div class="muted" style="margin-top:18px">Условие задания</div>
       <div id="statementHost"></div>
-      <div class="muted" style="margin-top:14px">Символы — клик вставит в последнее активное поле</div>
+      <div class="muted" style="margin-top:18px">Символы — клик вставит в последнее активное поле</div>
       <div class="sym-tabs">
         <button class="sym-tab active" data-symtab="basic">Базовые</button>
         <button class="sym-tab" data-symtab="advanced">Продвинутые</button>
@@ -162,15 +215,15 @@
       <div id="inputBlock">
         <div class="muted">Правильный ответ</div>
         <div id="answerHost"></div>
-        <label>Допуск<input id="taskTol" value="1e-6" style="width:140px"></label>
+        <label>Допуск<input id="taskTol" value="1e-6" style="width:160px"></label>
       </div>
       <div id="choiceBlock" hidden>
-        <div class="muted" style="margin-top:12px">Варианты (отметьте правильный)</div>
+        <div class="muted" style="margin-top:14px">Варианты (отметьте правильный)</div>
         <div id="optionsList"></div>
-        <button class="ghost small" id="btnAddOption" style="margin-top:6px">+ вариант</button>
+        <button class="ghost small" id="btnAddOption" style="margin-top:8px"><svg><use href="#i-plus"/></svg> вариант</button>
       </div>
-      <label>Баллы за задание<input id="taskPoints" type="number" value="1" min="1" style="width:110px"></label>
-      <button class="primary" id="btnAddTask" style="width:100%;margin-top:12px">Добавить задание</button>
+      <label>Баллы за задание<input id="taskPoints" type="number" value="1" min="1" style="width:120px"></label>
+      <button class="primary block" id="btnAddTask" style="margin-top:16px"><svg><use href="#i-plus"/></svg> Добавить задание</button>
     </div>
     <div class="card">
       <h3>Задания работы <span id="taskCount" class="pill">0</span></h3>
@@ -181,21 +234,21 @@
 
 <!-- КЛАСС -->
 <section id="view-class" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromClass">← Назад</button>
-    <h2 id="classTitle" style="margin:0;flex:1"></h2>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromClass"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 id="classTitle" class="page-title" style="margin:0;flex:1"></h1>
     <div class="muted">Код:</div>
     <div id="classCodeBig" class="code-box"></div>
-    <button class="small" id="btnCopyInvite" title="Скопировать ссылку-приглашение">🔗 Ссылка</button>
-    <button class="small" id="btnImportCsv" title="Импорт учеников из CSV">📤 Импорт CSV</button>
+    <button class="small" id="btnCopyInvite"><svg><use href="#i-send"/></svg> Ссылка</button>
+    <button class="small" id="btnImportCsv"><svg><use href="#i-upload"/></svg> CSV</button>
     <input type="file" id="csvFileInput" hidden accept=".csv,text/csv">
   </div>
 
   <div class="card" id="csvResultBox" hidden>
-    <h3>📤 Результат импорта</h3>
+    <h3>Результат импорта</h3>
     <div id="csvResult"></div>
-    <div class="row" style="margin-top:12px">
-      <button class="primary small" id="btnDownloadPasswords">📥 Скачать пароли (CSV)</button>
+    <div class="row" style="margin-top:16px">
+      <button class="primary small" id="btnDownloadPasswords"><svg><use href="#i-download"/></svg> Скачать пароли</button>
       <button class="ghost small" id="btnCloseCsvResult">Закрыть</button>
     </div>
   </div>
@@ -207,23 +260,25 @@
     </div>
     <div class="card">
       <h3>Группы</h3>
-      <div class="muted" style="margin-bottom:10px">Разбейте класс на подгруппы, чтобы давать работы не всем.</div>
-      <button class="primary small" id="btnNewGroup">+ Создать группу</button>
-      <div id="classGroups" style="margin-top:12px"></div>
+      <div class="muted" style="margin-bottom:14px">Разбейте класс на подгруппы, чтобы давать работы не всем.</div>
+      <button class="primary small" id="btnNewGroup"><svg><use href="#i-plus"/></svg> Создать группу</button>
+      <div id="classGroups" style="margin-top:16px"></div>
     </div>
   </div>
 
   <div class="card">
-    <h3>💬 Чат класса</h3>
+    <h3>Чат класса</h3>
     <div id="chatBox" class="chat-box">
       <div id="chatMessages" class="chat-messages"></div>
       <div class="chat-input-row">
-        <button class="ghost small" id="btnChatFile" title="Прикрепить файл (до 5 МБ)">📎</button>
+        <button class="ghost small" id="btnChatFile" title="Прикрепить файл (до 5 МБ)">
+          <svg><use href="#i-paperclip"/></svg>
+        </button>
         <input type="file" id="chatFileInput" hidden>
         <input id="chatText" placeholder="Сообщение..." maxlength="1000">
-        <button class="primary small" id="btnChatSend">Отправить</button>
+        <button class="primary small" id="btnChatSend"><svg><use href="#i-send"/></svg></button>
       </div>
-      <div class="muted" id="chatFileName" style="margin-top:6px"></div>
+      <div class="muted" id="chatFileName" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -235,7 +290,7 @@
 
 <!-- УЧЕНИК -->
 <section id="view-student" class="view">
-  <h2 style="margin-bottom:18px">Кабинет ученика</h2>
+  <h1 class="page-title" style="margin-bottom:36px">Мой кабинет</h1>
   <div class="tabs">
     <button class="tab active" data-stab="tests">Мои работы</button>
     <button class="tab" data-stab="classes">Мои классы</button>
@@ -245,10 +300,10 @@
     <div class="card">
       <h3>Присоединиться к классу</h3>
       <div class="row" style="margin-bottom:0">
-        <input id="joinCode" placeholder="Введите код класса" style="flex:1;min-width:200px;margin:0;text-transform:uppercase;letter-spacing:2px;font-weight:600" maxlength="10">
+        <input id="joinCode" placeholder="Введите код класса" style="flex:1;min-width:220px;margin:0;text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px" maxlength="10">
         <button class="primary" id="btnJoinClass">Присоединиться</button>
       </div>
-      <p class="err" id="joinErr" style="margin-top:10px"></p>
+      <p class="err" id="joinErr" style="margin-top:12px"></p>
     </div>
     <div class="card"><h3>Мои классы</h3><div id="myClasses"></div></div>
   </div>
@@ -256,9 +311,9 @@
 
 <!-- ПРОХОЖДЕНИЕ -->
 <section id="view-take" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromTake">← Назад</button>
-    <h2 id="takeTitle" style="margin:0;flex:1"></h2>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 id="takeTitle" class="page-title" style="margin:0;flex:1"></h1>
     <button class="primary" id="btnSubmitTest">Завершить</button>
   </div>
   <div class="progress-bar" id="progressBar">
@@ -274,35 +329,35 @@
 <!-- РЕЗУЛЬТАТ -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
-  <button class="primary" id="btnResultBack">← К списку работ</button>
+  <button class="primary" id="btnResultBack"><svg><use href="#i-arrow-left"/></svg> К списку работ</button>
 </section>
 
 <!-- РЕЗУЛЬТАТЫ УЧИТЕЛЯ -->
 <section id="view-submissions" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromSubs">← Назад</button>
-    <h2 id="subsTitle" style="margin:0;flex:1"></h2>
-    <button class="small" id="btnExportCsv">📥 Экспорт CSV</button>
-    <button class="small" id="btnShowAnalytics">📊 Аналитика</button>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromSubs"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 id="subsTitle" class="page-title" style="margin:0;flex:1"></h1>
+    <button class="small" id="btnExportCsv"><svg><use href="#i-download"/></svg> Экспорт CSV</button>
+    <button class="small" id="btnShowAnalytics"><svg><use href="#i-chart"/></svg> Аналитика</button>
   </div>
   <div id="subsBody"></div>
 </section>
 
 <!-- ДАШБОРД -->
 <section id="view-dashboard" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromDashboard">← Назад</button>
-    <h2 style="margin:0;flex:1">📊 Дашборд</h2>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromDashboard"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Дашборд</h1>
   </div>
   <div id="dashboardBody"></div>
 </section>
 
 <!-- БИБЛИОТЕКА -->
 <section id="view-library" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromLibrary">← Назад</button>
-    <h2 style="margin:0;flex:1">📚 Библиотека</h2>
-    <button class="primary" id="btnAddBook" hidden>+ Загрузить книгу</button>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromLibrary"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Библиотека</h1>
+    <button class="primary" id="btnAddBook" hidden><svg><use href="#i-plus"/></svg> Загрузить</button>
   </div>
 
   <div class="card" id="bookUploadForm" hidden>
@@ -313,30 +368,30 @@
     </div>
     <div class="two-col">
       <label>Предмет<input id="bookSubject" placeholder="Математика"></label>
-      <label>Файл (PDF, EPUB, DJVU, DOCX — до 25 МБ)
+      <label>Файл (до 25 МБ)
         <input id="bookFile" type="file" accept=".pdf,.epub,.djvu,.docx,.doc,.pptx,.ppt,.txt,image/*">
       </label>
     </div>
     <label>Описание<textarea id="bookDescription" rows="3" placeholder="Краткое описание"></textarea></label>
     <label>Доступно классам</label>
     <div id="bookClassPicker"></div>
-    <p class="muted" style="font-size:12px;margin-top:6px">Если ни один класс не отмечен — книга видна <b>всем</b>.</p>
-    <div class="row" style="margin-top:14px">
-      <button class="primary" id="btnSaveBook">Загрузить</button>
+    <p class="muted" style="font-size:12.5px;margin-top:8px">Если ни один класс не отмечен — книга видна всем.</p>
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="btnSaveBook"><svg><use href="#i-upload"/></svg> Загрузить</button>
       <button class="ghost" id="btnCancelBook">Отмена</button>
     </div>
     <p class="err" id="bookErr"></p>
   </div>
 
-  <div class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-    <input id="bookSearch" placeholder="🔍 Поиск по названию, автору, предмету..." style="flex:1;min-width:220px;margin:0">
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+    <input id="bookSearch" placeholder="Поиск по названию, автору, предмету..." style="flex:1;min-width:240px;margin:0">
     <select id="bookClassFilter" style="width:auto;margin:0"><option value="">Все классы</option></select>
     <select id="bookSort" style="width:auto;margin:0">
       <option value="new">Сначала новые</option>
       <option value="title">По названию</option>
       <option value="author">По автору</option>
     </select>
-    <button class="ghost small" id="btnBookView" title="Переключить вид">📋 Список</button>
+    <button class="ghost small" id="btnBookView">Список</button>
   </div>
 
   <div id="bookList"></div>
@@ -344,23 +399,23 @@
 
 <!-- АДМИН-ПАНЕЛЬ -->
 <section id="view-admin" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromAdmin">← Назад</button>
-    <h2 style="margin:0;flex:1">👑 Админ-панель</h2>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Админ-панель</h1>
   </div>
 
-  <div id="adminStats" class="grid" style="margin-bottom:16px"></div>
+  <div id="adminStats" class="grid" style="margin-bottom:24px"></div>
 
-  <div class="tabs" style="width:100%;margin-bottom:14px">
-    <button class="tab active" data-admintab="users" style="flex:1">👥 Пользователи</button>
-    <button class="tab" data-admintab="logs" style="flex:1">📈 Логи</button>
-    <button class="tab" data-admintab="backups" style="flex:1">💾 Бэкапы</button>
+  <div class="tabs" style="width:100%;margin-bottom:20px">
+    <button class="tab active" data-admintab="users" style="flex:1">Пользователи</button>
+    <button class="tab" data-admintab="logs" style="flex:1">Логи</button>
+    <button class="tab" data-admintab="backups" style="flex:1">Бэкапы</button>
   </div>
 
   <div id="admin-users-tab">
     <div class="card">
-      <div class="row" style="margin-bottom:10px">
-        <input id="adminSearch" placeholder="🔍 Поиск по имени или email" style="flex:1;min-width:220px;margin:0">
+      <div class="row" style="margin-bottom:16px">
+        <input id="adminSearch" placeholder="Поиск по имени или email" style="flex:1;min-width:240px;margin:0">
         <select id="adminRoleFilter" style="width:auto;margin:0">
           <option value="">Все роли</option>
           <option value="admin">Администратор</option>
@@ -375,8 +430,8 @@
 
   <div id="admin-logs-tab" hidden>
     <div class="card">
-      <h3>📈 Логи действий</h3>
-      <div class="muted" style="margin-bottom:12px">Последние 200 действий пользователей</div>
+      <h3>Логи действий</h3>
+      <div class="muted" style="margin-bottom:16px">Последние 200 действий</div>
       <div id="adminLogsList"></div>
     </div>
   </div>
@@ -384,10 +439,10 @@
   <div id="admin-backups-tab" hidden>
     <div class="card">
       <div class="row tight">
-        <h3 style="flex:1;margin:0">💾 Резервные копии базы данных</h3>
-        <button class="primary small" id="btnCreateBackup">+ Создать сейчас</button>
+        <h3 style="flex:1;margin:0">Резервные копии</h3>
+        <button class="primary small" id="btnCreateBackup"><svg><use href="#i-plus"/></svg> Создать сейчас</button>
       </div>
-      <div class="muted" style="margin-bottom:14px">Авто-бэкап создаётся раз в 24 часа. Хранятся последние 7 копий.</div>
+      <div class="muted" style="margin-bottom:18px">Авто-бэкап раз в 24 часа. Хранятся последние 7 копий.</div>
       <div id="adminBackupsList"></div>
     </div>
   </div>
@@ -395,35 +450,37 @@
 
 <!-- ЛИЧНЫЙ КАБИНЕТ -->
 <section id="view-profile" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromProfile">← Назад</button>
-    <h2 style="margin:0;flex:1">👤 Личный кабинет</h2>
-    <button class="primary small" id="btnEditProfile">✏️ Редактировать</button>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Личный кабинет</h1>
+    <button class="primary small" id="btnEditProfile"><svg><use href="#i-edit"/></svg> Редактировать</button>
   </div>
   <div id="profileStats"></div>
 </section>
 
 <!-- РЕДАКТИРОВАНИЕ ПРОФИЛЯ -->
 <section id="view-editprofile" class="view">
-  <div class="row" style="margin-bottom:18px">
-    <button class="ghost" id="btnBackFromEditProfile">← Назад</button>
-    <h2 style="margin:0;flex:1">✏️ Редактирование профиля</h2>
+  <div class="row" style="margin-bottom:36px">
+    <button class="ghost" id="btnBackFromEditProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Редактирование</h1>
   </div>
   <div class="card">
-    <div class="row" style="align-items:center;gap:16px">
-      <div class="avatar" id="editAvatar" style="width:80px;height:80px;font-size:32px"></div>
+    <div class="row" style="align-items:center;gap:20px">
+      <div class="avatar" id="editAvatar" style="width:96px;height:96px;font-size:38px"></div>
       <div>
-        <button class="primary small" id="btnUploadAvatar">📷 Загрузить фото</button>
+        <button class="primary small" id="btnUploadAvatar"><svg><use href="#i-image"/></svg> Загрузить фото</button>
         <input type="file" id="avatarInput" hidden accept="image/*">
-        <div class="muted" style="margin-top:6px">JPG, PNG, WebP — до 5 МБ</div>
+        <div class="muted" style="margin-top:8px">JPG, PNG, WebP — до 5 МБ</div>
       </div>
     </div>
-    <hr style="border:none;border-top:1px solid var(--line-soft);margin:16px 0">
+    <hr style="border:none;border-top:1px solid var(--border-soft);margin:24px 0">
     <label>Имя<input id="editName"></label>
     <label>Email<input id="editEmail" type="email"></label>
-    <label>Новый пароль (оставьте пустым, чтобы не менять)<input id="editPass" type="password" placeholder="••••••••"></label>
-    <div class="row" style="margin-top:14px">
-      <button class="primary" id="btnSaveProfile">Сохранить</button>
+    <label>Новый пароль (оставьте пустым, чтобы не менять)
+      <input id="editPass" type="password" placeholder="••••••••">
+    </label>
+    <div class="row" style="margin-top:20px">
+      <button class="primary" id="btnSaveProfile"><svg><use href="#i-save"/></svg> Сохранить</button>
       <button class="ghost" id="btnCancelEdit">Отмена</button>
     </div>
     <p class="err" id="editErr"></p>
@@ -432,24 +489,25 @@
 
 </main>
 
+<!-- МОДАЛКА ПРОФИЛЯ / НАСТРОЕК -->
 <div id="profileModal" class="modal-overlay" hidden>
   <div class="modal-card">
     <div class="modal-head">
       <h3>Профиль и настройки</h3>
-      <button class="ghost small" id="btnCloseProfile">✕</button>
+      <button class="ghost small" id="btnCloseProfile"><svg><use href="#i-x"/></svg></button>
     </div>
     <div id="profileBody">
-      <div class="row" style="align-items:center;gap:12px;margin-bottom:18px">
-        <div class="avatar" id="profAvatar" style="width:48px;height:48px;font-size:20px"></div>
+      <div class="row" style="align-items:center;gap:16px;margin-bottom:24px">
+        <div class="avatar" id="profAvatar" style="width:56px;height:56px;font-size:22px"></div>
         <div>
-          <div style="font-weight:600;font-size:16px" id="profName"></div>
+          <div style="font-weight:700;font-size:17px" id="profName"></div>
           <div class="muted" id="profRole"></div>
         </div>
       </div>
       <h4 class="sec">Telegram-уведомления</h4>
       <div id="tgBlock">
         <div class="muted" id="tgStatus">Проверка…</div>
-        <div id="tgActions" style="margin-top:10px"></div>
+        <div id="tgActions" style="margin-top:12px"></div>
       </div>
       <h4 class="sec">Тема оформления</h4>
       <div class="theme-picker">
@@ -459,6 +517,62 @@
     </div>
   </div>
 </div>
+
+<!-- ПЛАВАЮЩАЯ КНОПКА ЧАТА ПОДДЕРЖКИ -->
+<button id="supportBtn" title="Чат поддержки">
+  <svg><use href="#i-chat"/></svg>
+  <span class="support-badge"></span>
+</button>
+
+<!-- ПАНЕЛЬ ЧАТА ПОДДЕРЖКИ -->
+<div id="supportPanel" hidden>
+  <div class="support-head">
+    <div class="support-avatar">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L15 9 L22 9 L17 14 L19 21 L12 17 L5 21 L7 14 L2 9 L9 9 Z"/></svg>
+    </div>
+    <div class="support-info">
+      <b>Поддержка MathTest</b>
+      <span class="muted">онлайн · отвечаем в течение часа</span>
+    </div>
+    <button class="support-close" id="supportClose"><svg><use href="#i-x"/></svg></button>
+  </div>
+
+  <div class="support-messages" id="supportMessages"></div>
+
+  <div class="support-quick" id="supportQuick">
+    <button data-q="Как создать класс?">Как создать класс?</button>
+    <button data-q="Как загрузить книгу?">Загрузить книгу</button>
+    <button data-q="Как пригласить ученика?">Пригласить ученика</button>
+    <button data-q="Не приходит письмо">Не приходит письмо</button>
+  </div>
+
+  <div class="support-input-row">
+    <input id="supportInput" placeholder="Опишите проблему..." maxlength="500">
+    <button class="primary small" id="supportSend"><svg><use href="#i-send"/></svg></button>
+  </div>
+</div>
+
+<!-- МОБИЛЬНАЯ НИЖНЯЯ НАВИГАЦИЯ -->
+<nav id="mobile-nav">
+  <div class="mn-inner">
+    <button data-mnav="home">
+      <svg><use href="#i-home"/></svg>
+      Главная
+    </button>
+    <button data-mnav="library">
+      <svg><use href="#i-book"/></svg>
+      Книги
+    </button>
+    <button data-mnav="dashboard">
+      <svg><use href="#i-chart"/></svg>
+      Дашборд
+    </button>
+    <button data-mnav="profile">
+      <svg><use href="#i-settings"/></svg>
+      Профиль
+    </button>
+  </div>
+</nav>
 
 <script src="/app.js"></script>
 </body>
