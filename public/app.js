@@ -33,7 +33,11 @@ var fmtDate=function(t){
 var THEME_KEY='mathtest_theme';
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
-  var b=$('#btnTheme');if(b)b.textContent=t==='dark'?'🌙':'☀️';
+  var ic=$('#themeIcon');
+  if(ic){
+    var use=ic.querySelector('use');
+    if(use)use.setAttribute('href',t==='dark'?'#i-moon':'#i-sun');
+  }
   try{localStorage.setItem(THEME_KEY,t);}catch(e){}
 }
 (function(){var s='dark';try{s=localStorage.getItem(THEME_KEY)||'dark';}catch(e){}applyTheme(s);})();
@@ -44,7 +48,7 @@ function applyPalette(p){
   document.documentElement.setAttribute('data-palette',p);
   try{localStorage.setItem(PALETTE_KEY,p);}catch(e){}
 }
-(function(){var s='blue';try{s=localStorage.getItem(PALETTE_KEY)||'blue';}catch(e){}applyPalette(s);})();
+(function(){var s='orange';try{s=localStorage.getItem(PALETTE_KEY)||'orange';}catch(e){}applyPalette(s);})();
 
 /* ============ PWA ============ */
 function registerSW(){
@@ -104,8 +108,8 @@ function roleLabel(){
 function avatarUrl(id){return '/api/users/'+id+'/avatar';}
 function renderAvatar(el,user,size){
   if(!el)return;
-  el.style.width=(size||26)+'px';el.style.height=(size||26)+'px';
-  el.style.fontSize=Math.round((size||26)*0.45)+'px';
+  el.style.width=(size||28)+'px';el.style.height=(size||28)+'px';
+  el.style.fontSize=Math.round((size||28)*0.45)+'px';
   if(user&&user.hasAvatar){
     el.style.backgroundImage="url('"+avatarUrl(user.id)+"')";
     el.textContent='';
@@ -226,11 +230,19 @@ var notifOpen=false,notifTimer=null;
 var bookView='grid';
 var chatPollTimer=null,lastChatTime=0;
 var lastCsvResult=null;
+var supportOpen=false;
 
 function show(id){
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   window.scrollTo(0,0);
   if(id!=='view-class'&&chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
+  // Мобильная навигация — подсветка
+  var mn=$$('#mobile-nav button');
+  mn.forEach(function(b){b.classList.remove('active');});
+  if(id==='view-teacher'||id==='view-student'){var h=$('[data-mnav="home"]');if(h)h.classList.add('active');}
+  else if(id==='view-library'){var l=$('[data-mnav="library"]');if(l)l.classList.add('active');}
+  else if(id==='view-dashboard'){var d=$('[data-mnav="dashboard"]');if(d)d.classList.add('active');}
+  else if(id==='view-profile'||id==='view-editprofile'){var p=$('[data-mnav="profile"]');if(p)p.classList.add('active');}
 }
 function skeleton(host,lines){
   if(!host)return;lines=lines||3;
@@ -257,12 +269,13 @@ function renderTop(){
     if(isTeacherLike()) bd.removeAttribute('hidden');
     else bd.setAttribute('hidden','');
   }
+  var initial=(currentUser.name[0]||'?').toUpperCase();
   box.innerHTML='<div class="user-chip">'+
     '<div class="avatar" id="topAvatar"></div>'+
-    '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
-    '<div class="role" style="font-size:11.5px;margin-top:-2px">'+roleLabel()+'</div></div>'+
+    '<div><div style="font-weight:700;font-size:14px">'+esc(currentUser.name)+'</div>'+
+    '<div class="role">'+roleLabel()+'</div></div>'+
     '<button class="logout-btn" id="btnLogout">Выйти</button></div>';
-  renderAvatar($('#topAvatar'),currentUser,30);
+  renderAvatar($('#topAvatar'),currentUser,32);
   $('#btnLogout').onclick=logout;
 }
 function logout(){
@@ -290,7 +303,7 @@ async function loadNotifications(){
     var r=await api('/notifications');
     list.innerHTML='';
     if(!r.notifications.length){
-      list.innerHTML='<div class="empty" style="padding:30px 20px">Пока нет уведомлений</div>';
+      list.innerHTML='<div class="empty" style="padding:40px 20px">Пока нет уведомлений</div>';
       return;
     }
     r.notifications.forEach(function(n){
@@ -315,7 +328,7 @@ async function loadNotifications(){
       };
       list.appendChild(el);
     });
-  }catch(e){list.innerHTML='<div class="err" style="padding:16px">'+esc(e.message)+'</div>';}
+  }catch(e){list.innerHTML='<div class="err" style="padding:20px">'+esc(e.message)+'</div>';}
 }
 
 /* ============ PROFILE MODAL ============ */
@@ -323,15 +336,15 @@ function openPalettePicker(){
   if(!currentUser){toast('Сначала войдите','warn');return;}
   var pm=$('#profileModal');if(!pm)return;
   pm.hidden=false;
-  renderAvatar($('#profAvatar'),currentUser,48);
+  renderAvatar($('#profAvatar'),currentUser,56);
   $('#profName').textContent=currentUser.name;
   $('#profRole').textContent=roleLabel();
 
   var oldCab=document.getElementById('btnGoCabinet');
   if(oldCab)oldCab.remove();
   var cab=document.createElement('button');
-  cab.id='btnGoCabinet';cab.className='primary';
-  cab.style.cssText='width:100%;margin-top:12px';
+  cab.id='btnGoCabinet';cab.className='primary block';
+  cab.style.marginTop='16px';
   cab.textContent='📊 Открыть личный кабинет';
   cab.onclick=function(){$('#profileModal').hidden=true;openProfileStats();};
   var pb=$('#profileBody');
@@ -343,32 +356,33 @@ function openPalettePicker(){
     b.classList.toggle('active',b.dataset.themeSet===curTheme);
   });
 
-  if(!document.getElementById('paletteBlock')){
-    var cur=document.documentElement.getAttribute('data-palette')||'blue';
-    var block=document.createElement('div');
-    block.id='paletteBlock';
-    block.innerHTML='<h4 class="sec">Цветовая схема</h4>'+
-      '<div class="palette-picker">'+
-        '<div class="palette-option'+(cur==='blue'?' active':'')+'" data-pal="blue" title="Синий"></div>'+
-        '<div class="palette-option'+(cur==='green'?' active':'')+'" data-pal="green" title="Зелёный"></div>'+
-        '<div class="palette-option'+(cur==='purple'?' active':'')+'" data-pal="purple" title="Фиолетовый"></div>'+
-        '<div class="palette-option'+(cur==='orange'?' active':'')+'" data-pal="orange" title="Оранжевый"></div>'+
-      '</div>';
-    block.querySelectorAll('.palette-option').forEach(function(el){
-      el.onclick=function(){
-        applyPalette(el.dataset.pal);
-        block.querySelectorAll('.palette-option').forEach(function(x){x.classList.remove('active');});
-        el.classList.add('active');toast('Цвет изменён','ok');
-      };
-    });
-    pb.appendChild(block);
-  }
+  // Палитра
+  var oldPal=document.getElementById('paletteBlock');
+  if(oldPal)oldPal.remove();
+  var cur=document.documentElement.getAttribute('data-palette')||'orange';
+  var block=document.createElement('div');
+  block.id='paletteBlock';
+  block.innerHTML='<h4 class="sec">Цветовая схема</h4>'+
+    '<div class="palette-picker">'+
+      '<div class="palette-option'+(cur==='orange'?' active':'')+'" data-pal="orange" title="Оранжевая"></div>'+
+      '<div class="palette-option'+(cur==='blue'?' active':'')+'" data-pal="blue" title="Синяя"></div>'+
+      '<div class="palette-option'+(cur==='violet'?' active':'')+'" data-pal="violet" title="Фиолетовая"></div>'+
+      '<div class="palette-option'+(cur==='emerald'?' active':'')+'" data-pal="emerald" title="Зелёная"></div>'+
+    '</div>';
+  block.querySelectorAll('.palette-option').forEach(function(el){
+    el.onclick=function(){
+      applyPalette(el.dataset.pal);
+      block.querySelectorAll('.palette-option').forEach(function(x){x.classList.remove('active');});
+      el.classList.add('active');toast('Цвет изменён','ok');
+    };
+  });
+  pb.appendChild(block);
 
   $('#tgStatus').textContent='Проверка…';
   $('#tgActions').innerHTML='';
   api('/telegram/link').then(function(r){
     if(r.linked){
-      $('#tgStatus').innerHTML='<span style="color:var(--ok);font-weight:600">✅ Подключён</span>';
+      $('#tgStatus').innerHTML='<span style="color:var(--ok);font-weight:700">✅ Подключён</span>';
       var unlink=document.createElement('button');
       unlink.className='ghost small danger';unlink.textContent='Отключить Telegram';
       unlink.onclick=async function(){
@@ -377,14 +391,14 @@ function openPalettePicker(){
       };
       $('#tgActions').appendChild(unlink);
     }else{
-      $('#tgStatus').innerHTML='<span style="color:var(--muted)">Не подключён</span>';
+      $('#tgStatus').innerHTML='<span class="muted">Не подключён</span>';
       var a=document.createElement('a');
       a.className='tg-link';a.href=r.link;a.target='_blank';
-      a.innerHTML='✈️ Подключить Telegram';
+      a.textContent='Подключить Telegram';
       $('#tgActions').appendChild(a);
     }
   }).catch(function(e){
-    $('#tgStatus').innerHTML='<span style="color:var(--muted)">'+esc(e.message)+'</span>';
+    $('#tgStatus').innerHTML='<span class="muted">'+esc(e.message)+'</span>';
   });
 }
 async function openProfile(){ openPalettePicker(); }
@@ -406,7 +420,7 @@ function initGoogleLogin(){
     google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:window.handleGoogleLogin});
     var box=document.getElementById('googleBtnBox');if(!box)return;
     box.innerHTML='';
-    google.accounts.id.renderButton(box,{type:'standard',theme:'outline',size:'large',text:'signin_with',shape:'rectangular',logo_alignment:'left',width:240});
+    google.accounts.id.renderButton(box,{type:'standard',theme:'outline',size:'large',text:'signin_with',shape:'rectangular',logo_alignment:'left',width:280});
   }
   if(!document.getElementById('gsi-script')){
     var s=document.createElement('script');s.id='gsi-script';
@@ -437,6 +451,68 @@ function initTelegramLogin(){
   wrap.appendChild(script);
 }
 
+/* ============ SUPPORT CHAT ============ */
+var SUPPORT_KB={
+  'как создать класс':'В кабинете учителя нажмите «+ Класс» вверху страницы. После создания вы получите код — отправьте его ученикам.',
+  'как пригласить ученика':'Откройте класс и нажмите «Ссылка» — ученик перейдёт по ней и сразу присоединится. Или отправьте 6-значный код.',
+  'как загрузить книгу':'Библиотека → «Загрузить». Форматы: PDF, EPUB, DJVU, DOCX, PPTX — до 25 МБ.',
+  'не приходит письмо':'Письма от нашего сервиса могут попадать в спам. Проверьте папку «Спам» или попросите учителя сбросить пароль через админ-панель.',
+  'как сбросить пароль':'Обратитесь к администратору — он может сбросить пароль через админ-панель. Или зарегистрируйте новый аккаунт.',
+  'как работает автопроверка':'Система сравнивает ответ ученика с правильным: сначала точно, потом численно (с допуском), потом символьно через Nerdamer. Так √16 = 4 = 2².',
+  'как открыть работу заново':'Если учитель разрешил несколько попыток — кнопка «Пройти заново» появится на карточке работы.',
+  'не могу войти через google':'Проверьте, что домен добавлен в Google Cloud Console. Или войдите обычным способом — email + пароль.',
+  'как добавить учеников списком':'Откройте класс → кнопка «CSV» → загрузите файл. Формат: Имя,Email — по одной паре в строке. Пароли сгенерируются автоматически.'
+};
+function supportAnswer(text){
+  var t=text.toLowerCase().trim();
+  // Поиск по ключевым словам
+  for(var key in SUPPORT_KB){
+    if(t.indexOf(key)>=0) return SUPPORT_KB[key];
+  }
+  // Частичные совпадения
+  if(/класс/i.test(t)) return SUPPORT_KB['как создать класс'];
+  if(/ученик|приглас|join/i.test(t)) return SUPPORT_KB['как пригласить ученика'];
+  if(/книг|библиотек|загруз/i.test(t)) return SUPPORT_KB['как загрузить книгу'];
+  if(/парол|войти|логин/i.test(t)) return SUPPORT_KB['как сбросить пароль'];
+  if(/проверк|оценк|балл|ответ/i.test(t)) return SUPPORT_KB['как работает автопроверка'];
+  if(/csv|список/i.test(t)) return SUPPORT_KB['как добавить учеников списком'];
+  return 'Спасибо! Ваше сообщение получено. Обычно мы отвечаем в течение часа. Если срочно — напишите на support@mathtest.app. Пока проверьте раздел «Справка» или попробуйте переформулировать вопрос.';
+}
+function supportAddMessage(text,from){
+  var box=$('#supportMessages');if(!box)return;
+  var el=document.createElement('div');
+  el.className='support-msg from-'+from;
+  var time=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  el.innerHTML=esc(text)+'<span class="time">'+time+'</span>';
+  box.appendChild(el);
+  box.scrollTop=box.scrollHeight;
+}
+function toggleSupport(){
+  supportOpen=!supportOpen;
+  var panel=$('#supportPanel');if(!panel)return;
+  panel.hidden=!supportOpen;
+  if(supportOpen){
+    var box=$('#supportMessages');
+    if(box&&!box.dataset.init){
+      box.dataset.init='1';
+      supportAddMessage('Здравствуйте! Я помогу с любым вопросом по MathTest. Опишите проблему или выберите частый вопрос ниже 👇','bot');
+    }
+    setTimeout(function(){var i=$('#supportInput');if(i)i.focus();},100);
+  }
+}
+function supportSend(msg){
+  var input=$('#supportInput');
+  var text=(msg||(input?input.value:'')).trim();
+  if(!text)return;
+  supportAddMessage(text,'user');
+  if(input)input.value='';
+  // Имитация задержки «печатает»
+  setTimeout(function(){
+    var reply=supportAnswer(text);
+    supportAddMessage(reply,'bot');
+  },500);
+}
+
 /* ============ TEACHER ============ */
 async function goTeacher(){
   show('view-teacher');
@@ -449,13 +525,13 @@ async function renderTeacherClasses(){
     var r=await api('/classes');
     list.innerHTML='';
     if(!r.classes.length){
-      list.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b>.</div></div>';
+      list.innerHTML='<div class="card"><div class="empty"><div class="icon">📚</div>У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b>, чтобы начать.</div></div>';
       return;
     }
     r.classes.forEach(function(c){
       var el=document.createElement('div');el.className='class-card';
-      el.innerHTML='<div style="flex:1;min-width:180px"><h4>'+esc(c.name)+'</h4>'+
-        '<div class="muted" style="margin-top:2px">Учеников: '+c.studentCount+
+      el.innerHTML='<div style="flex:1;min-width:200px"><h4>'+esc(c.name)+'</h4>'+
+        '<div class="muted" style="margin-top:4px">Учеников: '+c.studentCount+
         ' · Групп: '+(c.groups||[]).length+
         (c.teacherName&&isAdmin()?' · Учитель: '+esc(c.teacherName):'')+'</div></div>'+
         '<div class="code-box" title="Клик — копировать">'+c.code+'</div>';
@@ -471,7 +547,7 @@ async function renderTeacherClasses(){
       var cb=el.querySelector('.code-box');
       cb.onclick=function(){
         try{navigator.clipboard.writeText(c.code);
-          var old=cb.textContent;cb.textContent='✓ Скопировано';
+          var old=cb.textContent;cb.textContent='✓';
           toast('Код скопирован','ok');
           setTimeout(function(){cb.textContent=old;},900);
         }catch(e){}
@@ -487,7 +563,7 @@ async function renderTeacherTests(){
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📝</span>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>.</div></div>';
+      host.innerHTML='<div class="card"><div class="empty"><div class="icon">📝</div>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>, чтобы создать первую.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
@@ -495,7 +571,7 @@ async function renderTeacherTests(){
       var s=test.settings||{};
       var el=document.createElement('div');el.className='test-card';
       el.innerHTML='<div class="row tight"><h4 style="flex:1;margin:0">'+esc(test.title)+'</h4>'+
-        (test.unseen?'<span class="badge red" title="Новые сдачи">'+test.unseen+' новых</span>':'')+'</div>'+
+        (test.unseen?'<span class="badge red" title="Новые сдачи">'+test.unseen+'</span>':'')+'</div>'+
         '<div class="meta">'+
           '<span class="pill">'+test.tasks.length+' заданий</span>'+
           '<span class="pill">'+max+' баллов</span>'+
@@ -541,12 +617,12 @@ async function openClassView(id){
   var bic=$('#btnImportCsv');if(bic) bic.hidden=!isTeacherLike();
   try{
     var r=await api('/classes/'+id);
-    $('#classTitle').textContent='Класс: '+r.class.name;
+    $('#classTitle').textContent=r.class.name;
     $('#classCodeBig').textContent=r.class.code;
     $('#classCodeBig').onclick=function(){
       try{navigator.clipboard.writeText(r.class.code);
         var old=$('#classCodeBig').textContent;
-        $('#classCodeBig').textContent='✓ Скопировано';
+        $('#classCodeBig').textContent='✓';
         toast('Код скопирован','ok');
         setTimeout(function(){$('#classCodeBig').textContent=old;},900);
       }catch(e){}
@@ -560,7 +636,7 @@ async function openClassView(id){
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
     if(!r.students.length){
-      stu.innerHTML='<div class="empty"><span class="icon">👥</span>Пока нет учеников.<br>Код: <b>'+esc(r.class.code)+'</b></div>';
+      stu.innerHTML='<div class="empty" style="padding:40px 20px"><div class="icon">👥</div>Пока нет учеников.<br>Код: <b>'+esc(r.class.code)+'</b></div>';
     }
     r.students.forEach(function(u){
       var el=document.createElement('div');el.className='stu-row';
@@ -570,9 +646,9 @@ async function openClassView(id){
       }).join('');
       var tg=u.hasTelegram?' <span class="pill green" title="Telegram">✈️</span>':'';
       el.innerHTML='<div class="avatar"></div>'+
-        '<div class="name"><div>'+esc(u.name)+' '+groupsHtml+tg+'</div>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+' '+groupsHtml+tg+'</div>'+
         '<div class="muted">'+esc(u.email)+'</div></div>';
-      renderAvatar(el.querySelector('.avatar'),u,32);
+      renderAvatar(el.querySelector('.avatar'),u,36);
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Исключить';
       b.onclick=async function(){
         if(!confirm('Исключить '+u.name+'?'))return;
@@ -585,7 +661,7 @@ async function openClassView(id){
 
     var gr=$('#classGroups');gr.innerHTML='';
     if(!(r.class.groups||[]).length){
-      gr.innerHTML='<div class="empty" style="padding:16px">Групп пока нет</div>';
+      gr.innerHTML='<div class="empty" style="padding:24px">Групп пока нет</div>';
     }
     (r.class.groups||[]).forEach(function(g){
       var el=document.createElement('div');el.className='group-card';
@@ -607,7 +683,7 @@ async function openClassView(id){
         var notIn=r.students.filter(function(u){return !(g.studentIds||[]).includes(u.id);});
         if(notIn.length){
           var sel=document.createElement('select');
-          sel.style.cssText='width:auto;padding:4px 8px';
+          sel.style.cssText='width:auto;padding:6px 12px';
           sel.innerHTML='<option value="">+ добавить...</option>'+
             notIn.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+'</option>';}).join('');
           sel.onchange=async function(){
@@ -621,7 +697,7 @@ async function openClassView(id){
       el.appendChild(chips);
       if(isTeacherLike()){
         var del=document.createElement('button');del.className='ghost small danger';
-        del.textContent='Удалить группу';del.style.marginTop='8px';
+        del.textContent='Удалить группу';del.style.marginTop='12px';
         del.onclick=async function(){
           if(!confirm('Удалить группу «'+g.name+'»?'))return;
           try{await api('/classes/'+id+'/groups/'+g.id,{method:'DELETE'});
@@ -637,7 +713,7 @@ async function openClassView(id){
       var bb=document.createElement('button');
       bb.id='btnBroadcast';bb.className='primary small';
       bb.textContent='✈️ Разослать в Telegram';
-      bb.style.marginTop='10px';
+      bb.style.marginTop='14px';
       bb.onclick=async function(){
         var msg=prompt('Сообщение всем ученикам класса в Telegram:');
         if(!msg||!msg.trim())return;
@@ -654,7 +730,7 @@ async function openClassView(id){
     }
 
     var ts=$('#classTests');ts.innerHTML='';
-    if(!r.tests.length)ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
+    if(!r.tests.length)ts.innerHTML='<div class="empty" style="padding:32px">Этому классу ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
       var el=document.createElement('div');el.className='test-card';
       var gi=t.groupIds&&t.groupIds.length?' · группы: '+t.groupIds.map(function(gid){
@@ -702,7 +778,7 @@ async function loadChatMessages(classId, reset){
             '📎 '+esc(m.fileName||'файл')+' · '+fmtSize(m.fileSize)+'</div>':'')+
           (m.own?'<button class="chat-msg-del" title="Удалить" data-del="'+m.id+'">✕</button>':'')+
         '</div>';
-      renderAvatar(el.querySelector('.avatar'),{id:m.userId,name:m.userName,hasAvatar:m.hasAvatar},32);
+      renderAvatar(el.querySelector('.avatar'),{id:m.userId,name:m.userName,hasAvatar:m.hasAvatar},38);
       if(m.own){
         var db=el.querySelector('[data-del]');
         if(db)db.onclick=async function(){
@@ -760,33 +836,31 @@ function showCsvResult(r){
   var box=$('#csvResultBox');if(!box)return;
   box.hidden=false;
   var host=$('#csvResult');host.innerHTML='';
-  var block=document.createElement('div');block.className='csv-result-block';
-  block.innerHTML='<h4>✅ Добавлено новых учеников: '+r.added.length+'</h4>';
   if(r.added.length){
+    var block=document.createElement('div');block.className='csv-result-block';
+    block.innerHTML='<h4>✅ Добавлено новых: '+r.added.length+'</h4>';
     r.added.forEach(function(u){
       var el=document.createElement('div');el.className='stu-row';
       el.innerHTML='<div class="avatar">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
-        '<div class="name"><div>'+esc(u.name)+'</div>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+'</div>'+
         '<div class="muted">'+esc(u.email)+'</div></div>'+
-        '<div class="pill green" style="font-family:monospace">'+esc(u.password||'')+'</div>';
+        '<span class="pill green" style="font-family:monospace;font-weight:700">'+esc(u.password||'')+'</span>';
       block.appendChild(el);
     });
+    host.appendChild(block);
   }
-  host.appendChild(block);
-
   if(r.existing.length){
     var b2=document.createElement('div');b2.className='csv-result-block';
     b2.innerHTML='<h4>👤 Уже существовали: '+r.existing.length+'</h4>';
     r.existing.slice(0,20).forEach(function(u){
       var el=document.createElement('div');el.className='stu-row';el.style.opacity='.7';
-      el.innerHTML='<div class="avatar" style="background:#3a465c">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
+      el.innerHTML='<div class="avatar" style="background:var(--panel-2);color:var(--text-2)">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
         '<div class="name"><div>'+esc(u.name)+'</div><div class="muted">'+esc(u.email)+'</div></div>'+
         (u.note?'<span class="pill">'+esc(u.note)+'</span>':'');
       b2.appendChild(el);
     });
     host.appendChild(b2);
   }
-
   if(r.failed.length){
     var b3=document.createElement('div');b3.className='csv-result-block';
     b3.innerHTML='<h4>⚠️ Ошибок: '+r.failed.length+'</h4>';
@@ -804,9 +878,7 @@ function downloadPasswords(){
     toast('Нет новых паролей','warn');return;
   }
   var rows=[['Имя','Email','Пароль']];
-  lastCsvResult.added.forEach(function(u){
-    rows.push([u.name,u.email,u.password]);
-  });
+  lastCsvResult.added.forEach(function(u){rows.push([u.name,u.email,u.password]);});
   var csv=rows.map(function(r){return r.map(function(v){
     v=String(v==null?'':v);
     if(v.includes(',')||v.includes('"'))return '"'+v.replace(/"/g,'""')+'"';
@@ -900,16 +972,16 @@ async function renderGroupPicker(){
       if(!c||!(c.groups||[]).length)return;
       var block=document.createElement('div');
       block.className='class-pick group-picker-block';
-      block.style.cssText='flex-direction:column;align-items:stretch;background:rgba(91,141,255,.05)';
-      var inner='<div style="margin-bottom:8px;font-weight:600;font-size:13px">'+esc(c.name)+' → только для групп:</div>';
+      block.style.cssText='flex-direction:column;align-items:stretch;background:var(--accent-soft)';
+      var inner='<div style="margin-bottom:10px;font-weight:700;font-size:13.5px">'+esc(c.name)+' → только для групп:</div>';
       c.groups.forEach(function(g){
         var checked=draftGroupIds.indexOf(g.id)>=0?'checked':'';
-        inner+='<label style="display:flex;align-items:center;gap:8px;padding:5px 0;margin:0;color:var(--text);font-size:13px">'+
+        inner+='<label style="display:flex;align-items:center;gap:10px;padding:6px 0;margin:0;color:var(--text);font-size:13.5px;font-weight:500">'+
           '<input type="checkbox" data-gid="'+g.id+'" '+checked+
-          ' style="width:16px;height:16px;margin:0;accent-color:var(--accent)">'+
+          ' style="width:18px;height:18px;margin:0;accent-color:var(--accent)">'+
           '<span>'+esc(g.name)+' <span class="muted">('+g.count+')</span></span></label>';
       });
-      inner+='<div class="muted" style="margin-top:4px;font-size:11.5px">Пусто — работа видна всем</div>';
+      inner+='<div class="muted" style="margin-top:6px;font-size:12px">Пусто — работа видна всем</div>';
       block.innerHTML=inner;
       block.querySelectorAll('input[type=checkbox]').forEach(function(cb){
         cb.onchange=function(){
@@ -943,10 +1015,10 @@ async function openEditor(test){
 function renderDraft(){
   var host=$('#draftList');if(!host)return;
   host.innerHTML='';$('#taskCount').textContent=draftTasks.length;
-  if(!draftTasks.length){host.innerHTML='<div class="empty">Заданий нет.</div>';return;}
+  if(!draftTasks.length){host.innerHTML='<div class="empty" style="padding:32px">Заданий нет</div>';return;}
   draftTasks.forEach(function(t,i){
     var d=document.createElement('div');
-    d.style.cssText='background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;padding:12px;margin-bottom:8px';
+    d.style.cssText='background:var(--panel-2);border-radius:var(--radius);padding:16px;margin-bottom:12px';
     var h=document.createElement('div');h.className='task-head';
     h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span><span class="pill">'+t.points+' б.</span>';
     var del=document.createElement('button');del.className='ghost small';
@@ -1011,7 +1083,7 @@ async function renderStudentTests(){
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty"><span class="icon">📖</span>Доступных работ нет.<br>Присоединитесь к классу.</div></div>';
+      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty"><div class="icon">📖</div>Доступных работ нет.<br>Присоединитесь к классу во вкладке «Мои классы».</div></div>';
       return;
     }
     r.tests.forEach(function(test){
@@ -1021,20 +1093,20 @@ async function renderStudentTests(){
       var can=!(s.attempts>0&&used>=s.attempts);
       var draft=loadDraft(test.id);
       var card=document.createElement('div');card.className='card';card.style.marginBottom='0';
-      card.innerHTML='<h3 style="margin-bottom:8px">'+esc(test.title)+'</h3>'+
-        '<div style="margin-bottom:12px">'+
+      card.innerHTML='<h3 style="margin-bottom:12px">'+esc(test.title)+'</h3>'+
+        '<div style="margin-bottom:16px">'+
           '<span class="pill">'+test.tasks.length+' заданий</span> '+
           '<span class="pill">макс. '+max+' б.</span>'+
           (s.timeLimit>0?' <span class="pill warn">⏱ '+s.timeLimit+' мин</span>':'')+
           (s.attempts>0?' <span class="pill">попыток: '+used+' / '+s.attempts+'</span>':'')+
           (draft?' <span class="pill green">💾 черновик</span>':'')+
         '</div>'+
-        (test.mySubmission?'<div class="ok" style="margin-bottom:12px;font-weight:500">'+
-          'Последний: '+test.mySubmission.score+' / '+test.mySubmission.max+
+        (test.mySubmission?'<div class="ok" style="margin-bottom:16px;font-weight:600">'+
+          'Последний результат: '+test.mySubmission.score+' / '+test.mySubmission.max+
           ' <span class="muted">· '+fmt(test.mySubmission.at)+'</span></div>':'');
-      var b=document.createElement('button');b.className='primary';b.style.width='100%';
+      var b=document.createElement('button');b.className='primary block';
       if(!can){b.disabled=true;b.textContent='Попытки исчерпаны';}
-      else{b.textContent=test.mySubmission?'Пройти заново':'Начать →';b.onclick=function(){openTest(test);};}
+      else{b.textContent=test.mySubmission?'Пройти заново':'Начать';b.onclick=function(){openTest(test);};}
       card.appendChild(b);host.appendChild(card);
     });
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
@@ -1045,12 +1117,12 @@ async function renderStudentClasses(){
   try{
     var r=await api('/classes');
     host.innerHTML='';
-    if(!r.classes.length){host.innerHTML='<div class="empty">Вы не в классе.</div>';return;}
+    if(!r.classes.length){host.innerHTML='<div class="empty" style="padding:32px">Вы не в классе.</div>';return;}
     r.classes.forEach(function(c){
       var gH=(c.groups||[]).length?' · группы: '+c.groups.map(function(g){return esc(g.name);}).join(', '):'';
       var el=document.createElement('div');el.className='stu-row';
       el.innerHTML='<div class="avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
-        '<div class="name"><div>'+esc(c.name)+'</div>'+
+        '<div class="name"><div style="font-weight:600">'+esc(c.name)+'</div>'+
         '<div class="muted">Учитель: '+esc(c.teacherName)+gH+'</div></div>';
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Покинуть';
       b.onclick=async function(){
@@ -1140,14 +1212,14 @@ function openTest(test){
       var mi=createMathInput(initial,false,function(){updateProgress();scheduleDraftSave();});
       card.appendChild(mi.el);answerInputs[i]=mi;
     }else{
-      var w=document.createElement('div');w.style.marginTop='6px';
+      var w=document.createElement('div');w.style.marginTop='10px';
       var picked=draft&&draft.answers&&draft.answers[i];
       if(picked!==null&&picked!==undefined)choicePicks[i]=picked;
       task.options.forEach(function(opt,j){
         var lab=document.createElement('label');
-        lab.style.cssText='display:flex;align-items:center;gap:10px;background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;padding:10px 14px;margin:6px 0;cursor:pointer;transition:.15s';
+        lab.style.cssText='display:flex;align-items:center;gap:12px;background:var(--panel-2);border-radius:var(--radius);padding:14px 18px;margin:8px 0;cursor:pointer;transition:var(--trans);border:1.5px solid transparent';
         lab.addEventListener('mouseenter',function(){lab.style.borderColor='var(--accent)';});
-        lab.addEventListener('mouseleave',function(){lab.style.borderColor='';});
+        lab.addEventListener('mouseleave',function(){lab.style.borderColor='transparent';});
         var rd=document.createElement('input');rd.type='radio';rd.name='q'+i;
         rd.checked=(picked===j);
         rd.onchange=function(){choicePicks[i]=j;updateProgress();scheduleDraftSave();};
@@ -1198,36 +1270,36 @@ function showResult(test,r){
   var pct=max?Math.round(score/max*100):0;
   var gc=pct>=80?'':(pct>=60?'mid':'bad');
   var gt=pct>=80?'Отличный результат!':(pct>=60?'Хороший результат':'Стоит повторить');
-  card.innerHTML='<h2 style="margin-bottom:20px">'+esc(test.title)+'</h2>'+
-    '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
+  card.innerHTML='<h2 style="margin-bottom:28px">'+esc(test.title)+'</h2>'+
+    '<div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-bottom:28px">'+
       '<div class="score-circle" data-grade="'+gc+'" style="--pct:'+pct+'">'+
         '<div class="val">'+score+' / '+max+'</div><div class="lbl">'+pct+'%</div></div>'+
-      '<div style="flex:1;min-width:200px">'+
-        '<div style="font-size:18px;font-weight:600;margin-bottom:6px">'+gt+'</div>'+
+      '<div style="flex:1;min-width:220px">'+
+        '<div style="font-size:20px;font-weight:800;margin-bottom:8px;letter-spacing:-0.02em">'+gt+'</div>'+
         '<div class="muted">'+(r.durationMs?'Время: '+fmtDur(r.durationMs)+'<br>':'')+
           (r.attempt?'Попытка №'+r.attempt:'')+'</div></div>'+
     '</div>';
   test.tasks.forEach(function(task,i){
     var res=r.results[i]||{ok:false};
     var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
-    var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
-    var info=document.createElement('div');info.style.fontSize='13.5px';
+    var s=createMathInput(task.statement,true);s.el.style.marginBottom='10px';line.appendChild(s.el);
+    var info=document.createElement('div');info.style.fontSize='14px';info.style.fontWeight='600';
     info.innerHTML=res.ok
-      ?'<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
-      :'<span class="err" style="font-weight:600">✗ Неверно</span> <span class="muted">· 0 из '+(task.points||1)+' б.</span>';
+      ?'<span class="ok">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
+      :'<span class="err">✗ Неверно</span> <span class="muted">· 0 из '+(task.points||1)+' б.</span>';
     line.appendChild(info);
     if(!res.ok&&res.correctAnswer){
-      var a=document.createElement('div');a.style.marginTop='10px';
-      a.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
+      var a=document.createElement('div');a.style.marginTop='14px';
+      a.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный ответ:</div>';
       var mf=createMathInput(res.correctAnswer,true);a.appendChild(mf.el);line.appendChild(a);
     }
     if(!res.ok&&!res.correctAnswer&&r.settings&&!r.settings.showAnswers){
-      var n=document.createElement('div');n.className='muted';n.style.marginTop='6px';
+      var n=document.createElement('div');n.className='muted';n.style.marginTop='10px';
       n.textContent='(Ответ скрыт учителем)';line.appendChild(n);
     }
     if(task.type==='choice'&&res.correctIndex!==undefined){
-      var a2=document.createElement('div');a2.style.marginTop='10px';
-      a2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
+      var a2=document.createElement('div');a2.style.marginTop='14px';
+      a2.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный вариант:</div>';
       var mf2=createMathInput(task.options[res.correctIndex].text,true);a2.appendChild(mf2.el);line.appendChild(a2);
     }
     card.appendChild(line);
@@ -1238,12 +1310,12 @@ function showResult(test,r){
 /* ============ TEACHER SUBMISSIONS ============ */
 async function showSubmissions(test){
   currentSubmissionTest=test;
-  $('#subsTitle').textContent='Результаты: '+test.title;
+  $('#subsTitle').textContent=test.title;
   var body=$('#subsBody');skeleton(body,4);show('view-submissions');
   try{
     var r=await api('/tests/'+test.id+'/submissions');
     body.innerHTML='';
-    if(!r.groups.length){body.innerHTML='<div class="card"><div class="empty">Не назначено ни одному классу.</div></div>';return;}
+    if(!r.groups.length){body.innerHTML='<div class="card"><div class="empty" style="padding:48px">Не назначено ни одному классу.</div></div>';return;}
     r.groups.forEach(function(g){
       var card=document.createElement('div');card.className='card';
       var total=g.submitted.length+g.notSubmitted.length;
@@ -1257,8 +1329,8 @@ async function showSubmissions(test){
           var pct=s.max?Math.round(s.score/s.max*100):0;
           var el=document.createElement('div');el.className='stu-row';
           el.innerHTML='<div class="avatar">'+esc((s.studentName[0]||'?').toUpperCase())+'</div>'+
-            '<div class="name"><div>'+esc(s.studentName)+
-              (s.attempt>1?' <span class="pill" style="font-size:10.5px">попытка '+s.attempt+'</span>':'')+
+            '<div class="name"><div style="font-weight:600">'+esc(s.studentName)+
+              (s.attempt>1?' <span class="pill" style="font-size:11px">попытка '+s.attempt+'</span>':'')+
             '</div><div class="muted">'+fmt(s.at)+(s.durationMs?' · '+fmtDur(s.durationMs):'')+'</div></div>'+
             '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+' ('+pct+'%)</div>';
           var b=document.createElement('button');b.className='ghost small';b.textContent='Работа';
@@ -1269,8 +1341,8 @@ async function showSubmissions(test){
       if(g.notSubmitted.length){
         var h2=document.createElement('h4');h2.className='sec';h2.textContent='Не сдали ('+g.notSubmitted.length+')';card.appendChild(h2);
         g.notSubmitted.forEach(function(u){
-          var el=document.createElement('div');el.className='stu-row';el.style.opacity='.7';
-          el.innerHTML='<div class="avatar" style="background:#3a465c">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
+          var el=document.createElement('div');el.className='stu-row';el.style.opacity='.6';
+          el.innerHTML='<div class="avatar" style="background:var(--panel-2);color:var(--text-2)">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
             '<div class="name">'+esc(u.name)+'</div><div class="muted">нет сдачи</div>';
           card.appendChild(el);
         });
@@ -1292,24 +1364,24 @@ async function exportCsv(){
 }
 async function showAnalytics(){
   if(!currentSubmissionTest)return;
-  $('#subsTitle').textContent='Аналитика: '+currentSubmissionTest.title;
+  $('#subsTitle').textContent='Аналитика';
   var body=$('#subsBody');skeleton(body,4);
   try{
     var r=await api('/tests/'+currentSubmissionTest.id+'/submissions');
     body.innerHTML='';
     var card=document.createElement('div');card.className='card';
-    card.innerHTML='<h3>📊 Успешность по заданиям</h3>'+
-      '<div class="muted" style="margin-bottom:14px">Процент учеников, справившихся с заданием.</div>';
-    if(!r.analytics||!r.analytics.length)card.innerHTML+='<div class="empty">Нет данных</div>';
+    card.innerHTML='<h3>Успешность по заданиям</h3>'+
+      '<div class="muted" style="margin-bottom:20px">Процент учеников, справившихся с заданием.</div>';
+    if(!r.analytics||!r.analytics.length)card.innerHTML+='<div class="empty" style="padding:40px">Нет данных</div>';
     r.analytics.forEach(function(a){
       var color=a.pct>=75?'var(--ok)':(a.pct>=40?'var(--warn)':'var(--err)');
       var row=document.createElement('div');row.className='analytics-row';
       row.innerHTML='<div class="num">'+a.index+'</div>'+
-        '<div class="body"><div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+        '<div class="body"><div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
           esc(a.statement.replace(/[#*_`~]/g,'').slice(0,70))+'</div>'+
           '<div class="bar-track"><div class="bar-fill" style="width:'+a.pct+'%;background:'+color+'"></div></div></div>'+
         '<div class="pct" style="color:'+color+'">'+a.pct+'%</div>'+
-        '<div class="muted" style="font-size:11.5px;min-width:60px;text-align:right">'+a.correct+' / '+a.total+'</div>';
+        '<div class="muted" style="font-size:12px;min-width:70px;text-align:right">'+a.correct+' / '+a.total+'</div>';
       card.appendChild(row);
     });
     body.appendChild(card);
@@ -1322,12 +1394,12 @@ async function openSubmissionDetail(subId,testId){
   try{
     var r=await api('/submissions/'+subId);
     var body=$('#subsBody');
-    $('#subsTitle').textContent='Работа: '+r.test.title;
+    $('#subsTitle').textContent=r.test.title;
     body.innerHTML='';
     var card=document.createElement('div');card.className='card';
     var pct=r.submission.max?Math.round(r.submission.score/r.submission.max*100):0;
     var gc=pct>=80?'':(pct>=60?'mid':'bad');
-    card.innerHTML='<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
+    card.innerHTML='<div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-bottom:28px">'+
       '<div class="score-circle" data-grade="'+gc+'" style="--pct:'+pct+'">'+
         '<div class="val">'+r.submission.score+' / '+r.submission.max+'</div>'+
         '<div class="lbl">'+pct+'%</div></div>'+
@@ -1337,24 +1409,24 @@ async function openSubmissionDetail(subId,testId){
     r.test.tasks.forEach(function(task,i){
       var res=r.submission.results[i]||{ok:false,studentText:''};
       var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
-      var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
-      var info=document.createElement('div');
+      var s=createMathInput(task.statement,true);s.el.style.marginBottom='10px';line.appendChild(s.el);
+      var info=document.createElement('div');info.style.fontWeight='600';
       info.innerHTML=res.ok
-        ?'<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
-        :'<span class="err" style="font-weight:600">✗ Неверно</span> <span class="muted">· '+(task.points||1)+' б.</span>';
+        ?'<span class="ok">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
+        :'<span class="err">✗ Неверно</span> <span class="muted">· '+(task.points||1)+' б.</span>';
       line.appendChild(info);
       if(task.type==='input'){
-        var st=document.createElement('div');st.style.marginTop='10px';
-        st.innerHTML='<div class="muted" style="margin-bottom:4px">Ответ ученика:</div>';
+        var st=document.createElement('div');st.style.marginTop='14px';
+        st.innerHTML='<div class="muted" style="margin-bottom:6px">Ответ ученика:</div>';
         var mf=createMathInput(res.studentText||'(пусто)',true);st.appendChild(mf.el);line.appendChild(st);
         if(!res.ok){
-          var c=document.createElement('div');c.style.marginTop='10px';
-          c.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
+          var c=document.createElement('div');c.style.marginTop='14px';
+          c.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный ответ:</div>';
           var mfc=createMathInput(task.answer,true);c.appendChild(mfc.el);line.appendChild(c);
         }
       } else if(!res.ok){
-        var c2=document.createElement('div');c2.style.marginTop='10px';
-        c2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
+        var c2=document.createElement('div');c2.style.marginTop='14px';
+        c2.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный вариант:</div>';
         var mf2=createMathInput(task.options[task.correctIndex].text,true);c2.appendChild(mf2.el);line.appendChild(c2);
       }
       card.appendChild(line);
@@ -1376,8 +1448,6 @@ async function openDashboard(){
   try{
     var r=await api('/teacher/dashboard');
     host.innerHTML='';
-
-    // Общая статистика
     var top=document.createElement('div');top.className='grid';
     [
       ['📚','Классов',r.total.classes],
@@ -1390,15 +1460,14 @@ async function openDashboard(){
     });
     host.appendChild(top);
 
-    // Динамика по неделям
-    var wCard=document.createElement('div');wCard.className='card';wCard.style.marginTop='16px';
-    wCard.innerHTML='<h3>📈 Динамика по неделям</h3>';
+    var wCard=document.createElement('div');wCard.className='card';wCard.style.marginTop='24px';
+    wCard.innerHTML='<h3>Динамика по неделям</h3>';
     var wrap=document.createElement('div');wrap.className='chart-wrap';
     var bars=document.createElement('div');bars.className='chart-bars';
     r.weeks.forEach(function(w){
       var b=document.createElement('div');b.className='chart-bar';
-      var color=w.avgPercent>=80?'var(--ok)':(w.avgPercent>=60?'var(--warn)':(w.avgPercent>0?'var(--err)':'var(--line)'));
-      b.style.cssText='height:'+Math.max(4,w.avgPercent)+'%;background:'+color;
+      var color=w.avgPercent>=80?'var(--ok)':(w.avgPercent>=60?'var(--warn)':(w.avgPercent>0?'var(--err)':'var(--border)'));
+      b.style.cssText='height:'+Math.max(6,w.avgPercent)+'%;background:'+color;
       b.title=w.label+' — '+w.count+' сдач, средний '+w.avgPercent+'%';
       b.dataset.label=w.label;
       bars.appendChild(b);
@@ -1406,29 +1475,27 @@ async function openDashboard(){
     wrap.appendChild(bars);wCard.appendChild(wrap);
     host.appendChild(wCard);
 
-    // Средний балл по классам
     var cCard=document.createElement('div');cCard.className='card';
-    cCard.innerHTML='<h3>📚 Средний балл по классам</h3>';
-    if(!r.perClass.length){cCard.innerHTML+='<div class="empty">Классов нет</div>';}
+    cCard.innerHTML='<h3>Средний балл по классам</h3>';
+    if(!r.perClass.length)cCard.innerHTML+='<div class="empty" style="padding:40px">Классов нет</div>';
     r.perClass.forEach(function(c){
       var color=c.avgPercent>=80?'var(--ok)':(c.avgPercent>=60?'var(--warn)':'var(--err)');
       var row=document.createElement('div');row.className='analytics-row';
-      row.innerHTML='<div class="body"><div style="font-size:13.5px">'+esc(c.name)+' <span class="muted">('+c.submissions+' сдач)</span></div>'+
+      row.innerHTML='<div class="body"><div style="font-size:14px;font-weight:600">'+esc(c.name)+' <span class="muted">('+c.submissions+' сдач)</span></div>'+
         '<div class="bar-track"><div class="bar-fill" style="width:'+c.avgPercent+'%;background:'+color+'"></div></div></div>'+
         '<div class="pct" style="color:'+color+'">'+c.avgPercent+'%</div>';
       cCard.appendChild(row);
     });
     host.appendChild(cCard);
 
-    // Топ-5 лучших и отстающих — в две колонки
     var twoCol=document.createElement('div');twoCol.className='two-col';
     var topCard=document.createElement('div');topCard.className='card';
     topCard.innerHTML='<h3>🏆 Лучшие ученики</h3>';
-    if(!r.top.length)topCard.innerHTML+='<div class="empty">Нет данных</div>';
+    if(!r.top.length)topCard.innerHTML+='<div class="empty" style="padding:40px">Нет данных</div>';
     r.top.forEach(function(u,i){
       var el=document.createElement('div');el.className='stu-row';
-      el.innerHTML='<span class="badge green" style="background:'+(i===0?'#ffb547':(i===1?'#c0c0c0':'#cd7f32'))+'">'+(i+1)+'</span>'+
-        '<div class="name"><div>'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
+      el.innerHTML='<span class="badge" style="background:'+(i===0?'#ffb547':(i===1?'#c0c0c0':(i===2?'#cd7f32':'var(--panel-2)')))+';color:'+(i<3?'#000':'var(--text-2)')+'">'+(i+1)+'</span>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
         '<div class="score ok">'+u.avgPercent+'%</div>';
       topCard.appendChild(el);
     });
@@ -1436,11 +1503,11 @@ async function openDashboard(){
 
     var bottomCard=document.createElement('div');bottomCard.className='card';
     bottomCard.innerHTML='<h3>⚠️ Требуют внимания</h3>';
-    if(!r.bottom.length)bottomCard.innerHTML+='<div class="empty">Нет данных</div>';
+    if(!r.bottom.length)bottomCard.innerHTML+='<div class="empty" style="padding:40px">Нет данных</div>';
     r.bottom.forEach(function(u,i){
       var el=document.createElement('div');el.className='stu-row';
       el.innerHTML='<span class="badge red">'+(i+1)+'</span>'+
-        '<div class="name"><div>'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
         '<div class="score err">'+u.avgPercent+'%</div>';
       bottomCard.appendChild(el);
     });
@@ -1475,7 +1542,7 @@ async function searchBooks(){
     var r=await api('/books'+params);
     host.innerHTML='';
     if(!r.books.length){
-      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>'+(q||cid?'Ничего не найдено':'Книг пока нет')+'</div></div>';
+      host.innerHTML='<div class="card"><div class="empty"><div class="icon">📚</div>'+(q||cid?'Ничего не найдено':'Книг пока нет')+'</div></div>';
       return;
     }
     if(bookView==='grid'){
@@ -1489,7 +1556,7 @@ async function searchBooks(){
 }
 function renderBookCard(b){
   var card=document.createElement('div');card.className='book-card';
-  card.innerHTML='<div class="book-cover"><span>📖</span></div>'+
+  card.innerHTML='<div class="book-cover"><svg><use href="#i-book"/></svg></div>'+
     '<div class="book-title">'+esc(b.title)+'</div>'+
     (b.author?'<div class="book-author">'+esc(b.author)+'</div>':'')+
     '<div class="book-meta">'+
@@ -1500,9 +1567,9 @@ function renderBookCard(b){
     (b.description?'<div class="book-desc">'+esc(b.description)+'</div>':'');
   var actions=document.createElement('div');actions.className='book-actions';
   if(b.fileName){
-    var d=document.createElement('button');d.className='primary small';d.textContent='📖 Открыть';
+    var d=document.createElement('button');d.className='primary small';d.textContent='Открыть';
     d.onclick=function(){downloadBook(b.id,false);};actions.appendChild(d);
-    var dn=document.createElement('button');dn.className='ghost small';dn.textContent='⬇ Скачать';
+    var dn=document.createElement('button');dn.className='ghost small';dn.textContent='Скачать';
     dn.onclick=function(){downloadBook(b.id,true);};actions.appendChild(dn);
   }
   if(isAdmin()||(isTeacherLike()&&b.ownerId===currentUser.id)){
@@ -1523,9 +1590,9 @@ function renderBookRow(b){
     '<div class="binfo"><div class="btitle">'+esc(b.title)+'</div>'+
     '<div class="bauthor">'+esc(b.author||'—')+(b.subject?' · '+esc(b.subject):'')+
       (b.fileSize?' · '+fmtSize(b.fileSize):'')+(b.ownerName?' · '+esc(b.ownerName):'')+'</div></div>';
-  var actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px';
+  var actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px';
   if(b.fileName){
-    var d=document.createElement('button');d.className='primary small';d.textContent='📖';
+    var d=document.createElement('button');d.className='primary small';d.textContent='Открыть';
     d.onclick=function(){downloadBook(b.id,false);};actions.appendChild(d);
     var dn=document.createElement('button');dn.className='ghost small';dn.textContent='⬇';
     dn.onclick=function(){downloadBook(b.id,true);};actions.appendChild(dn);
@@ -1613,7 +1680,7 @@ async function loadAdminLogs(){
   try{
     var r=await api('/admin/logs?limit=200');
     host.innerHTML='';
-    if(!r.logs.length){host.innerHTML='<div class="empty">Пока нет записей</div>';return;}
+    if(!r.logs.length){host.innerHTML='<div class="empty" style="padding:40px">Пока нет записей</div>';return;}
     r.logs.forEach(function(l){
       var el=document.createElement('div'); el.className='log-row';
       el.innerHTML='<div class="log-time">'+fmtDate(l.at)+'</div>'+
@@ -1630,13 +1697,13 @@ async function loadBackups(){
   try{
     var r=await api('/admin/backups');
     host.innerHTML='';
-    if(!r.backups.length){host.innerHTML='<div class="empty">Пока нет бэкапов</div>';return;}
+    if(!r.backups.length){host.innerHTML='<div class="empty" style="padding:40px">Пока нет бэкапов</div>';return;}
     r.backups.forEach(function(b){
       var el=document.createElement('div');el.className='backup-row';
       var date=new Date(b.createdAt).toLocaleString('ru-RU');
       el.innerHTML='<div class="bi-info"><b>'+(b.auto?'🤖 Авто':'💾 Ручной')+'</b>'+
         '<div class="muted">'+date+' · '+fmtSize(b.size)+'</div></div>';
-      var dl=document.createElement('button');dl.className='primary small';dl.textContent='📥 Скачать';
+      var dl=document.createElement('button');dl.className='primary small';dl.textContent='Скачать';
       dl.onclick=async function(){
         try{
           var tk=getToken();
@@ -1661,12 +1728,12 @@ async function loadBackups(){
 }
 async function createBackupNow(){
   var btn=$('#btnCreateBackup');if(!btn)return;
-  btn.disabled=true;btn.textContent='Создание...';
+  btn.disabled=true;
   try{
     await api('/admin/backups/create',{method:'POST'});
     toast('Бэкап создан','ok');loadBackups();
   }catch(e){toast(e.message,'err');}
-  finally{btn.disabled=false;btn.textContent='+ Создать сейчас';}
+  finally{btn.disabled=false;}
 }
 async function loadAdminUsers(){
   try{
@@ -1688,16 +1755,16 @@ async function loadAdminUsers(){
       sh.appendChild(c);
     });
     var host=$('#adminUsersList');host.innerHTML='';
-    if(!r.users.length){host.innerHTML='<div class="empty">Никого не найдено</div>';return;}
+    if(!r.users.length){host.innerHTML='<div class="empty" style="padding:40px">Никого не найдено</div>';return;}
     r.users.forEach(function(u){
       var el=document.createElement('div');el.className='admin-row';
       el.innerHTML='<div class="avatar"></div>'+
         '<div class="info"><b>'+esc(u.name)+'</b>'+
         '<div class="muted">'+esc(u.email)+' · '+fmtDate(u.createdAt)+'</div>'+
-        '<div class="muted" style="font-size:11.5px;margin-top:2px">'+
+        '<div class="muted" style="font-size:12px;margin-top:3px">'+
           'Классов: '+u.stats.classes_created+' · В классах: '+u.stats.classes_joined+
           ' · Сдач: '+u.stats.submissions+' · Книг: '+u.stats.books+'</div></div>';
-      renderAvatar(el.querySelector('.avatar'),u,36);
+      renderAvatar(el.querySelector('.avatar'),u,44);
       var sel=document.createElement('select');
       ['admin','teacher','librarian','student'].forEach(function(rl){
         var o=document.createElement('option');o.value=rl;
@@ -1712,7 +1779,7 @@ async function loadAdminUsers(){
         catch(e){toast(e.message,'err');loadAdminUsers();}
       };
       el.appendChild(sel);
-      var rp=document.createElement('button');rp.className='ghost small';rp.textContent='🔑';
+      var rp=document.createElement('button');rp.className='ghost small';rp.textContent='Пароль';
       rp.title='Сбросить пароль';
       rp.onclick=async function(){
         if(!confirm('Сбросить пароль для '+u.name+'?'))return;
@@ -1744,14 +1811,14 @@ async function openProfileStats(){
     var r=await api(url);
     host.innerHTML='';
     var hello=document.createElement('div');hello.className='card';hello.style.overflow='hidden';
-    var av=document.createElement('div');av.className='avatar';av.style.cssText='width:56px;height:56px;font-size:22px;float:left;margin-right:14px';
+    var av=document.createElement('div');av.className='avatar';av.style.cssText='width:64px;height:64px;font-size:26px;float:left;margin-right:18px';
     hello.appendChild(av);
     var info=document.createElement('div');
-    info.innerHTML='<h2 style="margin-bottom:4px">'+esc(currentUser.name)+'</h2>'+
+    info.innerHTML='<h1 style="font-size:32px;margin-bottom:6px;letter-spacing:-0.03em">'+esc(currentUser.name)+'</h1>'+
       '<div class="muted">'+roleLabel()+'</div>';
     hello.appendChild(info);
     host.appendChild(hello);
-    renderAvatar(av,currentUser,56);
+    renderAvatar(av,currentUser,64);
     var statGrid=document.createElement('div');statGrid.className='grid';
     var stats=isTeacherLike()
       ?[['📚','Классов',r.classesCount],['👥','Учеников',r.studentsCount],
@@ -1768,45 +1835,45 @@ async function openProfileStats(){
     });
     host.appendChild(statGrid);
     if(!isTeacherLike()&&r.all&&r.all.length){
-      var prog=document.createElement('div');prog.className='card';prog.style.marginTop='16px';
-      prog.innerHTML='<h3>📊 Динамика среднего балла</h3>';
+      var prog=document.createElement('div');prog.className='card';prog.style.marginTop='24px';
+      prog.innerHTML='<h3>Динамика среднего балла</h3>';
       var chartWrap=document.createElement('div');chartWrap.className='chart-wrap';
       var chart=document.createElement('div');chart.className='chart-bars';
       var sorted=r.all.slice().sort(function(a,b){return a.at-b.at;});
       sorted.forEach(function(s){
         var bar=document.createElement('div');bar.className='chart-bar';
         var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
-        bar.style.cssText='height:'+Math.max(4,s.pct)+'%;background:'+color;
+        bar.style.cssText='height:'+Math.max(6,s.pct)+'%;background:'+color;
         bar.title=s.testTitle+' — '+s.pct+'%';
         bar.dataset.label=new Date(s.at).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'});
         chart.appendChild(bar);
       });
       chartWrap.appendChild(chart);prog.appendChild(chartWrap);
-      prog.innerHTML+='<h3 style="margin-top:16px">📈 Баллы по работам</h3>';
+      prog.innerHTML+='<h3 style="margin-top:24px">Баллы по работам</h3>';
       var cw2=document.createElement('div');cw2.className='chart-wrap';
       var c2=document.createElement('div');c2.className='chart-bars';
       var recent=r.all.slice(0,20).reverse();
       recent.forEach(function(s){
         var bar=document.createElement('div');bar.className='chart-bar';
         var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
-        bar.style.cssText='height:'+Math.max(4,s.pct)+'%;background:'+color;
+        bar.style.cssText='height:'+Math.max(6,s.pct)+'%;background:'+color;
         bar.title=s.testTitle+' — '+s.score+'/'+s.max+' ('+s.pct+'%)';
         bar.dataset.label=s.pct+'%';
         c2.appendChild(bar);
       });
       cw2.appendChild(c2);prog.appendChild(cw2);
       if(r.classStats&&r.classStats.length){
-        prog.innerHTML+='<h3 style="margin-top:20px">📚 По классам</h3>';
+        prog.innerHTML+='<h3 style="margin-top:28px">По классам</h3>';
         r.classStats.forEach(function(c){
           var row=document.createElement('div');row.className='analytics-row';
           var color=c.avgPct>=80?'var(--ok)':(c.avgPct>=60?'var(--warn)':'var(--err)');
-          row.innerHTML='<div class="body"><div style="font-size:13.5px">'+esc(c.name)+' <span class="muted">('+c.count+' сдач)</span></div>'+
+          row.innerHTML='<div class="body"><div style="font-size:14px;font-weight:600">'+esc(c.name)+' <span class="muted">('+c.count+' сдач)</span></div>'+
             '<div class="bar-track"><div class="bar-fill" style="width:'+c.avgPct+'%;background:'+color+'"></div></div></div>'+
             '<div class="pct" style="color:'+color+'">'+c.avgPct+'%</div>';
           prog.appendChild(row);
         });
       }
-      prog.innerHTML+='<h3 style="margin-top:20px">📋 Все результаты</h3>';
+      prog.innerHTML+='<h3 style="margin-top:28px">Все результаты</h3>';
       var table=document.createElement('table');table.className='progress-table';
       table.innerHTML='<thead><tr><th>Работа</th><th>Класс</th><th>Дата</th><th>Балл</th><th>%</th></tr></thead>';
       var tbody=document.createElement('tbody');
@@ -1815,12 +1882,12 @@ async function openProfileStats(){
         var color=s.pct>=80?'var(--ok)':(s.pct>=60?'var(--warn)':'var(--err)');
         tr.innerHTML='<td>'+esc(s.testTitle)+'</td><td>'+esc(s.className)+'</td>'+
           '<td>'+fmtDate(s.at)+'</td><td>'+s.score+' / '+s.max+'</td>'+
-          '<td style="color:'+color+';font-weight:600">'+s.pct+'%</td>';
+          '<td style="color:'+color+';font-weight:700">'+s.pct+'%</td>';
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);prog.appendChild(table);
-      var exp=document.createElement('button');exp.className='ghost small';exp.style.marginTop='12px';
-      exp.textContent='📥 Скачать мои результаты (CSV)';
+      var exp=document.createElement('button');exp.className='ghost small';exp.style.marginTop='18px';
+      exp.textContent='Скачать мои результаты (CSV)';
       exp.onclick=function(){
         var rows=[['Работа','Класс','Дата','Балл','Макс','%']];
         r.all.forEach(function(s){rows.push([s.testTitle,s.className,new Date(s.at).toLocaleString('ru-RU'),s.score,s.max,s.pct+'%']);});
@@ -1837,13 +1904,13 @@ async function openProfileStats(){
       host.appendChild(prog);
     }
     if(r.recent&&r.recent.length){
-      var rec=document.createElement('div');rec.className='card';rec.style.marginTop='16px';
+      var rec=document.createElement('div');rec.className='card';rec.style.marginTop='24px';
       rec.innerHTML='<h3>Последние сдачи</h3>';
       r.recent.forEach(function(s){
         var pct=s.max?Math.round(s.score/s.max*100):0;
         var el=document.createElement('div');el.className='stu-row';
         el.innerHTML='<div class="avatar">'+(isTeacherLike()?esc((s.studentName[0]||'?').toUpperCase()):'📝')+'</div>'+
-          '<div class="name"><div>'+esc(s.testTitle)+(isTeacherLike()&&s.studentName?' · '+esc(s.studentName):'')+
+          '<div class="name"><div style="font-weight:600">'+esc(s.testTitle)+(isTeacherLike()&&s.studentName?' · '+esc(s.studentName):'')+
           '</div><div class="muted">'+fmt(s.at)+'</div></div>'+
           '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+'</div>';
         rec.appendChild(el);
@@ -1855,7 +1922,7 @@ async function openProfileStats(){
 function openEditProfile(){
   if(!currentUser)return;
   show('view-editprofile');
-  renderAvatar($('#editAvatar'),currentUser,80);
+  renderAvatar($('#editAvatar'),currentUser,96);
   $('#editName').value=currentUser.name||'';
   $('#editEmail').value=currentUser.email||'';
   $('#editPass').value='';
@@ -1884,7 +1951,7 @@ async function uploadAvatar(file){
     await apiForm('/users/me/avatar',fd);
     var me=await api('/auth/me');
     currentUser=me.user;renderTop();
-    renderAvatar($('#editAvatar'),currentUser,80);
+    renderAvatar($('#editAvatar'),currentUser,96);
     toast('Аватар обновлён','ok');
   }catch(e){toast(e.message,'err');}
 }
@@ -1918,6 +1985,8 @@ async function boot(){
     if(tgInfo&&tgInfo.username)window.TELEGRAM_BOT_USERNAME=tgInfo.username;
   }catch(e){}
   initEditorFields();
+
+  /* Шапка */
   var bt=$('#btnTheme');if(bt)bt.onclick=function(){
     var cur=document.documentElement.getAttribute('data-theme');
     applyTheme(cur==='dark'?'light':'dark');
@@ -1944,6 +2013,8 @@ async function boot(){
       $$('.theme-option').forEach(function(x){x.classList.toggle('active',x===b);});
     };
   });
+
+  /* Библиотека */
   var blib=$('#btnLibrary');if(blib)blib.onclick=openLibrary;
   var bdsh=$('#btnDashboard');if(bdsh)bdsh.onclick=openDashboard;
   var bbfl=$('#btnBackFromLibrary');if(bbfl)bbfl.onclick=function(){
@@ -1958,9 +2029,11 @@ async function boot(){
   var bsort=$('#bookSort');if(bsort)bsort.onchange=searchBooks;
   var bbv=$('#btnBookView');if(bbv)bbv.onclick=function(){
     bookView=bookView==='grid'?'list':'grid';
-    bbv.textContent=bookView==='grid'?'📋 Список':'▦ Плитки';
+    bbv.textContent=bookView==='grid'?'Список':'Плитки';
     searchBooks();
   };
+
+  /* Админ */
   var badm=$('#btnAdmin');if(badm)badm.onclick=openAdmin;
   var bbfa=$('#btnBackFromAdmin');if(bbfa)bbfa.onclick=function(){
     if(isTeacherLike())goTeacher();else goStudent();
@@ -1980,6 +2053,8 @@ async function boot(){
     };
   });
   var bcr=$('#btnCreateBackup');if(bcr)bcr.onclick=createBackupNow;
+
+  /* Профиль */
   var bbfp=$('#btnBackFromProfile');if(bbfp)bbfp.onclick=function(){
     if(isTeacherLike())goTeacher();else goStudent();
   };
@@ -1989,6 +2064,8 @@ async function boot(){
   var bce=$('#btnCancelEdit');if(bce)bce.onclick=openProfileStats;
   var bua=$('#btnUploadAvatar');if(bua)bua.onclick=function(){$('#avatarInput').click();};
   var ai=$('#avatarInput');if(ai)ai.onchange=function(){if(this.files[0])uploadAvatar(this.files[0]);};
+
+  /* Чат класса */
   var bcf2=$('#btnChatFile');if(bcf2)bcf2.onclick=function(){$('#chatFileInput').click();};
   var cfi=$('#chatFileInput');if(cfi)cfi.onchange=function(){
     var f=this.files[0];if(!f)return;
@@ -1999,6 +2076,31 @@ async function boot(){
   var ct=$('#chatText');if(ct)ct.addEventListener('keydown',function(e){
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}
   });
+
+  /* Чат поддержки */
+  var sb=$('#supportBtn');if(sb)sb.onclick=toggleSupport;
+  var sc=$('#supportClose');if(sc)sc.onclick=toggleSupport;
+  var ss=$('#supportSend');if(ss)ss.onclick=function(){supportSend();};
+  var si=$('#supportInput');if(si)si.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();supportSend();}
+  });
+  $$('#supportQuick button').forEach(function(b){
+    b.onclick=function(){supportSend(b.dataset.q);};
+  });
+
+  /* Мобильная навигация */
+  $$('#mobile-nav button').forEach(function(b){
+    b.onclick=function(){
+      var t=b.dataset.mnav;
+      if(t==='home'){
+        if(isTeacherLike())goTeacher();else goStudent();
+      } else if(t==='library'){ openLibrary(); }
+      else if(t==='dashboard'){ openDashboard(); }
+      else if(t==='profile'){ openProfileStats(); }
+    };
+  });
+
+  /* Табы */
   $$('.tab').forEach(function(t){
     if(!t.dataset.tab)return;
     t.onclick=function(){
@@ -2025,6 +2127,8 @@ async function boot(){
       currentSymTab=t.dataset.symtab;buildSymbolBar($('#symbolBar'));
     };
   });
+
+  /* Авторизация */
   $('#doLogin').onclick=async function(){
     var ae=$('#authErr');if(ae)ae.textContent='';
     try{
@@ -2046,9 +2150,11 @@ async function boot(){
     btn.onclick=function(){
       var inp=$('#'+btn.dataset.target);if(!inp)return;
       var p=inp.type==='password';
-      inp.type=p?'text':'password';btn.textContent=p?'🙈':'👁';
+      inp.type=p?'text':'password';
     };
   });
+
+  /* Кнопки учителя */
   var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
   var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
     var name=prompt('Название класса (например: Математика 101)');
@@ -2066,10 +2172,14 @@ async function boot(){
   };
   var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
   var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
+
+  /* Наверх */
   var tt=$('#toTop');
-  window.addEventListener('scroll',function(){if(tt)tt.classList.toggle('show',window.scrollY>300);});
+  window.addEventListener('scroll',function(){if(tt)tt.classList.toggle('show',window.scrollY>400);});
   if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
+
   renderTop();
+
   if(getToken()){
     try{
       var r=await api('/auth/me');
@@ -2078,6 +2188,7 @@ async function boot(){
       return;
     }catch(e){setToken(null);}
   }
+
   initGoogleLogin();
   initTelegramLogin();
   show('view-auth');
