@@ -38,6 +38,27 @@ function applyTheme(t){
 }
 (function(){var s='dark';try{s=localStorage.getItem(THEME_KEY)||'dark';}catch(e){}applyTheme(s);})();
 
+/* ============ PALETTE ============ */
+var PALETTE_KEY='mathtest_palette';
+function applyPalette(p){
+  document.documentElement.setAttribute('data-palette',p);
+  try{localStorage.setItem(PALETTE_KEY,p);}catch(e){}
+}
+(function(){
+  var saved='blue';
+  try{saved=localStorage.getItem(PALETTE_KEY)||'blue';}catch(e){}
+  applyPalette(saved);
+})();
+
+/* ============ PWA ============ */
+function registerSW(){
+  if(!('serviceWorker' in navigator)) return;
+  if(location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+  navigator.serviceWorker.register('/sw.js').then(function(reg){
+    setInterval(function(){ reg.update(); }, 30*60*1000);
+  }).catch(function(e){ console.warn('SW:', e.message); });
+}
+
 /* ============ TOASTS ============ */
 function toast(msg,type){
   type=type||'info';
@@ -86,6 +107,7 @@ function roleLabel(){
 }
 function avatarUrl(id){return '/api/users/'+id+'/avatar';}
 function renderAvatar(el,user,size){
+  if(!el)return;
   el.style.width=(size||26)+'px';el.style.height=(size||26)+'px';
   el.style.fontSize=Math.round((size||26)*0.45)+'px';
   if(user&&user.hasAvatar){
@@ -224,18 +246,19 @@ function skeleton(host,lines){
 /* ============ TOPBAR ============ */
 function renderTop(){
   var box=$('#userBox');if(!box)return;
-  var bn=$('#btnNotif'),bp=$('#btnProfile'),ba=$('#btnAdmin');
+  var bn=$('#btnNotif'),bp=$('#btnProfile'),ba=$('#btnAdmin'),bl=$('#btnLibrary');
   if(!currentUser){
     box.innerHTML='';
     if(bn)bn.style.display='none';
     if(bp)bp.style.display='none';
     if(ba)ba.style.display='none';
+    if(bl)bl.style.display='none';
     return;
   }
   if(bn)bn.style.display='';
   if(bp)bp.style.display='';
+  if(bl)bl.style.display='';
   if(ba)ba.style.display=isAdmin()?'':'none';
-  var initial=(currentUser.name[0]||'?').toUpperCase();
   box.innerHTML='<div class="user-chip">'+
     '<div class="avatar" id="topAvatar"></div>'+
     '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
@@ -299,8 +322,8 @@ async function loadNotifications(){
   }catch(e){list.innerHTML='<div class="err" style="padding:16px">'+esc(e.message)+'</div>';}
 }
 
-/* ============ PROFILE MODAL ============ */
-async function openProfile(){
+/* ============ PALETTE PICKER ============ */
+function openPalettePicker(){
   if(!currentUser){toast('Сначала войдите','warn');return;}
   var pm=$('#profileModal');if(!pm)return;
   pm.hidden=false;
@@ -319,35 +342,64 @@ async function openProfile(){
   var firstSec=pb.querySelector('h4.sec');
   if(firstSec)pb.insertBefore(cab,firstSec);
 
+  // Тема
   var curTheme=document.documentElement.getAttribute('data-theme');
   $$('.theme-option').forEach(function(b){
     b.classList.toggle('active',b.dataset.themeSet===curTheme);
   });
 
+  // Палитра — добавляем, если ещё нет
+  if(!document.getElementById('paletteBlock')){
+    var cur=document.documentElement.getAttribute('data-palette')||'blue';
+    var block=document.createElement('div');
+    block.id='paletteBlock';
+    block.innerHTML=
+      '<h4 class="sec">Цветовая схема</h4>'+
+      '<div class="palette-picker">'+
+        '<div class="palette-option'+(cur==='blue'?' active':'')+'" data-pal="blue" title="Синий"></div>'+
+        '<div class="palette-option'+(cur==='green'?' active':'')+'" data-pal="green" title="Зелёный"></div>'+
+        '<div class="palette-option'+(cur==='purple'?' active':'')+'" data-pal="purple" title="Фиолетовый"></div>'+
+        '<div class="palette-option'+(cur==='orange'?' active':'')+'" data-pal="orange" title="Оранжевый"></div>'+
+      '</div>';
+    block.querySelectorAll('.palette-option').forEach(function(el){
+      el.onclick=function(){
+        applyPalette(el.dataset.pal);
+        block.querySelectorAll('.palette-option').forEach(function(x){x.classList.remove('active');});
+        el.classList.add('active');
+        toast('Цвет изменён','ok');
+      };
+    });
+    pb.appendChild(block);
+  }
+
   $('#tgStatus').textContent='Проверка…';
   $('#tgActions').innerHTML='';
   try{
-    var r=await api('/telegram/link');
-    if(r.linked){
-      $('#tgStatus').innerHTML='<span class="tg-ok" style="color:var(--ok);font-weight:600">✅ Подключён</span>';
-      var unlink=document.createElement('button');
-      unlink.className='ghost small danger';unlink.textContent='Отключить Telegram';
-      unlink.onclick=async function(){
-        try{await api('/telegram/unlink',{method:'POST'});toast('Отключено','info');openProfile();}
-        catch(e){toast(e.message,'err');}
-      };
-      $('#tgActions').appendChild(unlink);
-    }else{
-      $('#tgStatus').innerHTML='<span class="tg-no" style="color:var(--muted)">Не подключён. Получайте уведомления в Telegram.</span>';
-      var a=document.createElement('a');
-      a.className='tg-link';a.href=r.link;a.target='_blank';
-      a.innerHTML='✈️ Подключить Telegram';
-      $('#tgActions').appendChild(a);
-    }
-  }catch(e){
-    $('#tgStatus').innerHTML='<span style="color:var(--muted)">Не удалось: '+esc(e.message)+'</span>';
-  }
+    api('/telegram/link').then(function(r){
+      if(r.linked){
+        $('#tgStatus').innerHTML='<span style="color:var(--ok);font-weight:600">✅ Подключён</span>';
+        var unlink=document.createElement('button');
+        unlink.className='ghost small danger';unlink.textContent='Отключить Telegram';
+        unlink.onclick=async function(){
+          try{await api('/telegram/unlink',{method:'POST'});toast('Отключено','info');openPalettePicker();}
+          catch(e){toast(e.message,'err');}
+        };
+        $('#tgActions').appendChild(unlink);
+      }else{
+        $('#tgStatus').innerHTML='<span style="color:var(--muted)">Не подключён</span>';
+        var a=document.createElement('a');
+        a.className='tg-link';a.href=r.link;a.target='_blank';
+        a.innerHTML='✈️ Подключить Telegram';
+        $('#tgActions').appendChild(a);
+      }
+    }).catch(function(e){
+      $('#tgStatus').innerHTML='<span style="color:var(--muted)">'+esc(e.message)+'</span>';
+    });
+  }catch(e){}
 }
+
+/* ============ PROFILE MODAL ============ */
+async function openProfile(){ openPalettePicker(); }
 
 /* ============ GOOGLE + TELEGRAM LOGIN ============ */
 var GOOGLE_CLIENT_ID='279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com';
@@ -534,7 +586,7 @@ async function openClassView(id){
         return g?'<span class="pill blue">'+esc(g.name)+'</span>':'';
       }).join('');
       var tg=u.hasTelegram?' <span class="pill green" title="Telegram">✈️</span>':'';
-      el.innerHTML='<div class="avatar" data-uid="'+u.id+'"></div>'+
+      el.innerHTML='<div class="avatar"></div>'+
         '<div class="name"><div>'+esc(u.name)+' '+groupsHtml+tg+'</div>'+
         '<div class="muted">'+esc(u.email)+'</div></div>';
       renderAvatar(el.querySelector('.avatar'),u,32);
@@ -548,7 +600,6 @@ async function openClassView(id){
       stu.appendChild(el);
     });
 
-    // группы — только учитель
     var gr=$('#classGroups');gr.innerHTML='';
     if(!(r.class.groups||[]).length){
       gr.innerHTML='<div class="empty" style="padding:16px">Групп пока нет</div>';
@@ -598,7 +649,6 @@ async function openClassView(id){
       gr.appendChild(el);
     });
 
-    // кнопка рассылки
     var oldB=$('#btnBroadcast');if(oldB)oldB.remove();
     if(isTeacherLike()){
       var bb=document.createElement('button');
@@ -620,7 +670,6 @@ async function openClassView(id){
       tgCard.appendChild(bb);
     }
 
-    // Работы
     var ts=$('#classTests');ts.innerHTML='';
     if(!r.tests.length)ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
@@ -640,9 +689,9 @@ async function openClassView(id){
       el.appendChild(b);ts.appendChild(el);
     });
 
-    // Чат
     if(cb){
       cb.style.display='';
+      lastChatTime=0;
       await loadChatMessages(id, true);
       if(chatPollTimer)clearInterval(chatPollTimer);
       chatPollTimer=setInterval(function(){loadChatMessages(id,false);},4000);
@@ -657,14 +706,13 @@ async function loadChatMessages(classId, reset){
     var r=await api('/classes/'+classId+'/messages');
     var atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<60;
     if(reset)box.innerHTML='';
-    // показать новые (после lastChatTime)
     var fresh=r.messages.filter(function(m){return m.createdAt>lastChatTime;});
     fresh.forEach(function(m){
       var el=document.createElement('div');
       el.className='chat-msg'+(m.own?' own':'');
       el.dataset.mid=m.id;
       el.innerHTML=
-        '<div class="avatar" data-uid="'+m.userId+'"></div>'+
+        '<div class="avatar"></div>'+
         '<div class="chat-msg-body">'+
           '<div class="chat-msg-head"><b>'+esc(m.userName)+'</b> · '+fmt(m.createdAt)+'</div>'+
           (m.text?'<div class="chat-msg-text">'+esc(m.text)+'</div>':'')+
@@ -685,7 +733,7 @@ async function loadChatMessages(classId, reset){
       lastChatTime=Math.max(lastChatTime,m.createdAt);
     });
     if(reset||atBottom)box.scrollTop=box.scrollHeight;
-  }catch(e){/* тихо */}
+  }catch(e){}
 }
 window.downloadChatFile=function(mid){
   var tk=getToken();
@@ -1277,15 +1325,12 @@ async function openLibrary(){
   var bab=$('#btnAddBook');
   if(bab)bab.hidden=!canUploadBooks();
   if(!canUploadBooks())$('#bookUploadForm').hidden=true;
-
-  // фильтр по классам
   try{
     var cr=await api('/classes');
     var sel=$('#bookClassFilter');
-    sel.innerHTML='<option value="">Все классы</option>'+
+    if(sel)sel.innerHTML='<option value="">Все классы</option>'+
       cr.classes.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
   }catch(e){}
-
   await searchBooks();
 }
 
@@ -1441,13 +1486,33 @@ async function openAdmin(){
   await loadAdminUsers();
 }
 
+async function loadAdminLogs(){
+  var host=$('#adminLogsList'); if(!host) return;
+  skeleton(host,5);
+  try{
+    var r=await api('/admin/logs?limit=200');
+    host.innerHTML='';
+    if(!r.logs.length){
+      host.innerHTML='<div class="empty">Пока нет записей</div>';
+      return;
+    }
+    r.logs.forEach(function(l){
+      var el=document.createElement('div'); el.className='log-row';
+      el.innerHTML='<div class="log-time">'+fmtDate(l.at)+'</div>'+
+        '<div class="log-who">'+esc(l.userName)+'</div>'+
+        '<div class="log-action">'+esc(l.action)+
+        (l.details?'<div class="log-details">'+esc(l.details)+'</div>':'')+'</div>';
+      host.appendChild(el);
+    });
+  }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+
 async function loadAdminUsers(){
   try{
     var q=$('#adminSearch').value.trim();
     var role=$('#adminRoleFilter').value;
     var r=await api('/admin/users?q='+encodeURIComponent(q)+'&role='+encodeURIComponent(role));
 
-    // статистика
     var sh=$('#adminStats');sh.innerHTML='';
     var stats=[
       ['👥','Всего',r.stats.total],
@@ -1464,14 +1529,13 @@ async function loadAdminUsers(){
       sh.appendChild(c);
     });
 
-    // список
     var host=$('#adminUsersList');host.innerHTML='';
     if(!r.users.length){
       host.innerHTML='<div class="empty">Никого не найдено</div>';return;
     }
     r.users.forEach(function(u){
       var el=document.createElement('div');el.className='admin-row';
-      el.innerHTML='<div class="avatar" data-uid="'+u.id+'"></div>'+
+      el.innerHTML='<div class="avatar"></div>'+
         '<div class="info"><b>'+esc(u.name)+'</b>'+
         '<div class="muted">'+esc(u.email)+' · регистрация '+fmtDate(u.createdAt)+'</div>'+
         '<div class="muted" style="font-size:11.5px;margin-top:2px">'+
@@ -1530,14 +1594,13 @@ async function openProfileStats(){
     var url=isTeacherLike()?'/profile/teacher':'/profile/student';
     var r=await api(url);
     host.innerHTML='';
-    var hello=document.createElement('div');hello.className='card';
+    var hello=document.createElement('div');hello.className='card';hello.style.overflow='hidden';
     var av=document.createElement('div');av.className='avatar';av.style.cssText='width:56px;height:56px;font-size:22px;float:left;margin-right:14px';
     hello.appendChild(av);
     var info=document.createElement('div');
     info.innerHTML='<h2 style="margin-bottom:4px">'+esc(currentUser.name)+'</h2>'+
       '<div class="muted">'+roleLabel()+'</div>';
     hello.appendChild(info);
-    hello.style.overflow='hidden';
     host.appendChild(hello);
     renderAvatar(av,currentUser,56);
 
@@ -1557,7 +1620,6 @@ async function openProfileStats(){
     });
     host.appendChild(statGrid);
 
-    // прогресс ученика
     if(!isTeacherLike()&&r.all&&r.all.length){
       var prog=document.createElement('div');prog.className='card';prog.style.marginTop='16px';
       prog.innerHTML='<h3>📊 Динамика среднего балла</h3>';
@@ -1575,7 +1637,6 @@ async function openProfileStats(){
       chartWrap.appendChild(chart);
       prog.appendChild(chartWrap);
 
-      // столбики по работам — те же данные, другой смысл
       prog.innerHTML+='<h3 style="margin-top:16px">📈 Баллы по работам</h3>';
       var chartWrap2=document.createElement('div');chartWrap2.className='chart-wrap';
       var chart2=document.createElement('div');chart2.className='chart-bars';
@@ -1591,7 +1652,6 @@ async function openProfileStats(){
       chartWrap2.appendChild(chart2);
       prog.appendChild(chartWrap2);
 
-      // разбивка по классам
       if(r.classStats&&r.classStats.length){
         prog.innerHTML+='<h3 style="margin-top:20px">📚 По классам</h3>';
         r.classStats.forEach(function(c){
@@ -1605,7 +1665,6 @@ async function openProfileStats(){
         });
       }
 
-      // таблица всех сдач
       prog.innerHTML+='<h3 style="margin-top:20px">📋 Все результаты</h3>';
       var table=document.createElement('table');table.className='progress-table';
       table.innerHTML='<thead><tr><th>Работа</th><th>Класс</th><th>Дата</th><th>Балл</th><th>%</th></tr></thead>';
@@ -1640,7 +1699,6 @@ async function openProfileStats(){
       host.appendChild(prog);
     }
 
-    // последние сдачи
     if(r.recent&&r.recent.length){
       var rec=document.createElement('div');rec.className='card';rec.style.marginTop='16px';
       rec.innerHTML='<h3>Последние сдачи</h3>';
@@ -1696,7 +1754,6 @@ async function uploadAvatar(file){
   var fd=new FormData();fd.append('avatar',file);
   try{
     await apiForm('/users/me/avatar',fd);
-    // перезагрузить me
     var me=await api('/auth/me');
     currentUser=me.user;renderTop();
     renderAvatar($('#editAvatar'),currentUser,80);
@@ -1714,6 +1771,25 @@ async function tryAutoJoin(){
     await api('/classes/join',{method:'POST',body:{code:p.toUpperCase()}});
     toast('Вы присоединились к классу по ссылке','ok');
     renderStudentClasses();renderStudentTests();
+  }catch(e){toast(e.message,'err');}
+}
+
+/* ============ CHAT SEND ============ */
+async function sendChatMessage(){
+  if(!currentClassId)return;
+  var text=$('#chatText').value.trim();
+  var fileInput=$('#chatFileInput');
+  var file=fileInput.files[0];
+  if(!text&&!file)return;
+  var fd=new FormData();
+  if(text)fd.append('text',text);
+  if(file)fd.append('file',file);
+  try{
+    await apiForm('/classes/'+currentClassId+'/messages',fd);
+    $('#chatText').value='';
+    fileInput.value='';
+    $('#chatFileName').textContent='';
+    await loadChatMessages(currentClassId,false);
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1753,8 +1829,9 @@ async function boot(){
     if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
     closeNotifPanel();
   });
-  // Profile
-  var bp=$('#btnProfile');if(bp)bp.onclick=openProfile;
+  // Profile & Palette
+  var bp=$('#btnProfile');if(bp)bp.onclick=openPalettePicker;
+  var bpal=$('#btnPalette');if(bpal)bpal.onclick=openPalettePicker;
   var bcp=$('#btnCloseProfile');if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
   var pm=$('#profileModal');if(pm)pm.addEventListener('click',function(e){
     if(e.target.id==='profileModal')$('#profileModal').hidden=true;
@@ -1796,6 +1873,17 @@ async function boot(){
     clearTimeout(t2);t2=setTimeout(loadAdminUsers,250);
   });}
   var arf=$('#adminRoleFilter');if(arf)arf.onchange=loadAdminUsers;
+  // Табы админки
+  $$('[data-admintab]').forEach(function(t){
+    t.onclick=function(){
+      $$('[data-admintab]').forEach(function(x){x.classList.toggle('active',x===t);});
+      var tab=t.dataset.admintab;
+      var ut=$('#admin-users-tab'),lt=$('#admin-logs-tab');
+      if(ut)ut.hidden = tab!=='users';
+      if(lt)lt.hidden = tab!=='logs';
+      if(tab==='logs') loadAdminLogs();
+    };
+  });
   // Profile stats
   var bbfp=$('#btnBackFromProfile');if(bbfp)bbfp.onclick=function(){
     if(isTeacherLike())goTeacher();else goStudent();
@@ -1921,24 +2009,8 @@ async function boot(){
   setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
 }
 
-/* ============ CHAT SEND ============ */
-async function sendChatMessage(){
-  if(!currentClassId)return;
-  var text=$('#chatText').value.trim();
-  var fileInput=$('#chatFileInput');
-  var file=fileInput.files[0];
-  if(!text&&!file)return;
-  var fd=new FormData();
-  if(text)fd.append('text',text);
-  if(file)fd.append('file',file);
-  try{
-    await apiForm('/classes/'+currentClassId+'/messages',fd);
-    $('#chatText').value='';
-    fileInput.value='';
-    $('#chatFileName').textContent='';
-    await loadChatMessages(currentClassId,false);
-  }catch(e){toast(e.message,'err');}
-}
-
-document.addEventListener('DOMContentLoaded',boot);
+document.addEventListener('DOMContentLoaded',function(){
+  registerSW();
+  boot();
+});
 })();
