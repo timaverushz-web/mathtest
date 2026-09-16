@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <link rel="stylesheet" href="/style.css">
-  <meta name="theme-color" content="#5b8dff">
+<meta name="theme-color" content="#5b8dff">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
@@ -22,8 +22,8 @@
 <header id="topbar">
   <div class="brand"><span class="sigma">∑</span><span>MathTest</span></div>
   <div class="spacer"></div>
-    <button class="icon-btn" id="btnPalette" title="Цветовая схема">🎨</button>
   <button class="icon-btn" id="btnTheme" title="Переключить тему">🌙</button>
+  <button class="icon-btn" id="btnPalette" title="Цветовая схема">🎨</button>
   <button class="icon-btn" id="btnLibrary" title="Библиотека">📚</button>
   <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
     🔔<span class="notif-badge" id="notifBadge" hidden>0</span>
@@ -45,7 +45,7 @@
 
 <main>
 
-<!-- ==================== АВТОРИЗАЦИЯ ==================== -->
+<!-- АВТОРИЗАЦИЯ -->
 <section id="view-auth" class="view active">
   <div class="card narrow">
     <h2 style="text-align:center;margin-bottom:20px">
@@ -100,7 +100,7 @@
   </div>
 </section>
 
-<!-- ==================== УЧИТЕЛЬ ==================== -->
+<!-- УЧИТЕЛЬ -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:18px">
     <h2 style="margin:0;flex:1">Кабинет учителя</h2>
@@ -115,7 +115,7 @@
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
-<!-- ==================== РЕДАКТОР ==================== -->
+<!-- РЕДАКТОР -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackToTeacher">← Назад</button>
@@ -182,7 +182,7 @@
   </div>
 </section>
 
-<!-- ==================== КЛАСС ==================== -->
+<!-- КЛАСС -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromClass">← Назад</button>
@@ -225,7 +225,7 @@
   </div>
 </section>
 
-<!-- ==================== УЧЕНИК ==================== -->
+<!-- УЧЕНИК -->
 <section id="view-student" class="view">
   <h2 style="margin-bottom:18px">Кабинет ученика</h2>
   <div class="tabs">
@@ -246,7 +246,7 @@
   </div>
 </section>
 
-<!-- ==================== ПРОХОЖДЕНИЕ ==================== -->
+<!-- ПРОХОЖДЕНИЕ -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromTake">← Назад</button>
@@ -263,13 +263,13 @@
   <div id="takeBody"></div>
 </section>
 
-<!-- ==================== РЕЗУЛЬТАТ ==================== -->
+<!-- РЕЗУЛЬТАТ -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack">← К списку работ</button>
 </section>
 
-<!-- ==================== РЕЗУЛЬТАТЫ УЧИТЕЛЯ ==================== -->
+<!-- РЕЗУЛЬТАТЫ УЧИТЕЛЯ -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromSubs">← Назад</button>
@@ -280,7 +280,7 @@
   <div id="subsBody"></div>
 </section>
 
-<!-- ==================== БИБЛИОТЕКА ==================== -->
+<!-- БИБЛИОТЕКА -->
 <section id="view-library" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromLibrary">← Назад</button>
@@ -329,7 +329,7 @@
   <div id="bookList"></div>
 </section>
 
-<!-- ==================== АДМИН-ПАНЕЛЬ ==================== -->
+<!-- АДМИН-ПАНЕЛЬ -->
 <section id="view-admin" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromAdmin">← Назад</button>
@@ -337,34 +337,38 @@
   </div>
 
   <div id="adminStats" class="grid" style="margin-bottom:16px"></div>
-  <div class="tabs" style="width:100%">
+
+  <div class="tabs" style="width:100%;margin-bottom:14px">
     <button class="tab active" data-admintab="users" style="flex:1">👥 Пользователи</button>
     <button class="tab" data-admintab="logs" style="flex:1">📈 Логи действий</button>
   </div>
 
   <div id="admin-users-tab">
-  <div class="card">
-    <div class="row" style="margin-bottom:10px">
-      <input id="adminSearch" placeholder="🔍 Поиск по имени или email" style="flex:1;min-width:220px;margin:0">
-      <select id="adminRoleFilter" style="width:auto;margin:0">
-        <option value="">Все роли</option>
-        <option value="admin">Администратор</option>
-        <option value="teacher">Учитель</option>
-        <option value="librarian">Библиотекарь</option>
-        <option value="student">Ученик</option>
-      </select>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <input id="adminSearch" placeholder="🔍 Поиск по имени или email" style="flex:1;min-width:220px;margin:0">
+        <select id="adminRoleFilter" style="width:auto;margin:0">
+          <option value="">Все роли</option>
+          <option value="admin">Администратор</option>
+          <option value="teacher">Учитель</option>
+          <option value="librarian">Библиотекарь</option>
+          <option value="student">Ученик</option>
+        </select>
+      </div>
+      <div id="adminUsersList"></div>
     </div>
-    <div id="adminUsersList"></div>
-  </div>
-        <div id="adminUsersList"></div>
   </div>
 
   <div id="admin-logs-tab" hidden>
-    <div id="adminLogsList"></div>
+    <div class="card">
+      <h3>📈 Логи действий</h3>
+      <div class="muted" style="margin-bottom:12px">Последние 200 действий пользователей</div>
+      <div id="adminLogsList"></div>
+    </div>
   </div>
 </section>
 
-<!-- ==================== ЛИЧНЫЙ КАБИНЕТ ==================== -->
+<!-- ЛИЧНЫЙ КАБИНЕТ -->
 <section id="view-profile" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromProfile">← Назад</button>
@@ -374,7 +378,7 @@
   <div id="profileStats"></div>
 </section>
 
-<!-- ==================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ==================== -->
+<!-- РЕДАКТИРОВАНИЕ ПРОФИЛЯ -->
 <section id="view-editprofile" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromEditProfile">← Назад</button>
@@ -409,7 +413,7 @@
 
 </main>
 
-<!-- ==================== МОДАЛКА ПРОФИЛЯ ==================== -->
+<!-- МОДАЛКА ПРОФИЛЯ / ПАЛИТРЫ -->
 <div id="profileModal" class="modal-overlay" hidden>
   <div class="modal-card">
     <div class="modal-head">
