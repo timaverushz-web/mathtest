@@ -351,6 +351,8 @@ function initTelegramLogin(){
   script.setAttribute('data-radius', '10');
   script.setAttribute('data-onauth', 'onTelegramAuth(user)');
   script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-userpic', 'false');
+  script.setAttribute('data-color', 'ffffff');
   wrap.appendChild(script);
 }
 
