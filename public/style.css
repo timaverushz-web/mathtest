@@ -379,44 +379,61 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .social-divider::after{
   content:'';flex:1;height:1px;background:var(--line-soft);
 }
+
 .social-buttons{
-  display:flex;flex-direction:column;gap:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
   align-items:center;
+  width:100%;
 }
+
 .social-btn-box{
-  width:340px;
-  max-width:100%;
+  width:100%;
+  max-width:320px;
   height:44px;
   border-radius:10px;
   overflow:hidden;
+  position:relative;
+  background:#ffffff;
+  border:1px solid var(--line);
   display:flex;
   align-items:center;
   justify-content:center;
-  background:transparent;
-  position:relative;
+  box-sizing:border-box;
 }
-.social-btn-box > div,
-.social-btn-box > iframe,
-.social-btn-box *{
-  max-width:100% !important;
-}
+
+/* Google / Telegram iframe — растягиваем ровно по контейнеру */
 .social-btn-box iframe{
-  width:340px !important;
-  height:44px !important;
+  position:absolute !important;
+  top:0 !important;
+  left:0 !important;
+  width:100% !important;
+  height:100% !important;
   border:none !important;
   border-radius:10px !important;
   box-shadow:none !important;
-  display:block;
-  margin:0 auto;
+  background:transparent !important;
 }
-.social-btn-box > div > div{
-  box-shadow:none !important;
+
+/* Скрываем возможные «лишние» прослойки Google */
+.social-btn-box > div{
+  width:100% !important;
+  height:100% !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
 }
+
 .social-login .err{
   text-align:center;margin-top:10px;min-height:0;
 }
 .social-login .err:empty{display:none}
 
+/* Мобильная адаптация */
+@media(max-width:400px){
+  .social-btn-box{max-width:100%;}
+}
 /* Mobile */
 @media(max-width:640px){
   main{padding:18px 14px 70px}
