@@ -3,25 +3,17 @@ const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const fs      = require('fs');
 const path    = require('path');
-const { Resend } = require('resend');
-const { nanoid } = require('nanoid');
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-const BASE_URL   = process.env.BASE_URL || 'http://localhost:3000';
 
 const DATA_FILE = path.join(__dirname, 'data.json');
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT      = process.env.PORT || 3000;
 
-/* ---------- хранилище (JSON-файл, сохраняется между запросами) ---------- */
+/* ---------- хранилище ---------- */
 let db = { users: [], classes: [], tests: [], submissions: [] };
 if (fs.existsSync(DATA_FILE)) {
   try { db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) {}
 }
-function save() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db), 'utf8');
-}
+function save() { fs.writeFileSync(DATA_FILE, JSON.stringify(db), 'utf8'); }
 const uid  = () => Math.random().toString(36).slice(2, 10);
 const code = () => {
   const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -29,7 +21,6 @@ const code = () => {
   return s;
 };
 
-/* ---------- приложение ---------- */
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -48,7 +39,7 @@ function teacherOnly(req, res, next) {
 }
 
 /* =========================================================
-   АУТЕНТИФИКАЦИЯ
+   АУТЕНТИФИКАЦИЯ (без подтверждения почты)
    ========================================================= */
 app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, role } = req.body || {};
@@ -57,100 +48,26 @@ app.post('/api/auth/register', async (req, res) => {
   if (password.length < 6)
     return res.status(400).json({ error: 'Пароль минимум 6 символов' });
 
-  const e = email.toLowerCase();
+  const e = email.toLowerCase().trim();
   if (db.users.some(u => u.email === e))
     return res.status(409).json({ error: 'Email уже занят' });
 
-  const verifyToken = nanoid(32);
   const user = {
     id: uid(), name: name.trim(), email: e, role,
-    pass: await bcrypt.hash(password, 10),
-    verified: false,
-    verifyToken,
-    createdAt: Date.now()
+    pass: await bcrypt.hash(password, 10), createdAt: Date.now()
   };
   db.users.push(user); save();
-
-  // отправляем письмо
-  if (resend) {
-    const link = BASE_URL + '/verify?token=' + verifyToken;
-    try {
-      await resend.emails.send({
-        from: FROM_EMAIL,
-        to: e,
-        subject: 'Подтверждение почты — MathTest',
-        html: `
-          <h2>Здравствуйте, ${name}!</h2>
-          <p>Вы зарегистрировались на MathTest.</p>
-          <p>Чтобы активировать аккаунт, перейдите по ссылке:</p>
-          <p><a href="${link}" style="display:inline-block;padding:10px 18px;
-             background:#4c8dff;color:#fff;text-decoration:none;border-radius:8px">
-             Подтвердить почту</a></p>
-          <p>Если кнопка не работает, скопируйте ссылку:</p>
-          <p>${link}</p>
-          <p>Если вы не регистрировались — просто игнорируйте письмо.</p>
-        `
-      });
-    } catch (err) {
-      console.error('Ошибка отправки письма:', err);
-    }
-  }
-
-  res.json({
-    ok: true,
-    message: 'Проверьте почту — мы отправили ссылку для подтверждения.'
-  });
+  const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
+  res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
 });
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
-  const u = db.users.find(x => x.email === (email || '').toLowerCase());
+  const u = db.users.find(x => x.email === (email || '').toLowerCase().trim());
   if (!u || !(await bcrypt.compare(password || '', u.pass)))
     return res.status(401).json({ error: 'Неверный email или пароль' });
-
-  if (!u.verified)
-    return res.status(403).json({ error: 'Подтвердите почту. Проверьте входящие письма.' });
-
   const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: u.id, name: u.name, role: u.role } });
-});
-app.get('/verify', (req, res) => {
-  const token = req.query.token;
-  if (!token) return res.redirect('/?verify=invalid');
-
-  const u = db.users.find(x => x.verifyToken === token);
-  if (!u) return res.redirect('/?verify=invalid');
-
-  u.verified = true;
-  u.verifyToken = null;
-  save();
-  res.redirect('/?verify=ok');
-});
-
-// повторная отправка письма
-app.post('/api/auth/resend', async (req, res) => {
-  const { email } = req.body || {};
-  const u = db.users.find(x => x.email === (email || '').toLowerCase());
-  if (!u) return res.status(404).json({ error: 'Email не найден' });
-  if (u.verified) return res.status(400).json({ error: 'Почта уже подтверждена' });
-
-  u.verifyToken = nanoid(32);
-  save();
-
-  if (!resend) return res.status(500).json({ error: 'Почта не настроена' });
-
-  const link = BASE_URL + '/verify?token=' + u.verifyToken;
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: u.email,
-      subject: 'Подтверждение почты — MathTest',
-      html: `<p><a href="${link}">Подтвердить почту</a></p><p>${link}</p>`
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'Не удалось отправить письмо' });
-  }
-  res.json({ ok: true });
 });
 
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
@@ -165,7 +82,6 @@ app.get('/api/classes', auth, (req, res) => {
   } else {
     list = db.classes.filter(c => c.studentIds.includes(req.user.id));
   }
-  // обогащаем данными об учителе
   const enriched = list.map(c => {
     const teacher = db.users.find(u => u.id === c.teacherId);
     return {
@@ -194,7 +110,6 @@ app.delete('/api/classes/:id', auth, teacherOnly, (req, res) => {
   if (!c) return res.status(404).json({ error: 'Класс не найден' });
   if (c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
   db.classes = db.classes.filter(x => x.id !== c.id);
-  // убираем класс из работ
   db.tests.forEach(t => { t.classIds = (t.classIds || []).filter(id => id !== c.id); });
   save();
   res.json({ ok: true });
@@ -216,7 +131,6 @@ app.post('/api/classes/:id/leave', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-/* детали класса для учителя: ученики + работы */
 app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ error: 'Класс не найден' });
@@ -268,7 +182,6 @@ app.get('/api/tests', auth, (req, res) => {
       .map(t => ({
         id: t.id,
         title: t.title,
-        // ученику не отдаём правильные ответы и correctIndex!
         tasks: t.tasks.map(x => {
           const c = { id: x.id, type: x.type, statement: x.statement, points: x.points };
           if (x.type === 'choice') c.options = x.options;
@@ -315,11 +228,10 @@ app.delete('/api/tests/:id', auth, teacherOnly, (req, res) => {
 });
 
 /* =========================================================
-   СДАЧА РАБОТЫ (автопроверка на сервере)
+   СДАЧА + автопроверка
    ========================================================= */
-let nerdamer;
-try { nerdamer = require('nerdamer/all'); }
-catch (e) { try { nerdamer = require('nerdamer'); } catch (e2) { nerdamer = null; } }
+let nerdamer = null;
+try { nerdamer = require('nerdamer/all'); } catch (e) { try { nerdamer = require('nerdamer'); } catch (e2) {} }
 
 function norm(s) {
   return String(s || '')
@@ -334,15 +246,15 @@ function isCorrect(student, correct, tol = 1e-6) {
   const sn = Number(s), cn = Number(c);
   if (isFinite(sn) && isFinite(cn)) return Math.abs(sn - cn) <= tol;
   if (nerdamer) {
-  try {
-    if (nerdamer('simplify((' + s + ')-(' + c + '))').toString() === '0') return true;
-  } catch (e) {}
-  try {
-    const a = Number(nerdamer(s).evaluate().text('decimals'));
-    const b = Number(nerdamer(c).evaluate().text('decimals'));
-    if (isFinite(a) && isFinite(b)) return Math.abs(a - b) <= Math.max(tol, 1e-6);
-  } catch (e) {}
-}
+    try {
+      if (nerdamer('simplify((' + s + ')-(' + c + '))').toString() === '0') return true;
+    } catch (e) {}
+    try {
+      const a = Number(nerdamer(s).evaluate().text('decimals'));
+      const b = Number(nerdamer(c).evaluate().text('decimals'));
+      if (isFinite(a) && isFinite(b)) return Math.abs(a - b) <= Math.max(tol, 1e-6);
+    } catch (e) {}
+  }
   return false;
 }
 
@@ -382,7 +294,6 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
   const t = db.tests.find(x => x.id === req.params.id);
   if (!t || t.ownerId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
 
-  // помечаем все сдачи как просмотренные
   db.submissions.forEach(s => { if (s.testId === t.id) s.seen = true; });
   save();
 
@@ -417,7 +328,7 @@ app.get('/api/submissions/:id', auth, (req, res) => {
 
   const tasks = t.tasks.map((task, i) => {
     const r = s.results[i] || { ok: false };
-    if (isTeacher || r.ok) return task;   // учителю всё, ученику — только если верно
+    if (isTeacher || r.ok) return task;
     const c = { ...task };
     delete c.answer; delete c.correctIndex;
     return c;
@@ -429,5 +340,4 @@ app.get('/api/submissions/:id', auth, (req, res) => {
   });
 });
 
-/* ---------- запуск ---------- */
 app.listen(PORT, () => console.log('MathTest → http://localhost:' + PORT));
