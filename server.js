@@ -7,6 +7,7 @@ const path    = require('path');
 const DATA_FILE = path.join(__dirname, 'data.json');
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT      = process.env.PORT || 3000;
+const TG_TOKEN  = process.env.TELEGRAM_BOT_TOKEN || '';
 
 /* ---------- хранилище ---------- */
 let db = { users: [], classes: [], tests: [], submissions: [], notifications: [] };
@@ -16,6 +17,7 @@ if (fs.existsSync(DATA_FILE)) {
     db = Object.assign(db, loaded);
     db.notifications = db.notifications || [];
     (db.classes || []).forEach(c => { c.groups = c.groups || []; });
+    (db.users || []).forEach(u => { u.telegram = u.telegram || null; });
   } catch (e) {}
 }
 function save() { fs.writeFileSync(DATA_FILE, JSON.stringify(db), 'utf8'); }
@@ -26,7 +28,68 @@ const code = () => {
   return s;
 };
 
-/* ---------- уведомления ---------- */
+/* ---------- Telegram-бот ---------- */
+let bot = null;
+if (TG_TOKEN) {
+  try {
+    const TelegramBot = require('node-telegram-bot-api');
+    bot = new TelegramBot(TG_TOKEN, { polling: true });
+
+    bot.on('polling_error', (err) => {
+      console.error('Telegram polling error:', err.message);
+    });
+
+    bot.onText(/\/start(.*)/, (msg, match) => {
+      const chatId   = msg.chat.id;
+      const username = msg.from.username ? '@' + msg.from.username : (msg.from.first_name || 'друг');
+      const payload  = (match[1] || '').trim();
+
+      // /start <link-code> — привязка через ссылку, где link-code — id пользователя приложения
+      if (payload) {
+        const u = db.users.find(x => x.linkCode === payload);
+        if (u) {
+          u.telegram = { chatId: chatId, username: username, at: Date.now() };
+          save();
+          bot.sendMessage(chatId,
+            '✅ ' + u.name + ', Telegram привязан.\n\n' +
+            'Теперь вы будете получать уведомления от учителя и о новых работах.');
+          return;
+        }
+      }
+      bot.sendMessage(chatId,
+        'Привет, ' + username + '! 👋\n\n' +
+        'Это бот MathTest. Чтобы привязать его к своему аккаунту в приложении, ' +
+        'откройте MathTest → «Профиль» → «Подключить Telegram» и перейдите по ссылке оттуда.');
+    });
+
+    bot.onText(/\/stop/, (msg) => {
+      const chatId = msg.chat.id;
+      const u = db.users.find(x => x.telegram && x.telegram.chatId === chatId);
+      if (u) {
+        u.telegram = null; save();
+        bot.sendMessage(chatId, '🔕 Уведомления отключены.');
+      } else {
+        bot.sendMessage(chatId, 'Вы и так не были подписаны.');
+      }
+    });
+
+    console.log('Telegram bot started (polling)');
+  } catch (e) {
+    console.error('Не удалось запустить Telegram-бота:', e.message);
+  }
+} else {
+  console.log('Telegram не настроен (нет TELEGRAM_BOT_TOKEN)');
+}
+
+function tgSend(chatId, text, opts) {
+  if (!bot || !chatId) return Promise.resolve(false);
+  return bot.sendMessage(chatId, text, opts || {}).then(() => true).catch(err => {
+    console.error('tgSend error:', err.message);
+    return false;
+  });
+}
+
+/* ---------- уведомления в приложении ---------- */
 function notify(userId, type, title, text, link) {
   db.notifications.push({
     id: uid(), userId, type, title, text,
@@ -39,6 +102,7 @@ function notify(userId, type, title, text, link) {
     const toDrop = new Set(mine.slice(80).map(n => n.id));
     db.notifications = db.notifications.filter(n => !toDrop.has(n.id));
   }
+  save();
 }
 
 const DEFAULT_SETTINGS = { timeLimit: 0, attempts: 1, showAnswers: true };
@@ -73,7 +137,6 @@ function escapeCsv(v) {
   return v;
 }
 
-/* ---------- «видит ли ученик работу» ---------- */
 function myClassIds(studentId) {
   return db.classes.filter(c => c.studentIds.includes(studentId)).map(c => c.id);
 }
@@ -110,7 +173,10 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(409).json({ error: 'Email уже занят' });
   const user = {
     id: uid(), name: name.trim(), email: e, role,
-    pass: await bcrypt.hash(password, 10), createdAt: Date.now()
+    pass: await bcrypt.hash(password, 10),
+    telegram: null,
+    linkCode: uid() + uid(),
+    createdAt: Date.now()
   };
   db.users.push(user); save();
   const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
@@ -121,10 +187,39 @@ app.post('/api/auth/login', async (req, res) => {
   const u = db.users.find(x => x.email === (email || '').toLowerCase().trim());
   if (!u || !(await bcrypt.compare(password || '', u.pass)))
     return res.status(401).json({ error: 'Неверный email или пароль' });
+  if (!u.linkCode) { u.linkCode = uid() + uid(); save(); }
   const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: u.id, name: u.name, role: u.role } });
 });
-app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
+app.get('/api/auth/me', auth, (req, res) => {
+  const u = db.users.find(x => x.id === req.user.id);
+  res.json({ user: { id: u.id, name: u.name, role: u.role,
+    telegram: u.telegram ? { username: u.telegram.username } : null } });
+});
+
+/* =========================================================
+   TELEGRAM-ПРИВЯЗКА
+   ========================================================= */
+app.get('/api/telegram/link', auth, (req, res) => {
+  const u = db.users.find(x => x.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  if (!bot) return res.status(400).json({ error: 'Telegram-бот не настроен на сервере' });
+  const botInfo = bot.options && bot.options.username;
+  // username бота мы не знаем напрямую, используем getMe при первом вызове
+  bot.getMe().then(me => {
+    const link = 'https://t.me/' + me.username + '?start=' + u.linkCode;
+    res.json({ link, botUsername: me.username, linked: !!u.telegram });
+  }).catch(() => {
+    res.status(500).json({ error: 'Не удалось получить данные бота' });
+  });
+});
+
+app.post('/api/telegram/unlink', auth, (req, res) => {
+  const u = db.users.find(x => x.id === req.user.id);
+  if (!u) return res.status(404).json({ error: 'Пользователь не найден' });
+  u.telegram = null; save();
+  res.json({ ok: true });
+});
 
 /* =========================================================
    КЛАССЫ
@@ -179,6 +274,14 @@ app.post('/api/classes/join', auth, (req, res) => {
   c.studentIds.push(req.user.id); save();
   notify(c.teacherId, 'join', 'Новый ученик в классе',
     req.user.name + ' присоединился к «' + c.name + '»', null);
+
+  // уведомим учителя в Telegram
+  const teacher = db.users.find(u => u.id === c.teacherId);
+  if (teacher && teacher.telegram && teacher.telegram.chatId) {
+    tgSend(teacher.telegram.chatId,
+      '👤 *' + req.user.name + '* присоединился к классу «' + c.name + '»',
+      { parse_mode: 'Markdown' });
+  }
   res.json({ class: { id: c.id, name: c.name } });
 });
 
@@ -199,7 +302,8 @@ app.get('/api/classes/:id', auth, teacherOnly, (req, res) => {
     const u = db.users.find(x => x.id === id);
     if (!u) return null;
     const groups = (c.groups || []).filter(g => g.studentIds.includes(id)).map(g => g.id);
-    return { id: u.id, name: u.name, email: u.email, groupIds: groups };
+    return { id: u.id, name: u.name, email: u.email, groupIds: groups,
+             hasTelegram: !!(u.telegram && u.telegram.chatId) };
   }).filter(Boolean);
   const classTests = db.tests
     .filter(t => (t.classIds || []).includes(c.id))
@@ -228,7 +332,49 @@ app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, (req, res) => {
   res.json({ ok: true });
 });
 
-/* ---------- группы внутри класса ---------- */
+/* ---------- массовая рассылка ученикам класса в Telegram ---------- */
+app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
+  const c = db.classes.find(x => x.id === req.params.id);
+  if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
+  if (!bot) return res.status(400).json({ error: 'Telegram-бот не настроен' });
+
+  const { message } = req.body || {};
+  if (!message || !message.trim()) return res.status(400).json({ error: 'Введите текст сообщения' });
+
+  const recipients = c.studentIds.map(id => db.users.find(u => u.id === id)).filter(Boolean);
+  const withTg = recipients.filter(u => u.telegram && u.telegram.chatId);
+  const withoutTg = recipients.filter(u => !u.telegram || !u.telegram.chatId);
+
+  const header = '📢 *' + c.name + '* · сообщение от учителя:\n\n' + message;
+  let sent = 0, failed = 0;
+  for (const u of withTg) {
+    const ok = await tgSend(u.telegram.chatId, header, { parse_mode: 'Markdown' });
+    if (ok) sent++; else failed++;
+  }
+  res.json({
+    total: recipients.length,
+    sent, failed,
+    withoutTelegram: withoutTg.length,
+    withoutTelegramNames: withoutTg.map(u => u.name)
+  });
+});
+
+/* ---------- уведомление всем ученикам класса о новой работе ---------- */
+async function notifyClassAboutTest(classId, test) {
+  const c = db.classes.find(x => x.id === classId);
+  if (!c) return;
+  const text = '📝 Новая работа: *' + test.title + '*\n\n' +
+    'Заданий: ' + test.tasks.length + '\n' +
+    'Откройте приложение, чтобы начать: ' + (process.env.BASE_URL || '');
+  for (const sid of c.studentIds) {
+    const u = db.users.find(x => x.id === sid);
+    if (u && u.telegram && u.telegram.chatId) {
+      tgSend(u.telegram.chatId, text, { parse_mode: 'Markdown' });
+    }
+  }
+}
+
+/* ---------- группы ---------- */
 app.post('/api/classes/:id/groups', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
@@ -239,7 +385,6 @@ app.post('/api/classes/:id/groups', auth, teacherOnly, (req, res) => {
   c.groups.push(g); save();
   res.json({ group: g });
 });
-
 app.delete('/api/classes/:id/groups/:gid', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
@@ -247,7 +392,6 @@ app.delete('/api/classes/:id/groups/:gid', auth, teacherOnly, (req, res) => {
   save();
   res.json({ ok: true });
 });
-
 app.post('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
@@ -258,7 +402,6 @@ app.post('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, (req, 
   save();
   res.json({ ok: true });
 });
-
 app.delete('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, (req, res) => {
   const c = db.classes.find(x => x.id === req.params.id);
   if (!c || c.teacherId !== req.user.id) return res.status(403).json({ error: 'Нет доступа' });
@@ -317,16 +460,18 @@ app.post('/api/tests', auth, teacherOnly, (req, res) => {
   };
   db.tests.push(t); save();
 
-  // уведомить учеников, кому назначена работа
+  // внутренние уведомления
   const recipients = db.classes
     .filter(c => (t.classIds || []).includes(c.id))
     .flatMap(c => c.studentIds);
   const unique = [...new Set(recipients)];
   unique.forEach(sid => {
-    notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + t.title + '»',
-      { testId: t.id });
+    notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + t.title + '»', { testId: t.id });
   });
   save();
+
+  // Telegram
+  (t.classIds || []).forEach(cid => notifyClassAboutTest(cid, t));
 
   res.json({ id: t.id });
 });
@@ -464,11 +609,19 @@ app.post('/api/tests/:id/submit', auth, (req, res) => {
   };
   db.submissions.push(sub);
 
-  // уведомить учителя
   const pct = max ? Math.round(score / max * 100) : 0;
   notify(t.ownerId, 'submission', 'Новая сдача: ' + req.user.name,
     '«' + t.title + '» — ' + score + '/' + max + ' (' + pct + '%)',
     { testId: t.id, submissionId: sub.id });
+
+  // Telegram-уведомление учителю
+  const teacher = db.users.find(u => u.id === t.ownerId);
+  if (teacher && teacher.telegram && teacher.telegram.chatId) {
+    tgSend(teacher.telegram.chatId,
+      '📥 *' + req.user.name + '* сдал работу «' + t.title + '»\n' +
+      'Результат: ' + score + '/' + max + ' (' + pct + '%)',
+      { parse_mode: 'Markdown' });
+  }
   save();
 
   const resultsFull = results.map((r, i) => {
@@ -511,7 +664,6 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, (req, res) => {
       }));
     const submittedIds = new Set(subs.map(s => s.studentId));
 
-    // если работа для группы — фильтруем состав
     let targetStudentIds = cls.studentIds.slice();
     if (t.groupIds && t.groupIds.length > 0) {
       const inGroups = new Set();
