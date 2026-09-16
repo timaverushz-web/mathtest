@@ -364,9 +364,21 @@ app.post('/api/auth/login', async (req, res) => {
     const u = await getUserByEmail((email || '').toLowerCase().trim());
     if (!u || !(await bcrypt.compare(password || '', u.pass)))
       return res.status(401).json({ error: 'Неверный email или пароль' });
-    const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: u.id, name: u.name, role: u.role } });
+
+    // Автоповышение до админа, если email совпадает с ADMIN_EMAIL
+    let role = u.role;
+    if (process.env.ADMIN_EMAIL &&
+        u.email.toLowerCase().trim() === process.env.ADMIN_EMAIL.toLowerCase().trim() &&
+        u.role !== 'admin') {
+      await pool.query("UPDATE users SET role='admin' WHERE id=$1", [u.id]);
+      role = 'admin';
+      console.log('👑 Пользователь ' + u.email + ' повышен до администратора');
+    }
+
+    const token = jwt.sign({ id: u.id, role: role, name: u.name }, SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { id: u.id, name: u.name, role: role } });
   } catch (err) {
+    console.error('login error:', err.message);
     res.status(500).json({ error: 'Ошибка' });
   }
 });
