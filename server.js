@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const sharp = require('sharp');
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT      = process.env.PORT || 3000;
@@ -51,6 +51,11 @@ const code = () => {
   let s = ''; for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
   return s;
 };
+const genPass = () => {
+  const abc = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for (let i = 0; i < 8; i++) s += abc[Math.floor(Math.random() * abc.length)];
+  return s;
+};
 
 /* ---------- S3 helpers ---------- */
 async function s3Put(key, buffer, contentType) {
@@ -70,6 +75,13 @@ async function s3Get(key) {
 async function s3Del(key) {
   if (!s3 || !key) return;
   try { await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key })); } catch (e) {}
+}
+async function s3List(prefix) {
+  if (!s3) return [];
+  try {
+    const r = await s3.send(new ListObjectsV2Command({ Bucket: B2_BUCKET, Prefix: prefix }));
+    return (r.Contents || []).map(x => ({ key: x.Key, size: x.Size, modified: x.LastModified }));
+  } catch (e) { return []; }
 }
 
 /* ---------- БД ---------- */
@@ -157,7 +169,18 @@ async function initDB() {
       at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_logs_at ON action_logs(at DESC);
+    CREATE TABLE IF NOT EXISTS backups (
+      id TEXT PRIMARY KEY,
+      key TEXT NOT NULL,
+      size BIGINT,
+      auto BOOLEAN DEFAULT FALSE,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_backups_at ON backups(at DESC);
   `);
+  // исправляем возможную ошибку: колонка называется created_at, не at
+  await pool.query(`DROP INDEX IF EXISTS idx_backups_at`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_backups_created ON backups(created_at DESC)`);
 }
 
 /* ---------- Логи действий ---------- */
@@ -173,6 +196,55 @@ async function logAction(userId, userName, action, details) {
        )`);
   } catch (e) { /* тихо */ }
 }
+
+/* ---------- Бэкап БД ---------- */
+async function createBackup(auto) {
+  try {
+    if (!s3) throw new Error('S3 не настроен');
+    const dump = {};
+    for (const table of ['users','classes','class_students','groups','group_students',
+                         'tests','submissions','notifications','books','messages','action_logs']) {
+      const r = await pool.query('SELECT * FROM ' + table);
+      dump[table] = r.rows;
+    }
+    dump._meta = { created: Date.now(), version: '2.2.0' };
+
+    const json = JSON.stringify(dump, null, 2);
+    const buf = Buffer.from(json, 'utf8');
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const key = 'backups/db_' + dateStr + (auto ? '_auto' : '_manual') + '.json';
+
+    await s3Put(key, buf, 'application/json');
+    const id = uid();
+    await pool.query(
+      `INSERT INTO backups (id, key, size, auto, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, key, buf.length, !!auto, Date.now()]);
+
+    // Оставляем последние 7 бэкапов
+    const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM backups');
+    if (cnt.rows[0].n > 7) {
+      const old = await pool.query(
+        `SELECT id, key FROM backups ORDER BY created_at ASC LIMIT $1`,
+        [cnt.rows[0].n - 7]);
+      for (const b of old.rows) {
+        await s3Del(b.key);
+        await pool.query('DELETE FROM backups WHERE id=$1', [b.id]);
+      }
+    }
+    console.log('💾 Бэкап создан: ' + key + ' (' + Math.round(buf.length/1024) + ' КБ)');
+    return { key, size: buf.length };
+  } catch (e) {
+    console.error('❌ Бэкап:', e.message);
+    throw e;
+  }
+}
+
+// Авто-бэкап раз в 24 часа
+setTimeout(function scheduleBackup(){
+  createBackup(true).catch(function(){});
+  setInterval(function(){ createBackup(true).catch(function(){}); }, 24 * 60 * 60 * 1000);
+}, 60 * 1000); // первый запуск через минуту после старта
 
 /* ---------- Хелперы ---------- */
 async function getUserById(id) {
@@ -325,7 +397,7 @@ async function notify(userId, type, title, text, link) {
 
 /* ---------- Express ---------- */
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('sw.js')) {
@@ -722,6 +794,86 @@ app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, async (req, res)
        (SELECT id FROM groups WHERE class_id=$2)`, [req.params.sid, c.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+/* ---------- CSV ИМПОРТ ---------- */
+app.post('/api/classes/:id/import-csv', auth, teacherOnly, upload.single('file'), async (req, res) => {
+  try {
+    const c = await getClassById(req.params.id);
+    if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
+      return res.status(403).json({ error: 'Нет доступа' });
+    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+
+    const text = req.file.buffer.toString('utf8').replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+
+    const result = { added: [], existing: [], failed: [], skipped: 0 };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Пропускаем заголовок
+      if (i === 0 && /^(имя|name)/i.test(line)) { result.skipped++; continue; }
+
+      // Разбор строки CSV (простая логика — без кавычек)
+      const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+      if (parts.length < 2) { result.failed.push({ line, reason: 'мало полей' }); continue; }
+
+      const name = parts[0];
+      const email = parts[1].toLowerCase();
+
+      if (!name || !email || !email.includes('@')) {
+        result.failed.push({ line, reason: 'некорректные данные' });
+        continue;
+      }
+
+      let user = await getUserByEmail(email);
+      let password = null;
+      let isNew = false;
+
+      if (!user) {
+        password = genPass();
+        const id = uid();
+        await pool.query(
+          `INSERT INTO users (id, name, email, pass, role, link_code, created_at)
+           VALUES ($1, $2, $3, $4, 'student', $5, $6)`,
+          [id, name, email, await bcrypt.hash(password, 10), uid() + uid(), Date.now()]);
+        user = await getUserById(id);
+        isNew = true;
+      }
+
+      const inClass = await pool.query(
+        'SELECT 1 FROM class_students WHERE class_id=$1 AND student_id=$2',
+        [c.id, user.id]);
+
+      if (!inClass.rowCount) {
+        await pool.query(
+          'INSERT INTO class_students (class_id, student_id) VALUES ($1, $2)',
+          [c.id, user.id]);
+        if (isNew) {
+          result.added.push({ name, email, password });
+        } else {
+          result.existing.push({ name, email, password: null });
+        }
+      } else {
+        if (isNew) {
+          result.added.push({ name, email, password, note: 'создан, но уже был в классе' });
+        } else {
+          result.existing.push({ name, email, password: null, note: 'уже в классе' });
+        }
+      }
+    }
+
+    await logAction(req.user.id, req.user.name, 'Импорт CSV',
+      'в класс «' + c.name + '»: ' + result.added.length + ' новых, ' +
+      result.existing.length + ' существующих, ' + result.failed.length + ' ошибок');
+
+    res.json(result);
+  } catch (e) {
+    console.error('import csv:', e.message);
+    res.status(500).json({ error: 'Ошибка импорта: ' + e.message });
+  }
 });
 
 /* ---------- Группы ---------- */
@@ -1365,6 +1517,135 @@ app.post('/api/notifications/:id/read', auth, async (req, res) => {
 });
 
 /* =========================================================
+   ДАШБОРД УЧИТЕЛЯ
+   ========================================================= */
+app.get('/api/teacher/dashboard', auth, teacherOnly, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+
+    // Все мои классы
+    let classes;
+    if (isAdmin) {
+      classes = (await pool.query('SELECT * FROM classes ORDER BY created_at DESC')).rows;
+    } else {
+      classes = (await pool.query('SELECT * FROM classes WHERE teacher_id=$1', [req.user.id])).rows;
+    }
+
+    // Средний балл по каждому классу
+    const perClass = [];
+    for (const c of classes) {
+      const sub = (await pool.query(
+        `SELECT COUNT(*)::int AS n,
+                COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
+         FROM submissions WHERE class_id=$1`, [c.id])).rows[0];
+      perClass.push({
+        id: c.id, name: c.name,
+        submissions: sub.n,
+        avgPercent: Math.round(sub.avg)
+      });
+    }
+
+    // Динамика по неделям (последние 8 недель)
+    const weeks = [];
+    const now = Date.now();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    for (let i = 7; i >= 0; i--) {
+      const start = now - (i + 1) * weekMs;
+      const end = now - i * weekMs;
+      const sql = isAdmin
+        ? `SELECT COUNT(*)::int AS n,
+                  COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
+           FROM submissions s JOIN tests t ON t.id=s.test_id
+           WHERE s.at >= $1 AND s.at < $2`
+        : `SELECT COUNT(*)::int AS n,
+                  COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
+           FROM submissions s JOIN tests t ON t.id=s.test_id
+           WHERE t.owner_id=$1 AND s.at >= $2 AND s.at < $3`;
+      const params = isAdmin ? [start, end] : [req.user.id, start, end];
+      const r = (await pool.query(sql, params)).rows[0];
+      weeks.push({
+        start, end,
+        label: new Date(start).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+        count: r.n,
+        avgPercent: Math.round(r.avg)
+      });
+    }
+
+    // Топ-5 лучших учеников по среднему баллу
+    const topSql = isAdmin
+      ? `SELECT s.student_id, s.student_name,
+                COUNT(*)::int AS cnt,
+                COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+         FROM submissions s
+         GROUP BY s.student_id, s.student_name
+         HAVING COUNT(*) >= 1
+         ORDER BY avg DESC LIMIT 5`
+      : `SELECT s.student_id, s.student_name,
+                COUNT(*)::int AS cnt,
+                COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+         FROM submissions s JOIN tests t ON t.id=s.test_id
+         WHERE t.owner_id=$1
+         GROUP BY s.student_id, s.student_name
+         HAVING COUNT(*) >= 1
+         ORDER BY avg DESC LIMIT 5`;
+    const topR = await pool.query(topSql, isAdmin ? [] : [req.user.id]);
+    const top = topR.rows.map(r => ({
+      id: r.student_id, name: r.student_name,
+      submissions: r.cnt, avgPercent: Math.round(r.avg)
+    }));
+
+    // Топ-5 отстающих
+    const bottomSql = isAdmin
+      ? `SELECT s.student_id, s.student_name,
+                COUNT(*)::int AS cnt,
+                COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+         FROM submissions s
+         GROUP BY s.student_id, s.student_name
+         HAVING COUNT(*) >= 1
+         ORDER BY avg ASC LIMIT 5`
+      : `SELECT s.student_id, s.student_name,
+                COUNT(*)::int AS cnt,
+                COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+         FROM submissions s JOIN tests t ON t.id=s.test_id
+         WHERE t.owner_id=$1
+         GROUP BY s.student_id, s.student_name
+         HAVING COUNT(*) >= 1
+         ORDER BY avg ASC LIMIT 5`;
+    const bottomR = await pool.query(bottomSql, isAdmin ? [] : [req.user.id]);
+    const bottom = bottomR.rows.map(r => ({
+      id: r.student_id, name: r.student_name,
+      submissions: r.cnt, avgPercent: Math.round(r.avg)
+    }));
+
+    // Общая статистика
+    const totalR = isAdmin
+      ? `SELECT COUNT(*)::int AS n,
+                COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
+         FROM submissions`
+      : `SELECT COUNT(*)::int AS n,
+                COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+         FROM submissions s JOIN tests t ON t.id=s.test_id
+         WHERE t.owner_id=$1`;
+    const totalSubs = (await pool.query(totalR, isAdmin ? [] : [req.user.id])).rows[0];
+
+    res.json({
+      perClass,
+      weeks,
+      top,
+      bottom,
+      total: {
+        classes: classes.length,
+        submissions: totalSubs.n,
+        avgPercent: Math.round(totalSubs.avg)
+      }
+    });
+  } catch (e) {
+    console.error('dashboard:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+/* =========================================================
    ПРОФИЛЬ/СТАТИСТИКА
    ========================================================= */
 app.get('/api/profile/teacher', auth, async (req, res) => {
@@ -1566,6 +1847,49 @@ app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
 });
 
 /* =========================================================
+   БЭКАПЫ
+   ========================================================= */
+app.get('/api/admin/backups', auth, adminOnly, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM backups ORDER BY created_at DESC LIMIT 20');
+    res.json({ backups: r.rows.map(b => ({
+      id: b.id, key: b.key, size: Number(b.size) || 0,
+      auto: b.auto, createdAt: Number(b.created_at)
+    })) });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/admin/backups/create', auth, adminOnly, async (req, res) => {
+  try {
+    const r = await createBackup(false);
+    await logAction(req.user.id, req.user.name, 'Создал бэкап', r.key);
+    res.json({ ok: true, key: r.key, size: r.size });
+  } catch (e) { res.status(500).json({ error: 'Ошибка: ' + e.message }); }
+});
+
+app.get('/api/admin/backups/:id/download', auth, adminOnly, async (req, res) => {
+  try {
+    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
+    if (!b) return res.status(404).json({ error: 'Бэкап не найден' });
+    const { buffer, contentType } = await s3Get(b.key);
+    res.setHeader('Content-Type', contentType || 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + path.basename(b.key) + '"');
+    res.send(buffer);
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
+    if (!b) return res.status(404).json({ error: 'Не найден' });
+    await s3Del(b.key);
+    await pool.query('DELETE FROM backups WHERE id=$1', [b.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил бэкап', b.key);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+/* =========================================================
    FALLBACK + LISTEN
    ========================================================= */
 app.get('/favicon.ico', (req, res) => res.status(204).end());
@@ -1584,11 +1908,12 @@ app.use((err, req, res, next) => {
   catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
   app.listen(PORT, () => {
     console.log('═══════════════════════════════════');
-    console.log('✅ MathTest v2.1 запущен');
+    console.log('✅ MathTest v2.2 запущен');
     console.log('🌐 Порт: ' + PORT);
     console.log('🗄️  БД: PostgreSQL');
     console.log('📦 Файлы: ' + (s3 ? 'Backblaze B2' : '❌ не настроены'));
     console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
+    console.log('💾 Авто-бэкап: раз в 24 часа');
     console.log('═══════════════════════════════════');
   });
 })();
