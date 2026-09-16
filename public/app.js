@@ -1447,11 +1447,34 @@ async function boot(){
     }
   }
 
-  // 12. Инициализируем Telegram-виджет
+   // 12. Инициализируем Google-вход
+  window.handleGoogleLogin = async function(response){
+    var errEl = document.getElementById('googleLoginErr');
+    if(errEl) errEl.textContent = '';
+    try{
+      var r = await api('/auth/google', { method: 'POST', body: { credential: response.credential } });
+      setToken(r.token);
+      enterApp(r.user);
+      toast('Вы вошли через Google', 'ok');
+    }catch(e){
+      if(errEl) errEl.textContent = e.message;
+      toast(e.message, 'err');
+    }
+  };
+  (function loadGSI(){
+    if(document.getElementById('gsi-script')) return;
+    var s = document.createElement('script');
+    s.id = 'gsi-script';
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.defer = true;
+    document.head.appendChild(s);
+  })();
+
+  // 13. Инициализируем Telegram-виджет
   initTelegramLogin();
   show('view-auth');
   setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
 }
-
 document.addEventListener('DOMContentLoaded',boot);
 })();
