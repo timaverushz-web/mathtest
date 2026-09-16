@@ -7,156 +7,46 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <style>
-:root{
-  --bg:#0b1018;
-  --bg-soft:#101724;
-  --panel:#151d2c;
-  --panel-2:#1c2537;
-  --line:#26314a;
-  --line-soft:#1e2740;
-  --text:#eaf0fa;
-  --muted:#8896b0;
-  --accent:#5b8dff;
-  --accent-2:#8b5cff;
-  --ok:#31d07b;
-  --warn:#ffb547;
-  --err:#ff5f6d;
-  --radius:14px;
-  --radius-sm:10px;
-  --shadow:0 10px 30px -12px rgba(0,0,0,.55);
-  --trans:.18s cubic-bezier(.4,0,.2,1);
-}
+:root{--bg:#0b1018;--bg-soft:#101724;--panel:#151d2c;--panel-2:#1c2537;--line:#26314a;--line-soft:#1e2740;--text:#eaf0fa;--muted:#8896b0;--accent:#5b8dff;--accent-2:#8b5cff;--ok:#31d07b;--warn:#ffb547;--err:#ff5f6d;--radius:14px;--radius-sm:10px;--shadow:0 10px 30px -12px rgba(0,0,0,.55);--trans:.18s cubic-bezier(.4,0,.2,1)}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{
-  background:radial-gradient(1200px 600px at 10% -10%, #1a2340 0%, transparent 55%),
-             radial-gradient(900px 500px at 100% 0%, #1e1a3a 0%, transparent 55%),
-             var(--bg);
-  color:var(--text);
-  font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  -webkit-font-smoothing:antialiased;
-  min-height:100vh;
-}
+body{background:radial-gradient(1200px 600px at 10% -10%,#1a2340 0%,transparent 55%),radial-gradient(900px 500px at 100% 0%,#1e1a3a 0%,transparent 55%),var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
 ::selection{background:rgba(91,141,255,.35)}
-
-/* ---------- Верхняя панель ---------- */
-#topbar{
-  display:flex;align-items:center;gap:14px;
-  padding:14px 24px;
-  border-bottom:1px solid var(--line-soft);
-  background:rgba(11,16,24,.75);
-  backdrop-filter:blur(14px);
-  position:sticky;top:0;z-index:50;
-}
+#topbar{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--line-soft);background:rgba(11,16,24,.75);backdrop-filter:blur(14px);position:sticky;top:0;z-index:50}
 .brand{font-weight:700;font-size:16px;letter-spacing:.2px;display:flex;align-items:center;gap:9px}
-.brand .sigma{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:28px;height:28px;border-radius:8px;
-  background:linear-gradient(135deg,var(--accent),var(--accent-2));
-  color:#fff;font-size:15px;font-weight:800;
-}
+.brand .sigma{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:15px;font-weight:800}
 .spacer{flex:1}
-.user-chip{
-  display:flex;align-items:center;gap:8px;
-  background:var(--panel-2);
-  border:1px solid var(--line);
-  border-radius:99px;
-  padding:5px 6px 5px 12px;
-  font-size:13.5px;
-}
+.user-chip{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:99px;padding:5px 6px 5px 12px;font-size:13.5px}
 .user-chip .role{color:var(--muted)}
-.avatar{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:26px;height:26px;border-radius:50%;
-  background:linear-gradient(135deg,var(--accent),var(--accent-2));
-  color:#fff;font-size:12px;font-weight:700;flex:none;
-}
-.logout-btn{
-  background:transparent;border:none;color:var(--muted);
-  padding:6px 8px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;
-  transition:var(--trans);
-}
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:12px;font-weight:700;flex:none}
+.logout-btn{background:transparent;border:none;color:var(--muted);padding:6px 8px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;transition:var(--trans)}
 .logout-btn:hover{color:var(--err);background:rgba(255,95,109,.1)}
-
-/* ---------- Основной контейнер ---------- */
 main{max-width:1200px;margin:0 auto;padding:26px 22px 80px}
-
-/* ---------- Экраны ---------- */
 .view{display:none;animation:fade .25s ease}
 .view.active{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-
-/* ---------- Карточки ---------- */
-.card{
-  background:linear-gradient(180deg,var(--panel) 0%, var(--panel) 100%);
-  border:1px solid var(--line-soft);
-  border-radius:var(--radius);
-  padding:20px;
-  margin-bottom:16px;
-  box-shadow:var(--shadow);
-}
+.card{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
 .card.narrow{max-width:440px;margin:70px auto}
 .card h2{font-size:20px;margin-bottom:14px}
 .card h3{font-size:16px;margin-bottom:12px}
-
-/* ---------- Заголовки, текст ---------- */
 h2{font-size:22px;font-weight:700;letter-spacing:.2px}
 h3{font-size:17px;font-weight:600}
-h4.sec{
-  color:var(--muted);text-transform:uppercase;font-size:11.5px;
-  letter-spacing:1.2px;margin:22px 0 10px;font-weight:600;
-}
+h4.sec{color:var(--muted);text-transform:uppercase;font-size:11.5px;letter-spacing:1.2px;margin:22px 0 10px;font-weight:600}
 .muted{color:var(--muted);font-size:13px}
 .err{color:var(--err);min-height:20px;font-size:13.5px}
 .ok{color:var(--ok);min-height:20px;font-size:13.5px}
-
-/* ---------- Поля ввода ---------- */
 label{display:block;margin:12px 0;color:var(--muted);font-size:12.5px;font-weight:500}
-input,select,textarea{
-  width:100%;margin-top:6px;
-  padding:11px 13px;
-  border-radius:var(--radius-sm);
-  border:1px solid var(--line);
-  background:var(--bg-soft);
-  color:var(--text);
-  font:inherit;font-size:14.5px;
-  transition:var(--trans);
-}
-input:focus,select:focus,textarea:focus{
-  outline:none;border-color:var(--accent);
-  box-shadow:0 0 0 3px rgba(91,141,255,.15);
-}
+input,select,textarea{width:100%;margin-top:6px;padding:11px 13px;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--bg-soft);color:var(--text);font:inherit;font-size:14.5px;transition:var(--trans)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,141,255,.15)}
 input::placeholder{color:#566178}
-
 .pass-wrap{position:relative}
 .pass-wrap input{padding-right:44px}
-.pass-toggle{
-  position:absolute;right:6px;top:50%;transform:translateY(-50%);
-  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  background:transparent;border:none;cursor:pointer;color:var(--muted);border-radius:8px;
-  transition:var(--trans);
-}
+.pass-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;color:var(--muted);border-radius:8px;transition:var(--trans)}
 .pass-toggle:hover{color:var(--text);background:var(--panel-2)}
-
-/* ---------- Кнопки ---------- */
-button{
-  cursor:pointer;font:inherit;
-  border-radius:var(--radius-sm);
-  border:1px solid var(--line);
-  background:var(--panel-2);
-  color:var(--text);
-  padding:10px 16px;
-  font-weight:500;font-size:14px;
-  transition:var(--trans);
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
-}
+button{cursor:pointer;font:inherit;border-radius:var(--radius-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--text);padding:10px 16px;font-weight:500;font-size:14px;transition:var(--trans);display:inline-flex;align-items:center;justify-content:center;gap:7px}
 button:hover{background:#232d44;border-color:#33406a}
 button:active{transform:translateY(1px)}
-button.primary{
-  background:linear-gradient(135deg,var(--accent),var(--accent-2));
-  border-color:transparent;color:#fff;font-weight:600;
-  box-shadow:0 6px 18px -6px rgba(91,141,255,.6);
-}
+button.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 6px 18px -6px rgba(91,141,255,.6)}
 button.primary:hover{filter:brightness(1.08);box-shadow:0 8px 22px -6px rgba(91,141,255,.75)}
 button.ghost{background:transparent}
 button.ghost:hover{background:var(--panel-2)}
@@ -164,257 +54,85 @@ button.small{padding:6px 12px;font-size:13px}
 button.danger{color:var(--err)}
 button.danger:hover{background:rgba(255,95,109,.12);border-color:rgba(255,95,109,.4)}
 button[disabled]{opacity:.5;cursor:not-allowed}
-
-/* ---------- Панели и сетки ---------- */
 .row{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .row.tight{margin-bottom:8px}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
 .two-col{display:grid;gap:16px;grid-template-columns:1fr 1fr}
 @media(max-width:900px){.two-col{grid-template-columns:1fr}}
 .stack{display:flex;flex-direction:column;gap:8px}
-
-/* ---------- Табы ---------- */
-.tabs{
-  display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap;
-  background:var(--panel);border:1px solid var(--line-soft);
-  padding:4px;border-radius:12px;width:fit-content;
-}
-.tab{
-  border:none;background:transparent;
-  padding:8px 16px;border-radius:8px;
-  color:var(--muted);font-weight:500;font-size:13.5px;
-}
+.tabs{display:flex;gap:4px;margin-bottom:18px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line-soft);padding:4px;border-radius:12px;width:fit-content}
+.tab{border:none;background:transparent;padding:8px 16px;border-radius:8px;color:var(--muted);font-weight:500;font-size:13.5px}
 .tab:hover{background:var(--panel-2);color:var(--text)}
-.tab.active{
-  background:linear-gradient(135deg,var(--accent),var(--accent-2));
-  color:#fff;box-shadow:0 4px 12px -4px rgba(91,141,255,.6);
-}
-
-/* ---------- Бейджи, pill ---------- */
-.badge{
-  display:inline-flex;align-items:center;justify-content:center;
-  min-width:24px;height:24px;padding:0 8px;border-radius:99px;
-  background:var(--accent);color:#fff;font-size:12px;font-weight:700;flex:none;
-}
+.tab.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 4px 12px -4px rgba(91,141,255,.6)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;border-radius:99px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;flex:none}
 .badge.red{background:var(--err);box-shadow:0 0 0 3px rgba(255,95,109,.15)}
 .badge.gray{background:#3a465c}
 .badge.green{background:var(--ok)}
-
-.pill{
-  font-size:11.5px;padding:3px 9px;border-radius:99px;
-  border:1px solid var(--line);color:var(--muted);
-  display:inline-flex;align-items:center;gap:5px;
-}
+.badge.warn{background:var(--warn);color:#2a1e00}
+.pill{font-size:11.5px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);display:inline-flex;align-items:center;gap:5px}
 .pill.blue{border-color:rgba(91,141,255,.5);color:var(--accent)}
 .pill.green{border-color:rgba(49,208,123,.5);color:var(--ok)}
 .pill.red{border-color:rgba(255,95,109,.5);color:var(--err)}
 .pill.warn{border-color:rgba(255,181,71,.5);color:var(--warn)}
-
-/* ---------- Списки ---------- */
-.stu-row{
-  display:flex;align-items:center;gap:12px;
-  padding:11px 14px;
-  background:var(--bg-soft);
-  border:1px solid var(--line-soft);
-  border-radius:var(--radius-sm);
-  margin-bottom:8px;
-  transition:var(--trans);
-}
+.stu-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);margin-bottom:8px;transition:var(--trans)}
 .stu-row:hover{border-color:var(--line);background:var(--panel)}
 .stu-row .name{flex:1;min-width:0}
 .stu-row .name .muted{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stu-row .score{font-weight:600;min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
-
-/* ---------- Карточки класса / работы ---------- */
-.class-card{
-  background:var(--bg-soft);
-  border:1px solid var(--line-soft);
-  border-radius:var(--radius);
-  padding:16px;
-  margin-bottom:12px;
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-  transition:var(--trans);
-}
+.class-card{background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:var(--radius);padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:var(--trans)}
 .class-card:hover{border-color:var(--line)}
 .class-card h4{margin:0;font-size:16px;font-weight:600}
-
-.code-box{
-  font-family:ui-monospace,"SF Mono",Menlo,monospace;
-  font-size:16px;letter-spacing:3px;font-weight:700;
-  background:rgba(91,141,255,.08);
-  border:1px dashed rgba(91,141,255,.55);
-  color:var(--accent);
-  padding:7px 14px;border-radius:10px;
-  cursor:pointer;user-select:all;
-  transition:var(--trans);
-}
+.code-box{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:16px;letter-spacing:3px;font-weight:700;background:rgba(91,141,255,.08);border:1px dashed rgba(91,141,255,.55);color:var(--accent);padding:7px 14px;border-radius:10px;cursor:pointer;user-select:all;transition:var(--trans)}
 .code-box:hover{background:rgba(91,141,255,.15);color:#8badff}
-
-.test-card{
-  background:var(--bg-soft);
-  border:1px solid var(--line-soft);
-  border-radius:var(--radius);
-  padding:18px;
-  margin-bottom:12px;
-  transition:var(--trans);
-}
+.test-card{background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:var(--radius);padding:18px;margin-bottom:12px;transition:var(--trans)}
 .test-card:hover{border-color:var(--line);transform:translateY(-1px)}
 .test-card h4{margin:0 0 8px;font-size:16px;font-weight:600}
-.test-card .meta{color:var(--muted);font-size:13px;margin-bottom:10px}
+.test-card .meta{color:var(--muted);font-size:13px;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px}
 .test-card .actions{display:flex;gap:8px;flex-wrap:wrap}
-
-/* ---------- Выбор классов ---------- */
-.class-pick{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 14px;
-  background:var(--bg-soft);
-  border:1px solid var(--line-soft);
-  border-radius:var(--radius-sm);
-  margin:6px 0;cursor:pointer;
-  transition:var(--trans);
-}
+.class-pick{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:var(--radius-sm);margin:6px 0;cursor:pointer;transition:var(--trans)}
 .class-pick:hover{border-color:var(--accent);background:rgba(91,141,255,.05)}
-.class-pick input[type=checkbox]{
-  width:18px;height:18px;margin:0;accent-color:var(--accent);
-}
+.class-pick input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent)}
 .class-pick input[type=checkbox]:checked + span b{color:var(--accent)}
-
-/* ---------- Поля формул ---------- */
 .mi-wrap{margin:8px 0 12px}
-.mi-input{
-  width:100%;padding:12px 14px;
-  border:1px solid var(--line);
-  border-radius:var(--radius-sm);
-  background:#0a0f18;color:var(--text);
-  font:14.5px/1.5 ui-monospace,"SF Mono",Consolas,Monaco,monospace;
-  resize:vertical;min-height:52px;outline:none;
-  transition:var(--trans);
-}
+.mi-input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#0a0f18;color:var(--text);font:14.5px/1.5 ui-monospace,"SF Mono",Consolas,Monaco,monospace;resize:vertical;min-height:52px;outline:none;transition:var(--trans)}
 .mi-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,141,255,.12)}
 .mi-input[readonly]{background:var(--panel-2);border-style:dashed;color:var(--muted);cursor:default}
-.mi-preview{
-  min-height:26px;padding:8px 14px;margin-top:6px;
-  background:rgba(10,15,24,.7);
-  border:1px dashed var(--line-soft);
-  border-radius:8px;color:#cfd8e8;
-  font-size:16px;overflow-x:auto;
-}
+.mi-preview{min-height:26px;padding:8px 14px;margin-top:6px;background:rgba(10,15,24,.7);border:1px dashed var(--line-soft);border-radius:8px;color:#cfd8e8;font-size:16px;overflow-x:auto}
 .mi-preview:empty{display:none}
-
-/* ---------- Символы ---------- */
 .symbols{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
-.symbols button{
-  padding:7px 12px;font-size:15px;min-width:44px;
-  font-family:"Times New Roman",Georgia,serif;
-  background:var(--bg-soft);
-}
-.symbols button:hover{
-  background:rgba(91,141,255,.12);
-  border-color:var(--accent);color:var(--accent);
-}
-
-/* ---------- Варианты ответа ---------- */
+.symbols button{padding:7px 12px;font-size:15px;min-width:44px;font-family:"Times New Roman",Georgia,serif;background:var(--bg-soft)}
+.symbols button:hover{background:rgba(91,141,255,.12);border-color:var(--accent);color:var(--accent)}
 .option-row{display:flex;align-items:center;gap:10px;margin:8px 0}
-.option-row input[type=radio]{
-  width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent);
-}
+.option-row input[type=radio]{width:18px;height:18px;margin:0;flex:none;accent-color:var(--accent)}
 .option-row .mi-wrap{flex:1;margin:0}
 .option-row .mi-input{min-height:44px}
-
-/* ---------- Строки результата ---------- */
-.result-line{
-  padding:14px 16px;border-radius:12px;margin:10px 0;
-  background:var(--bg-soft);
-  border:1px solid var(--line-soft);
-  border-left:4px solid var(--line);
-  animation:fade .3s ease;
-}
+.result-line{padding:14px 16px;border-radius:12px;margin:10px 0;background:var(--bg-soft);border:1px solid var(--line-soft);border-left:4px solid var(--line);animation:fade .3s ease}
 .result-line.ok{border-left-color:var(--ok);background:rgba(49,208,123,.04)}
 .result-line.err{border-left-color:var(--err);background:rgba(255,95,109,.04)}
-
-/* ---------- Прогресс-бар прохождения ---------- */
-.progress-bar{
-  position:sticky;top:72px;z-index:20;
-  background:rgba(21,29,44,.92);backdrop-filter:blur(12px);
-  border:1px solid var(--line-soft);
-  border-radius:12px;
-  padding:12px 16px;margin-bottom:18px;
-  display:flex;align-items:center;gap:14px;
-}
-.progress-track{flex:1;height:8px;background:var(--bg-soft);border-radius:99px;overflow:hidden}
-.progress-fill{
-  height:100%;
-  background:linear-gradient(90deg,var(--accent),var(--accent-2));
-  border-radius:99px;transition:width .35s ease;
-  box-shadow:0 0 12px rgba(91,141,255,.5);
-}
+.progress-bar{position:sticky;top:72px;z-index:20;background:rgba(21,29,44,.94);backdrop-filter:blur(12px);border:1px solid var(--line-soft);border-radius:12px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.progress-track{flex:1;min-width:120px;height:8px;background:var(--bg-soft);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:99px;transition:width .35s ease;box-shadow:0 0 12px rgba(91,141,255,.5)}
 .progress-text{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;font-weight:500}
-
-/* ---------- Круг результата ---------- */
-.score-circle{
-  --size:140px;
-  width:var(--size);height:var(--size);border-radius:50%;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  position:relative;flex:none;
-  background:conic-gradient(var(--ok) calc(var(--pct)*1%), var(--line) 0);
-  animation:pop .5s ease;
-}
+.timer{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;padding:4px 12px;border-radius:8px;background:rgba(91,141,255,.12);color:var(--accent);transition:var(--trans)}
+.timer.warning{background:rgba(255,181,71,.15);color:var(--warn);animation:pulse 1.5s ease infinite}
+.timer.critical{background:rgba(255,95,109,.18);color:var(--err);animation:pulse 0.8s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+.score-circle{--size:140px;width:var(--size);height:var(--size);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;flex:none;background:conic-gradient(var(--ok) calc(var(--pct)*1%),var(--line) 0);animation:pop .5s ease}
 @keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
-.score-circle::before{
-  content:"";position:absolute;inset:8px;border-radius:50%;
-  background:var(--panel);
-}
-.score-circle .val{
-  position:relative;font-size:26px;font-weight:700;
-  font-variant-numeric:tabular-nums;
-}
-.score-circle .lbl{
-  position:relative;font-size:12px;color:var(--muted);margin-top:2px;
-}
-.score-circle[data-grade="bad"]{background:conic-gradient(var(--err) calc(var(--pct)*1%), var(--line) 0)}
-.score-circle[data-grade="mid"]{background:conic-gradient(var(--warn) calc(var(--pct)*1%), var(--line) 0)}
-
-/* ---------- Пустые состояния ---------- */
-.empty{
-  color:var(--muted);padding:36px 20px;text-align:center;
-  font-size:14px;line-height:1.6;
-}
-.empty .icon{
-  font-size:38px;margin-bottom:10px;display:block;
-  filter:grayscale(1);opacity:.45;
-}
+.score-circle::before{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--panel)}
+.score-circle .val{position:relative;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.score-circle .lbl{position:relative;font-size:12px;color:var(--muted);margin-top:2px}
+.score-circle[data-grade="bad"]{background:conic-gradient(var(--err) calc(var(--pct)*1%),var(--line) 0)}
+.score-circle[data-grade="mid"]{background:conic-gradient(var(--warn) calc(var(--pct)*1%),var(--line) 0)}
+.empty{color:var(--muted);padding:36px 20px;text-align:center;font-size:14px;line-height:1.6}
+.empty .icon{font-size:38px;margin-bottom:10px;display:block;filter:grayscale(1);opacity:.45}
 .empty b{color:var(--text)}
-
-/* ---------- Skeleton ---------- */
 .skeleton{display:flex;flex-direction:column;gap:10px}
-.sk-line{
-  height:14px;border-radius:6px;
-  background:linear-gradient(90deg,var(--panel) 0%, var(--panel-2) 50%, var(--panel) 100%);
-  background-size:200% 100%;
-  animation:sk 1.4s ease-in-out infinite;
-}
+.sk-line{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--panel) 0%,var(--panel-2) 50%,var(--panel) 100%);background-size:200% 100%;animation:sk 1.4s ease-in-out infinite}
 .sk-line.w60{width:60%}.sk-line.w40{width:40%}.sk-line.w80{width:80%}
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-/* ---------- Тосты ---------- */
-#toasts{
-  position:fixed;top:76px;right:20px;z-index:999;
-  display:flex;flex-direction:column;gap:10px;
-  pointer-events:none;
-}
-.toast{
-  pointer-events:auto;
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:12px 16px;
-  min-width:260px;max-width:380px;
-  box-shadow:var(--shadow);
-  display:flex;align-items:flex-start;gap:10px;
-  font-size:14px;
-  animation:slideIn .3s cubic-bezier(.4,0,.2,1);
-  border-left:3px solid var(--accent);
-}
+#toasts{position:fixed;top:76px;right:20px;z-index:999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:260px;max-width:380px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:10px;font-size:14px;animation:slideIn .3s cubic-bezier(.4,0,.2,1);border-left:3px solid var(--accent)}
 .toast.ok{border-left-color:var(--ok)}
 .toast.err{border-left-color:var(--err)}
 .toast.warn{border-left-color:var(--warn)}
@@ -422,46 +140,15 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .toast.hide{animation:slideOut .25s ease forwards}
 @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:none;opacity:1}}
 @keyframes slideOut{to{transform:translateX(120%);opacity:0}}
-
-/* ---------- Кнопка вверх ---------- */
-#toTop{
-  position:fixed;bottom:24px;right:24px;z-index:60;
-  width:44px;height:44px;border-radius:50%;
-  background:var(--panel-2);border:1px solid var(--line);
-  color:var(--text);font-size:18px;
-  display:none;align-items:center;justify-content:center;
-  box-shadow:var(--shadow);
-  padding:0;
-}
+#toTop{position:fixed;bottom:24px;right:24px;z-index:60;width:44px;height:44px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);font-size:18px;display:none;align-items:center;justify-content:center;box-shadow:var(--shadow);padding:0}
 #toTop.show{display:flex}
-
-/* ---------- Мобильная адаптация ---------- */
-@media(max-width:640px){
-  main{padding:18px 14px 70px}
-  #topbar{padding:12px 16px}
-  .brand span:not(.sigma){display:none}
-  .user-chip{padding:4px 4px 4px 10px}
-  h2{font-size:19px}
-  .card{padding:16px}
-  .card.narrow{margin:30px auto}
-  .tabs{width:100%;overflow-x:auto}
-  .toast{min-width:unset;max-width:calc(100vw - 40px)}
-  #toasts{left:20px;right:20px}
-  .two-col{gap:12px}
-}
-
-/* ---------- Загрузка во весь экран ---------- */
-.boot{
-  display:flex;align-items:center;justify-content:center;
-  padding:80px 20px;
-  color:var(--muted);font-size:14px;
-}
-.spin{
-  width:20px;height:20px;border:2px solid var(--line);
-  border-top-color:var(--accent);border-radius:50%;
-  animation:spin .7s linear infinite;margin-right:10px;
-}
-@keyframes spin{to{transform:rotate(360deg)}}
+.analytics-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;margin-bottom:8px}
+.analytics-row .num{font-weight:700;color:var(--muted);font-size:13px;min-width:20px}
+.analytics-row .body{flex:1;min-width:0}
+.analytics-row .bar-track{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:6px}
+.analytics-row .bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
+.analytics-row .pct{font-weight:700;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+@media(max-width:640px){main{padding:18px 14px 70px}#topbar{padding:12px 16px}.brand span:not(.sigma){display:none}.user-chip{padding:4px 4px 4px 10px}h2{font-size:19px}.card{padding:16px}.card.narrow{margin:30px auto}.tabs{width:100%;overflow-x:auto}.toast{min-width:unset;max-width:calc(100vw - 40px)}#toasts{left:20px;right:20px}.two-col{gap:12px}.score-circle{--size:110px}.score-circle .val{font-size:20px}}
 </style>
 </head>
 <body>
@@ -469,19 +156,14 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 <div id="toasts"></div>
 
 <header id="topbar">
-  <div class="brand">
-    <span class="sigma">∑</span>
-    <span>MathTest</span>
-  </div>
+  <div class="brand"><span class="sigma">∑</span><span>MathTest</span></div>
   <div class="spacer"></div>
   <div id="userBox"></div>
 </header>
-
 <button id="toTop" title="Наверх">↑</button>
 
 <main>
 
-<!-- ================ АВТОРИЗАЦИЯ ================ -->
 <section id="view-auth" class="view active">
   <div class="card narrow">
     <h2 style="text-align:center;margin-bottom:20px">
@@ -489,69 +171,40 @@ button[disabled]{opacity:.5;cursor:not-allowed}
         Конструктор контрольных работ
       </span>
     </h2>
-
     <div class="tabs" style="width:100%;justify-content:center;display:flex">
       <button class="tab active" data-tab="login" style="flex:1">Вход</button>
       <button class="tab" data-tab="reg" style="flex:1">Регистрация</button>
     </div>
-
     <div id="loginForm">
-      <label>Email
-        <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
-      </label>
-      <label>Пароль
-        <div class="pass-wrap">
-          <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
-          <button type="button" class="pass-toggle" data-target="loginPass" title="Показать пароль">👁</button>
-        </div>
-      </label>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Пароль<div class="pass-wrap"><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="loginPass">👁</button></div></label>
       <button class="primary" id="doLogin" style="width:100%;margin-top:8px">Войти →</button>
     </div>
-
     <div id="regForm" hidden>
-      <label>Имя
-        <input id="regName" placeholder="Иван Петров">
-      </label>
-      <label>Email
-        <input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com">
-      </label>
-      <label>Пароль (от 6 символов)
-        <div class="pass-wrap">
-          <input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••">
-          <button type="button" class="pass-toggle" data-target="regPass" title="Показать пароль">👁</button>
-        </div>
-      </label>
-      <label>Роль
-        <select id="regRole">
-          <option value="teacher">Учитель</option>
-          <option value="student">Ученик</option>
-        </select>
-      </label>
+      <label>Имя<input id="regName" placeholder="Иван Петров"></label>
+      <label>Email<input id="regEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Пароль (от 6 символов)<div class="pass-wrap"><input id="regPass" type="password" autocomplete="new-password" placeholder="••••••••"><button type="button" class="pass-toggle" data-target="regPass">👁</button></div></label>
+      <label>Роль<select id="regRole"><option value="teacher">Учитель</option><option value="student">Ученик</option></select></label>
       <button class="primary" id="doRegister" style="width:100%;margin-top:8px">Создать аккаунт →</button>
     </div>
-
     <p class="err" id="authErr" style="text-align:center"></p>
   </div>
 </section>
 
-<!-- ================ УЧИТЕЛЬ ================ -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:18px">
     <h2 style="margin:0;flex:1">Кабинет учителя</h2>
     <button class="primary" id="btnNewClass">+ Класс</button>
     <button class="primary" id="btnNewTest">+ Работа</button>
   </div>
-
   <div class="tabs">
     <button class="tab active" data-ttab="tests">Работы</button>
     <button class="tab" data-ttab="classes">Классы</button>
   </div>
-
   <div id="tt-tests"><div id="testList"></div></div>
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
-<!-- ================ РЕДАКТОР РАБОТЫ ================ -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackToTeacher">← Назад</button>
@@ -565,44 +218,43 @@ button[disabled]{opacity:.5;cursor:not-allowed}
     <div id="classPicker"></div>
   </div>
 
+  <div class="card">
+    <h3>⚙️ Настройки работы</h3>
+    <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <label>⏱ Время на работу (минут, 0 = без ограничения)
+        <input id="setTimeLimit" type="number" value="0" min="0">
+      </label>
+      <label>🎯 Попыток (0 = без ограничения)
+        <input id="setAttempts" type="number" value="1" min="0">
+      </label>
+    </div>
+    <label class="class-pick" style="margin-top:10px">
+      <input type="checkbox" id="setShowAnswers" checked>
+      <span>👁 Показывать ученику правильные ответы после сдачи</span>
+    </label>
+  </div>
+
   <div class="two-col">
     <div class="card">
       <h3>Конструктор задания</h3>
-
-      <label>Тип задания
-        <select id="taskType">
-          <option value="input">Ввод ответа (формула / число)</option>
-          <option value="choice">Выбор варианта</option>
-        </select>
-      </label>
-
+      <label>Тип задания<select id="taskType"><option value="input">Ввод ответа (формула / число)</option><option value="choice">Выбор варианта</option></select></label>
       <div class="muted" style="margin-top:14px">Условие задания</div>
       <div id="statementHost"></div>
-
       <div class="muted" style="margin-top:14px">Символы — клик вставит в последнее активное поле</div>
       <div id="symbolBar" class="symbols"></div>
-
       <div id="inputBlock">
         <div class="muted">Правильный ответ</div>
         <div id="answerHost"></div>
-        <label>Допуск (для числовых ответов)
-          <input id="taskTol" value="1e-6" style="width:140px">
-        </label>
+        <label>Допуск<input id="taskTol" value="1e-6" style="width:140px"></label>
       </div>
-
       <div id="choiceBlock" hidden>
         <div class="muted" style="margin-top:12px">Варианты (отметьте правильный)</div>
         <div id="optionsList"></div>
         <button class="ghost small" id="btnAddOption" style="margin-top:6px">+ вариант</button>
       </div>
-
-      <label>Баллы за задание
-        <input id="taskPoints" type="number" value="1" min="1" style="width:110px">
-      </label>
-
+      <label>Баллы за задание<input id="taskPoints" type="number" value="1" min="1" style="width:110px"></label>
       <button class="primary" id="btnAddTask" style="width:100%;margin-top:12px">Добавить задание</button>
     </div>
-
     <div class="card">
       <h3>Задания работы <span id="taskCount" class="pill">0</span></h3>
       <div id="draftList"></div>
@@ -610,36 +262,25 @@ button[disabled]{opacity:.5;cursor:not-allowed}
   </div>
 </section>
 
-<!-- ================ ПРОСМОТР КЛАССА ================ -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromClass">← Назад</button>
     <h2 id="classTitle" style="margin:0;flex:1"></h2>
     <div class="muted">Код:</div>
-    <div id="classCodeBig" class="code-box" title="Клик — копировать"></div>
+    <div id="classCodeBig" class="code-box"></div>
   </div>
-
   <div class="two-col">
-    <div class="card">
-      <h3>Ученики <span id="classStuCount" class="pill">0</span></h3>
-      <div id="classStudents"></div>
-    </div>
-    <div class="card">
-      <h3>Работы класса</h3>
-      <div id="classTests"></div>
-    </div>
+    <div class="card"><h3>Ученики <span id="classStuCount" class="pill">0</span></h3><div id="classStudents"></div></div>
+    <div class="card"><h3>Работы класса</h3><div id="classTests"></div></div>
   </div>
 </section>
 
-<!-- ================ УЧЕНИК ================ -->
 <section id="view-student" class="view">
   <h2 style="margin-bottom:18px">Кабинет ученика</h2>
-
   <div class="tabs">
     <button class="tab active" data-stab="tests">Мои работы</button>
     <button class="tab" data-stab="classes">Мои классы</button>
   </div>
-
   <div id="st-tests"><div id="studentList" class="grid"></div></div>
   <div id="st-classes" hidden>
     <div class="card">
@@ -650,41 +291,36 @@ button[disabled]{opacity:.5;cursor:not-allowed}
       </div>
       <p class="err" id="joinErr" style="margin-top:10px"></p>
     </div>
-    <div class="card">
-      <h3>Мои классы</h3>
-      <div id="myClasses"></div>
-    </div>
+    <div class="card"><h3>Мои классы</h3><div id="myClasses"></div></div>
   </div>
 </section>
 
-<!-- ================ ПРОХОЖДЕНИЕ ================ -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromTake">← Назад</button>
     <h2 id="takeTitle" style="margin:0;flex:1"></h2>
     <button class="primary" id="btnSubmitTest">Завершить</button>
   </div>
-
-  <div class="progress-bar" id="progressBar" hidden>
-    <span class="progress-text" id="progressText">Задание 1 из 1</span>
+  <div class="progress-bar" id="progressBar">
+    <span class="progress-text" id="progressText">Заполнено: 0 из 0</span>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
     <span class="progress-text" id="progressPct">0%</span>
+    <div class="timer" id="timerDisplay" hidden>00:00</div>
   </div>
-
   <div id="takeBody"></div>
 </section>
 
-<!-- ================ РЕЗУЛЬТАТ ================ -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack">← К списку работ</button>
 </section>
 
-<!-- ================ РЕЗУЛЬТАТЫ ДЛЯ УЧИТЕЛЯ ================ -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:18px">
     <button class="ghost" id="btnBackFromSubs">← Назад</button>
     <h2 id="subsTitle" style="margin:0;flex:1"></h2>
+    <button class="small" id="btnExportCsv">📥 Экспорт CSV</button>
+    <button class="small" id="btnShowAnalytics">📊 Аналитика</button>
   </div>
   <div id="subsBody"></div>
 </section>
@@ -694,37 +330,37 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 <script>
 (function(){
 'use strict';
-
-/* ============ УТИЛИТЫ ============ */
-var $  = function(s,r){return (r||document).querySelector(s);};
-var $$ = function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
-var esc = function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
-var uid = function(){return Math.random().toString(36).slice(2,10);};
-var fmt = function(t){
-  var d=new Date(t), now=Date.now();
-  var diff=Math.floor((now-t)/1000);
+var $=function(s,r){return (r||document).querySelector(s);};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var uid=function(){return Math.random().toString(36).slice(2,10);};
+var fmt=function(t){
+  if(!t)return '';
+  var d=new Date(t),now=Date.now(),diff=Math.floor((now-t)/1000);
   if(diff<60)return 'только что';
   if(diff<3600)return Math.floor(diff/60)+' мин назад';
   if(diff<86400)return Math.floor(diff/3600)+' ч назад';
   return d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 };
+var fmtDur=function(ms){
+  if(!ms)return '';
+  var s=Math.round(ms/1000);
+  if(s<60)return s+' с';
+  var m=Math.floor(s/60),sec=s%60;
+  return m+' мин'+(sec?' '+sec+' с':'');
+};
 
-/* ============ ТОСТЫ ============ */
-function toast(msg, type){
-  type = type||'info';
-  var box = $('#toasts');
-  var t = document.createElement('div');
-  t.className = 'toast ' + (type==='info'?'':type);
-  var icons = {ok:'✓', err:'✕', warn:'⚠', info:'ℹ'};
-  t.innerHTML = '<span class="ico">'+icons[type]+'</span><span>'+esc(msg)+'</span>';
+function toast(msg,type){
+  type=type||'info';
+  var box=$('#toasts');
+  var t=document.createElement('div');
+  t.className='toast '+(type==='info'?'':type);
+  var icons={ok:'✓',err:'✕',warn:'⚠',info:'ℹ'};
+  t.innerHTML='<span class="ico">'+icons[type]+'</span><span>'+esc(msg)+'</span>';
   box.appendChild(t);
-  setTimeout(function(){
-    t.classList.add('hide');
-    setTimeout(function(){ t.remove(); }, 300);
-  }, 3500);
+  setTimeout(function(){t.classList.add('hide');setTimeout(function(){t.remove();},300);},3500);
 }
 
-/* ============ API ============ */
 var TOKEN_KEY='mathtest_token';
 var getToken=function(){return localStorage.getItem(TOKEN_KEY);};
 var setToken=function(t){t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY);};
@@ -732,19 +368,15 @@ var setToken=function(t){t?localStorage.setItem(TOKEN_KEY,t):localStorage.remove
 async function api(path,opts){
   opts=opts||{};
   var headers={'Content-Type':'application/json'};
-  var tk=getToken(); if(tk) headers.Authorization='Bearer '+tk;
-  if(opts.headers) Object.assign(headers,opts.headers);
-  var r=await fetch('/api'+path,{
-    method:opts.method||'GET',
-    headers:headers,
-    body:opts.body?JSON.stringify(opts.body):undefined
-  });
+  var tk=getToken();if(tk)headers.Authorization='Bearer '+tk;
+  if(opts.headers)Object.assign(headers,opts.headers);
+  var r=await fetch('/api'+path,{method:opts.method||'GET',headers:headers,body:opts.body?JSON.stringify(opts.body):undefined});
   var data=await r.json().catch(function(){return {};});
   if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;throw e;}
   return data;
 }
 
-/* ============ ФОРМУЛЫ ============ */
+/* ---------- поля формул ---------- */
 var lastFocused=null;
 function textToLatex(t){
   if(!t)return'';
@@ -768,10 +400,8 @@ function createMathInput(initial,readonly){
   wrap.appendChild(ta);wrap.appendChild(prev);
   function render(){
     var tex=textToLatex(ta.value);
-    if(window.katex&&tex){
-      try{katex.render(tex,prev,{throwOnError:false});}
-      catch(e){prev.textContent=ta.value;}
-    } else prev.textContent=ta.value;
+    if(window.katex&&tex){try{katex.render(tex,prev,{throwOnError:false});}catch(e){prev.textContent=ta.value;}}
+    else prev.textContent=ta.value;
   }
   ta.addEventListener('input',render);
   ta.addEventListener('focus',function(){lastFocused=api;});
@@ -810,7 +440,7 @@ var SYMBOLS=[
 function buildSymbolBar(c){
   c.innerHTML='';
   SYMBOLS.forEach(function(s){
-    var b=document.createElement('button');b.type='button';b.textContent=s.label;b.title=s.label;
+    var b=document.createElement('button');b.type='button';b.textContent=s.label;
     b.addEventListener('mousedown',function(e){e.preventDefault();});
     b.onclick=function(){
       if(!lastFocused)return;
@@ -821,76 +451,59 @@ function buildSymbolBar(c){
   });
 }
 
-/* ============ СОСТОЯНИЕ ============ */
+/* ---------- состояние ---------- */
 var currentUser=null,currentTest=null,answerInputs=[],choicePicks=[];
 var editingTestId=null,draftTasks=[],draftClassIds=[],currentClassId=null;
+var currentSubmissionTest=null;
 var stmtInput=null,ansInput=null;
+var timerInterval=null,testDeadline=null;
 
 function show(id){
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   window.scrollTo(0,0);
 }
-function skeleton(host, lines){
-  lines = lines||3;
-  var html = '<div class="skeleton">';
-  for(var i=0;i<lines;i++) html += '<div class="sk-line w'+(60+((i*17)%40))+'"></div>';
-  html += '</div>';
-  host.innerHTML = html;
+function skeleton(host,lines){
+  lines=lines||3;
+  var html='<div class="skeleton">';
+  for(var i=0;i<lines;i++)html+='<div class="sk-line w'+(60+((i*17)%40))+'"></div>';
+  html+='</div>';
+  host.innerHTML=html;
 }
 
-/* ============ ШАПКА ============ */
 function renderTop(){
   var box=$('#userBox');
   if(!currentUser){box.innerHTML='';return;}
   var role=currentUser.role==='teacher'?'учитель':'ученик';
   var initial=(currentUser.name[0]||'?').toUpperCase();
-  box.innerHTML =
-    '<div class="user-chip">'+
-      '<div class="avatar">'+esc(initial)+'</div>'+
-      '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
-      '<div class="role" style="font-size:11.5px;margin-top:-2px">'+role+'</div></div>'+
-      '<button class="logout-btn" id="btnLogout" title="Выйти">Выйти</button>'+
-    '</div>';
-  $('#btnLogout').onclick = logout;
+  box.innerHTML='<div class="user-chip"><div class="avatar">'+esc(initial)+'</div>'+
+    '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
+    '<div class="role" style="font-size:11.5px;margin-top:-2px">'+role+'</div></div>'+
+    '<button class="logout-btn" id="btnLogout">Выйти</button></div>';
+  $('#btnLogout').onclick=logout;
 }
-function logout(){
-  setToken(null);currentUser=null;renderTop();show('view-auth');
-  toast('Вы вышли из системы','info');
-}
+function logout(){setToken(null);currentUser=null;renderTop();show('view-auth');toast('Вы вышли','info');}
 
-/* ============ ПОКАЗ ПАРОЛЯ ============ */
 $$('.pass-toggle').forEach(function(btn){
-  btn.onclick = function(){
-    var inp = $('#'+btn.dataset.target);
-    if(!inp) return;
-    var isPass = inp.type==='password';
-    inp.type = isPass?'text':'password';
-    btn.textContent = isPass?'🙈':'👁';
+  btn.onclick=function(){
+    var inp=$('#'+btn.dataset.target);if(!inp)return;
+    var isPass=inp.type==='password';
+    inp.type=isPass?'text':'password';
+    btn.textContent=isPass?'🙈':'👁';
   };
 });
-
-/* ============ ENTER НА ФОРМАХ ============ */
 ['loginEmail','loginPass'].forEach(function(id){
-  $('#'+id).addEventListener('keydown',function(e){
-    if(e.key==='Enter') $('#doLogin').click();
-  });
+  $('#'+id).addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
 });
 ['regName','regEmail','regPass'].forEach(function(id){
-  $('#'+id).addEventListener('keydown',function(e){
-    if(e.key==='Enter') $('#doRegister').click();
-  });
+  $('#'+id).addEventListener('keydown',function(e){if(e.key==='Enter')$('#doRegister').click();});
 });
-$('#joinCode').addEventListener('keydown',function(e){
-  if(e.key==='Enter') $('#btnJoinClass').click();
-});
+$('#joinCode').addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
 
-/* ============ ТАБЫ ============ */
 $$('.tab').forEach(function(t){if(!t.dataset.tab)return;t.onclick=function(){
   $$('.tab').forEach(function(x){if(x.dataset.tab)x.classList.toggle('active',x===t);});
   var isL=t.dataset.tab==='login';
-  $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;
-  $('#authErr').textContent='';
-  setTimeout(function(){ (isL?$('#loginEmail'):$('#regName')).focus(); },50);
+  $('#loginForm').hidden=!isL;$('#regForm').hidden=isL;$('#authErr').textContent='';
+  setTimeout(function(){(isL?$('#loginEmail'):$('#regName')).focus();},50);
 };});
 $$('[data-ttab]').forEach(function(t){t.onclick=function(){
   $$('[data-ttab]').forEach(function(x){x.classList.toggle('active',x===t);});
@@ -903,68 +516,38 @@ $$('[data-stab]').forEach(function(t){t.onclick=function(){
   $('#st-classes').hidden=t.dataset.stab!=='classes';
 };});
 
-/* ============ АВТОРИЗАЦИЯ ============ */
 $('#doLogin').onclick=async function(){
   $('#authErr').textContent='';
   try{
-    var r=await api('/auth/login',{method:'POST',body:{
-      email:$('#loginEmail').value.trim(),
-      password:$('#loginPass').value
-    }});
-    setToken(r.token);enterApp(r.user);
-    toast('Добро пожаловать, '+r.user.name+'!','ok');
-  }catch(e){
-    $('#authErr').textContent=e.message;
-    toast(e.message,'err');
-  }
+    var r=await api('/auth/login',{method:'POST',body:{email:$('#loginEmail').value.trim(),password:$('#loginPass').value}});
+    setToken(r.token);enterApp(r.user);toast('Добро пожаловать!','ok');
+  }catch(e){$('#authErr').textContent=e.message;toast(e.message,'err');}
 };
 $('#doRegister').onclick=async function(){
   $('#authErr').textContent='';
   try{
-    var r=await api('/auth/register',{method:'POST',body:{
-      name:$('#regName').value.trim(),
-      email:$('#regEmail').value.trim(),
-      password:$('#regPass').value,
-      role:$('#regRole').value
-    }});
-    setToken(r.token);enterApp(r.user);
-    toast('Аккаунт создан!','ok');
-  }catch(e){
-    $('#authErr').textContent=e.message;
-    toast(e.message,'err');
-  }
+    var r=await api('/auth/register',{method:'POST',body:{name:$('#regName').value.trim(),email:$('#regEmail').value.trim(),password:$('#regPass').value,role:$('#regRole').value}});
+    setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');
+  }catch(e){$('#authErr').textContent=e.message;toast(e.message,'err');}
 };
-function enterApp(u){
-  currentUser=u;renderTop();
-  if(u.role==='teacher')goTeacher();else goStudent();
-}
+function enterApp(u){currentUser=u;renderTop();if(u.role==='teacher')goTeacher();else goStudent();}
 
-/* ============ УЧИТЕЛЬ ============ */
-async function goTeacher(){
-  show('view-teacher');
-  await Promise.all([renderTeacherClasses(),renderTeacherTests()]);
-}
+/* ---------- учитель ---------- */
+async function goTeacher(){show('view-teacher');await Promise.all([renderTeacherClasses(),renderTeacherTests()]);}
 
 async function renderTeacherClasses(){
-  var list=$('#classList');
-  skeleton(list,2);
+  var list=$('#classList');skeleton(list,2);
   try{
     var r=await api('/classes');
     list.innerHTML='';
     if(!r.classes.length){
-      list.innerHTML='<div class="card"><div class="empty">'+
-        '<span class="icon">📚</span>'+
-        'У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b> — и получите код для учеников.'+
-      '</div></div>';
+      list.innerHTML='<div class="card"><div class="empty"><span class="icon">📚</span>У вас ещё нет классов.<br>Нажмите <b>«+ Класс»</b> — и получите код для учеников.</div></div>';
       return;
     }
     r.classes.forEach(function(c){
       var el=document.createElement('div');el.className='class-card';
-      el.innerHTML=
-        '<div style="flex:1;min-width:180px">'+
-          '<h4>'+esc(c.name)+'</h4>'+
-          '<div class="muted" style="margin-top:2px">Учеников: '+c.studentCount+'</div>'+
-        '</div>'+
+      el.innerHTML='<div style="flex:1;min-width:180px"><h4>'+esc(c.name)+'</h4>'+
+        '<div class="muted" style="margin-top:2px">Учеников: '+c.studentCount+'</div></div>'+
         '<div class="code-box" title="Клик — копировать">'+c.code+'</div>';
       var bV=document.createElement('button');bV.className='small';bV.textContent='Открыть';
       bV.onclick=function(){openClassView(c.id);};
@@ -977,12 +560,7 @@ async function renderTeacherClasses(){
       el.appendChild(bV);el.appendChild(bD);
       var cb=el.querySelector('.code-box');
       cb.onclick=function(){
-        try{
-          navigator.clipboard.writeText(c.code);
-          var old=cb.textContent;cb.textContent='✓ Скопировано';
-          toast('Код скопирован: '+c.code,'ok');
-          setTimeout(function(){cb.textContent=old;},900);
-        }catch(e){toast('Не удалось скопировать','err');}
+        try{navigator.clipboard.writeText(c.code);var old=cb.textContent;cb.textContent='✓ Скопировано';toast('Код скопирован','ok');setTimeout(function(){cb.textContent=old;},900);}catch(e){}
       };
       list.appendChild(el);
     });
@@ -990,49 +568,44 @@ async function renderTeacherClasses(){
 }
 
 async function renderTeacherTests(){
-  var host=$('#testList');
-  skeleton(host,3);
+  var host=$('#testList');skeleton(host,3);
   try{
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card"><div class="empty">'+
-        '<span class="icon">📝</span>'+
-        'Работ пока нет.<br>Нажмите <b>«+ Работа»</b>, чтобы создать первую.'+
-      '</div></div>';
+      host.innerHTML='<div class="card"><div class="empty"><span class="icon">📝</span>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>, чтобы создать первую.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
       var max=test.tasks.reduce(function(s,t){return s+(t.points||1);},0);
+      var s=test.settings||{};
       var el=document.createElement('div');el.className='test-card';
-      el.innerHTML=
-        '<div class="row tight" style="margin-bottom:8px">'+
-          '<h4 style="flex:1;margin:0">'+esc(test.title)+'</h4>'+
-          (test.unseen?'<span class="badge red" title="Новые сдачи">'+test.unseen+' новых</span>':'')+
-        '</div>'+
+      el.innerHTML='<div class="row tight"><h4 style="flex:1;margin:0">'+esc(test.title)+'</h4>'+
+        (test.unseen?'<span class="badge red" title="Новые сдачи">'+test.unseen+' новых</span>':'')+'</div>'+
         '<div class="meta">'+
-          '<span class="pill">'+test.tasks.length+' заданий</span> '+
-          '<span class="pill">'+max+' баллов</span> '+
+          '<span class="pill">'+test.tasks.length+' заданий</span>'+
+          '<span class="pill">'+max+' баллов</span>'+
           '<span class="pill blue">'+((test.classIds||[]).length)+' классов</span>'+
+          (s.timeLimit>0?'<span class="pill warn">⏱ '+s.timeLimit+' мин</span>':'')+
+          (s.attempts>1?'<span class="pill">🎯 '+s.attempts+' попыток</span>':'')+
         '</div>';
       var actions=document.createElement('div');actions.className='actions';
       var bE=document.createElement('button');bE.className='small';bE.textContent='Редактировать';
       bE.onclick=async function(){
-        try{
-          var rr=await api('/tests');
-          var full=rr.tests.find(function(x){return x.id===test.id;});
-          openEditor(full);
-        }catch(e){toast(e.message,'err');}
+        try{var rr=await api('/tests');var full=rr.tests.find(function(x){return x.id===test.id;});openEditor(full);}catch(e){toast(e.message,'err');}
       };
       var bR=document.createElement('button');bR.className='primary small';bR.textContent='Результаты';
       bR.onclick=function(){showSubmissions(test);};
+      var bC=document.createElement('button');bC.className='ghost small';bC.textContent='Дублировать';
+      bC.onclick=async function(){
+        try{await api('/tests/'+test.id+'/duplicate',{method:'POST'});toast('Копия создана','ok');goTeacher();}catch(e){toast(e.message,'err');}
+      };
       var bD=document.createElement('button');bD.className='ghost small danger';bD.textContent='Удалить';
       bD.onclick=async function(){
         if(!confirm('Удалить работу «'+test.title+'»?'))return;
-        try{await api('/tests/'+test.id,{method:'DELETE'});toast('Работа удалена','ok');goTeacher();}
-        catch(e){toast(e.message,'err');}
+        try{await api('/tests/'+test.id,{method:'DELETE'});toast('Работа удалена','ok');goTeacher();}catch(e){toast(e.message,'err');}
       };
-      actions.appendChild(bE);actions.appendChild(bR);actions.appendChild(bD);
+      actions.appendChild(bE);actions.appendChild(bR);actions.appendChild(bC);actions.appendChild(bD);
       el.appendChild(actions);host.appendChild(el);
     });
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
@@ -1042,46 +615,30 @@ $('#btnNewTest').onclick=function(){openEditor(null);};
 $('#btnNewClass').onclick=async function(){
   var name=prompt('Название класса (например: Математика 101)');
   if(!name||!name.trim())return;
-  try{
-    await api('/classes',{method:'POST',body:{name:name.trim()}});
-    toast('Класс создан','ok');
-    goTeacher();
-  }catch(e){toast(e.message,'err');}
+  try{await api('/classes',{method:'POST',body:{name:name.trim()}});toast('Класс создан','ok');goTeacher();}
+  catch(e){toast(e.message,'err');}
 };
 
-/* ============ ПРОСМОТР КЛАССА ============ */
+/* ---------- класс ---------- */
 async function openClassView(id){
-  currentClassId=id;
-  show('view-class');
-  skeleton($('#classStudents'),2);
-  skeleton($('#classTests'),2);
+  currentClassId=id;show('view-class');
+  skeleton($('#classStudents'),2);skeleton($('#classTests'),2);
   try{
     var r=await api('/classes/'+id);
     $('#classTitle').textContent='Класс: '+r.class.name;
     $('#classCodeBig').textContent=r.class.code;
     $('#classCodeBig').onclick=function(){
-      try{
-        navigator.clipboard.writeText(r.class.code);
-        var old=$('#classCodeBig').textContent;
-        $('#classCodeBig').textContent='✓ Скопировано';
-        toast('Код скопирован','ok');
-        setTimeout(function(){$('#classCodeBig').textContent=old;},900);
-      }catch(e){}
+      try{navigator.clipboard.writeText(r.class.code);var old=$('#classCodeBig').textContent;$('#classCodeBig').textContent='✓ Скопировано';toast('Код скопирован','ok');setTimeout(function(){$('#classCodeBig').textContent=old;},900);}catch(e){}
     };
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
     if(!r.students.length){
-      stu.innerHTML='<div class="empty">'+
-        '<span class="icon">👥</span>'+
-        'Пока нет учеников.<br>Отправьте им код: <b>'+esc(r.class.code)+'</b>'+
-      '</div>';
+      stu.innerHTML='<div class="empty"><span class="icon">👥</span>Пока нет учеников.<br>Отправьте им код: <b>'+esc(r.class.code)+'</b></div>';
     }
     r.students.forEach(function(u){
       var el=document.createElement('div');el.className='stu-row';
-      el.innerHTML=
-        '<div class="avatar">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
-        '<div class="name"><div>'+esc(u.name)+'</div>'+
-        '<div class="muted">'+esc(u.email)+'</div></div>';
+      el.innerHTML='<div class="avatar">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
+        '<div class="name"><div>'+esc(u.name)+'</div><div class="muted">'+esc(u.email)+'</div></div>';
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Исключить';
       b.onclick=async function(){
         if(!confirm('Исключить '+u.name+'?'))return;
@@ -1091,22 +648,15 @@ async function openClassView(id){
       el.appendChild(b);stu.appendChild(el);
     });
     var ts=$('#classTests');ts.innerHTML='';
-    if(!r.tests.length) ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
+    if(!r.tests.length)ts.innerHTML='<div class="empty">Этому классу ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
       var el=document.createElement('div');el.className='test-card';
-      el.innerHTML=
-        '<div class="row tight">'+
-          '<h4 style="flex:1;margin:0">'+esc(t.title)+'</h4>'+
-          (t.unseen?'<span class="badge red">'+t.unseen+'</span>':'')+
-        '</div>'+
+      el.innerHTML='<div class="row tight"><h4 style="flex:1;margin:0">'+esc(t.title)+'</h4>'+
+        (t.unseen?'<span class="badge red">'+t.unseen+'</span>':'')+'</div>'+
         '<div class="meta">Сдали: '+t.submitted+' из '+t.total+'</div>';
       var b=document.createElement('button');b.className='primary small';b.textContent='Открыть';
       b.onclick=async function(){
-        try{
-          var rr=await api('/tests');
-          var full=rr.tests.find(function(x){return x.id===t.id;});
-          if(full)showSubmissions(full);
-        }catch(e){toast(e.message,'err');}
+        try{var rr=await api('/tests');var full=rr.tests.find(function(x){return x.id===t.id;});if(full)showSubmissions(full);}catch(e){toast(e.message,'err');}
       };
       el.appendChild(b);ts.appendChild(el);
     });
@@ -1114,15 +664,12 @@ async function openClassView(id){
 }
 $('#btnBackFromClass').onclick=goTeacher;
 
-/* ============ РЕДАКТОР РАБОТЫ ============ */
+/* ---------- редактор ---------- */
 function initEditorFields(){
   if(stmtInput)return;
-  stmtInput=createMathInput('',false);
-  ansInput=createMathInput('',false);
-  $('#statementHost').appendChild(stmtInput.el);
-  $('#answerHost').appendChild(ansInput.el);
-  buildSymbolBar($('#symbolBar'));
-  addOption();addOption();
+  stmtInput=createMathInput('',false);ansInput=createMathInput('',false);
+  $('#statementHost').appendChild(stmtInput.el);$('#answerHost').appendChild(ansInput.el);
+  buildSymbolBar($('#symbolBar'));addOption();addOption();
 }
 $('#taskType').onchange=function(){
   var i=$('#taskType').value==='input';
@@ -1133,7 +680,6 @@ function addOption(){
   var r=document.createElement('input');r.type='radio';r.name='correctOpt';
   var mi=createMathInput('',false);
   var d=document.createElement('button');d.type='button';d.className='ghost small';d.textContent='✕';
-  d.title='Удалить вариант';
   d.onclick=function(){row.remove();};
   row.appendChild(r);row.appendChild(mi.el);row.appendChild(d);
   $('#optionsList').appendChild(row);
@@ -1169,6 +715,10 @@ async function openEditor(test){
   draftTasks=test?JSON.parse(JSON.stringify(test.tasks)):[];
   draftClassIds=test?(test.classIds||[]).slice():[];
   $('#testTitle').value=test?test.title:'';
+  var s=test&&test.settings?test.settings:{timeLimit:0,attempts:1,showAnswers:true};
+  $('#setTimeLimit').value=s.timeLimit||0;
+  $('#setAttempts').value=s.attempts!==undefined?s.attempts:1;
+  $('#setShowAnswers').checked=s.showAnswers!==false;
   stmtInput.setValue('');ansInput.setValue('');
   $('#taskPoints').value=1;$('#taskTol').value='1e-6';
   $('#taskType').value='input';$('#taskType').onchange();
@@ -1180,21 +730,14 @@ async function openEditor(test){
 function renderDraft(){
   var host=$('#draftList');host.innerHTML='';
   $('#taskCount').textContent=draftTasks.length;
-  if(!draftTasks.length){
-    host.innerHTML='<div class="empty">Заданий нет. Создайте первое слева.</div>';
-    return;
-  }
+  if(!draftTasks.length){host.innerHTML='<div class="empty">Заданий нет. Создайте первое слева.</div>';return;}
   draftTasks.forEach(function(t,i){
     var d=document.createElement('div');
     d.style.cssText='background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;padding:12px;margin-bottom:8px';
     var h=document.createElement('div');h.className='task-head';
-    h.innerHTML=
-      '<span class="badge">'+(i+1)+'</span>'+
-      '<span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span>'+
-      '<span class="pill">'+t.points+' б.</span>';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(t.type==='input'?'ввод':'выбор')+'</span><span class="pill">'+t.points+' б.</span>';
     var del=document.createElement('button');del.className='ghost small';del.textContent='✕';
-    del.style.marginLeft='auto';del.title='Удалить';
-    del.onclick=function(){draftTasks.splice(i,1);renderDraft();};
+    del.style.marginLeft='auto';del.onclick=function(){draftTasks.splice(i,1);renderDraft();};
     h.appendChild(del);d.appendChild(h);
     var s=createMathInput(t.statement,true);d.appendChild(s.el);
     host.appendChild(d);
@@ -1221,19 +764,23 @@ $('#btnAddTask').onclick=function(){
   draftTasks.push(task);
   stmtInput.setValue('');ansInput.setValue('');
   $('#optionsList').innerHTML='';addOption();addOption();
-  renderDraft();
-  toast('Задание добавлено','ok');
+  renderDraft();toast('Задание добавлено','ok');
 };
 
 $('#btnSaveTest').onclick=async function(){
   var title=$('#testTitle').value.trim()||'Без названия';
   if(!draftTasks.length){toast('Добавьте хотя бы одно задание','warn');return;}
+  var settings={
+    timeLimit:Math.max(0,parseInt($('#setTimeLimit').value)||0),
+    attempts:Math.max(0,parseInt($('#setAttempts').value)||0),
+    showAnswers:$('#setShowAnswers').checked
+  };
   try{
     if(editingTestId){
-      await api('/tests/'+editingTestId,{method:'PUT',body:{title:title,tasks:draftTasks,classIds:draftClassIds}});
+      await api('/tests/'+editingTestId,{method:'PUT',body:{title:title,tasks:draftTasks,classIds:draftClassIds,settings:settings}});
       toast('Работа обновлена','ok');
     }else{
-      await api('/tests',{method:'POST',body:{title:title,tasks:draftTasks,classIds:draftClassIds}});
+      await api('/tests',{method:'POST',body:{title:title,tasks:draftTasks,classIds:draftClassIds,settings:settings}});
       toast('Работа создана','ok');
     }
     goTeacher();
@@ -1241,73 +788,56 @@ $('#btnSaveTest').onclick=async function(){
 };
 $('#btnBackToTeacher').onclick=goTeacher;
 
-/* ============ УЧЕНИК ============ */
-async function goStudent(){
-  show('view-student');
-  await Promise.all([renderStudentTests(),renderStudentClasses()]);
-}
+/* ---------- ученик ---------- */
+async function goStudent(){show('view-student');await Promise.all([renderStudentTests(),renderStudentClasses()]);}
 
 async function renderStudentTests(){
-  var host=$('#studentList');
-  skeleton(host,3);
+  var host=$('#studentList');skeleton(host,3);
   try{
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty">'+
-        '<span class="icon">📖</span>'+
-        'Доступных работ пока нет.<br>Перейдите на вкладку <b>«Мои классы»</b> и присоединитесь к классу по коду от учителя.'+
-      '</div></div>';
+      host.innerHTML='<div class="card" style="grid-column:1/-1"><div class="empty"><span class="icon">📖</span>Доступных работ пока нет.<br>Перейдите на вкладку <b>«Мои классы»</b> и присоединитесь по коду от учителя.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
       var max=test.tasks.reduce(function(s,t){return s+(t.points||1);},0);
-      var card=document.createElement('div');card.className='card';
-      card.style.marginBottom='0';
-      card.innerHTML=
-        '<h3 style="margin-bottom:8px">'+esc(test.title)+'</h3>'+
+      var s=test.settings||{};
+      var attemptsUsed=test.attemptsUsed||0;
+      var attemptsLeft=s.attempts>0?(s.attempts-attemptsUsed):Infinity;
+      var canTry=attemptsLeft>0;
+
+      var card=document.createElement('div');card.className='card';card.style.marginBottom='0';
+      card.innerHTML='<h3 style="margin-bottom:8px">'+esc(test.title)+'</h3>'+
         '<div style="margin-bottom:12px">'+
           '<span class="pill">'+test.tasks.length+' заданий</span> '+
           '<span class="pill">макс. '+max+' б.</span>'+
+          (s.timeLimit>0?' <span class="pill warn">⏱ '+s.timeLimit+' мин</span>':'')+
+          (s.attempts>0?' <span class="pill">попыток: '+attemptsUsed+' / '+s.attempts+'</span>':'')+
         '</div>'+
-        (test.mySubmission?
-          '<div class="ok" style="margin-bottom:12px;font-weight:500">Ваш результат: '+
-          test.mySubmission.score+' / '+test.mySubmission.max+
-          ' <span class="muted">· '+fmt(test.mySubmission.at)+'</span></div>'
-          :'');
-      var b=document.createElement('button');b.className='primary';
-      b.style.width='100%';
-      b.textContent=test.mySubmission?'Пройти заново':'Начать →';
-      b.onclick=function(){openTest(test);};
+        (test.mySubmission?'<div class="ok" style="margin-bottom:12px;font-weight:500">Последний результат: '+test.mySubmission.score+' / '+test.mySubmission.max+' <span class="muted">· '+fmt(test.mySubmission.at)+'</span></div>':'');
+      var b=document.createElement('button');b.className='primary';b.style.width='100%';
+      if(!canTry){b.disabled=true;b.textContent='Попытки исчерпаны';}
+      else{b.textContent=test.mySubmission?'Пройти заново':'Начать →';b.onclick=function(){openTest(test);};}
       card.appendChild(b);host.appendChild(card);
     });
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
 
 async function renderStudentClasses(){
-  var host=$('#myClasses');
-  skeleton(host,2);
+  var host=$('#myClasses');skeleton(host,2);
   try{
     var r=await api('/classes');
     host.innerHTML='';
-    if(!r.classes.length){
-      host.innerHTML='<div class="empty">Пока вы не в классе. Введите код выше, чтобы присоединиться.</div>';
-      return;
-    }
+    if(!r.classes.length){host.innerHTML='<div class="empty">Пока вы не в классе. Введите код выше.</div>';return;}
     r.classes.forEach(function(c){
       var el=document.createElement('div');el.className='stu-row';
-      el.innerHTML=
-        '<div class="avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
-        '<div class="name"><div>'+esc(c.name)+'</div>'+
-        '<div class="muted">Учитель: '+esc(c.teacherName)+'</div></div>';
+      el.innerHTML='<div class="avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
+        '<div class="name"><div>'+esc(c.name)+'</div><div class="muted">Учитель: '+esc(c.teacherName)+'</div></div>';
       var b=document.createElement('button');b.className='ghost small danger';b.textContent='Покинуть';
       b.onclick=async function(){
         if(!confirm('Покинуть класс?'))return;
-        try{
-          await api('/classes/'+c.id+'/leave',{method:'POST'});
-          toast('Вы покинули класс','info');
-          renderStudentClasses();renderStudentTests();
-        }catch(e){toast(e.message,'err');}
+        try{await api('/classes/'+c.id+'/leave',{method:'POST'});toast('Вы покинули класс','info');renderStudentClasses();renderStudentTests();}catch(e){toast(e.message,'err');}
       };
       el.appendChild(b);host.appendChild(el);
     });
@@ -1320,32 +850,40 @@ $('#btnJoinClass').onclick=async function(){
   if(!c){$('#joinErr').textContent='Введите код';return;}
   try{
     await api('/classes/join',{method:'POST',body:{code:c}});
-    $('#joinCode').value='';
-    toast('Вы присоединились к классу','ok');
+    $('#joinCode').value='';toast('Вы присоединились к классу','ok');
     renderStudentClasses();renderStudentTests();
-  }catch(e){
-    $('#joinErr').textContent=e.message;
-    toast(e.message,'err');
-  }
+  }catch(e){$('#joinErr').textContent=e.message;toast(e.message,'err');}
 };
 
-/* ============ ПРОХОЖДЕНИЕ ============ */
+/* ---------- прохождение ---------- */
 function updateProgress(){
   if(!currentTest)return;
-  var total=currentTest.tasks.length;
-  var done=0;
+  var total=currentTest.tasks.length,done=0;
   currentTest.tasks.forEach(function(t,i){
-    if(t.type==='input'){
-      var mi=answerInputs[i];
-      if(mi && mi.getValue().trim()) done++;
-    }else{
-      if(choicePicks[i]!==undefined) done++;
-    }
+    if(t.type==='input'){var mi=answerInputs[i];if(mi&&mi.getValue().trim())done++;}
+    else{if(choicePicks[i]!==undefined)done++;}
   });
   var pct=total?Math.round(done/total*100):0;
   $('#progressFill').style.width=pct+'%';
   $('#progressText').textContent='Заполнено: '+done+' из '+total;
   $('#progressPct').textContent=pct+'%';
+}
+
+function updateTimer(){
+  if(!testDeadline)return;
+  var left=Math.max(0,testDeadline-Date.now());
+  var total=(currentTest.settings.timeLimit||0)*60000;
+  var pct=total?left/total*100:0;
+  var el=$('#timerDisplay');
+  if(!el)return;
+  var m=Math.floor(left/60000),s=Math.floor((left%60000)/1000);
+  el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  el.className='timer'+(pct<10?' critical':(pct<25?' warning':''));
+  if(left<=0){
+    clearInterval(timerInterval);timerInterval=null;
+    toast('Время вышло! Работа сдаётся автоматически','warn');
+    setTimeout(function(){submitTest(true);},500);
+  }
 }
 
 function openTest(test){
@@ -1357,15 +895,13 @@ function openTest(test){
   test.tasks.forEach(function(task,i){
     var card=document.createElement('div');card.className='card';
     var h=document.createElement('div');h.className='task-head';
-    h.innerHTML='<span class="badge">'+(i+1)+'</span>'+
-      '<span class="pill">'+(task.points||1)+' б.</span>';
+    h.innerHTML='<span class="badge">'+(i+1)+'</span><span class="pill">'+(task.points||1)+' б.</span>';
     card.appendChild(h);
     var s=createMathInput(task.statement,true);card.appendChild(s.el);
     if(task.type==='input'){
       var mi=createMathInput('',false);
       mi.textarea.addEventListener('input',updateProgress);
-      card.appendChild(mi.el);
-      answerInputs[i]=mi;
+      card.appendChild(mi.el);answerInputs[i]=mi;
     }else{
       var w=document.createElement('div');w.style.marginTop='6px';
       task.options.forEach(function(opt,j){
@@ -1382,65 +918,101 @@ function openTest(test){
     }
     host.appendChild(card);
   });
+
   updateProgress();
+
+  // таймер
+  var timer=$('#timerDisplay');
+  if(test.settings&&test.settings.timeLimit>0){
+    var key='test_start_'+test.id;
+    var started=parseInt(sessionStorage.getItem(key));
+    if(!started||isNaN(started)){started=Date.now();sessionStorage.setItem(key,started);}
+    testDeadline=started+test.settings.timeLimit*60000;
+    timer.hidden=false;
+    if(timerInterval)clearInterval(timerInterval);
+    updateTimer();
+    timerInterval=setInterval(updateTimer,1000);
+  }else{
+    timer.hidden=true;testDeadline=null;
+    if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  }
+
   show('view-take');
   setTimeout(updateProgress,100);
 }
+
 $('#btnBackFromTake').onclick=function(){
-  if(confirm('Выйти? Ответы не сохранятся.')) goStudent();
+  if(confirm('Выйти? Ответы не сохранятся.')){
+    if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+    goStudent();
+  }
 };
 
-$('#btnSubmitTest').onclick=async function(){
+async function submitTest(auto){
   if(!currentTest)return;
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
   var answers=currentTest.tasks.map(function(t,i){
-    if(t.type==='input'){
-      var mi=answerInputs[i];
-      return {text:mi?mi.getValue():''};
-    }
+    if(t.type==='input'){var mi=answerInputs[i];return {text:mi?mi.getValue():''};}
     return {index:choicePicks[i]===undefined?-1:choicePicks[i]};
   });
+  var started=parseInt(sessionStorage.getItem('test_start_'+currentTest.id))||Date.now();
   try{
-    var r=await api('/tests/'+currentTest.id+'/submit',{method:'POST',body:{answers:answers}});
+    var r=await api('/tests/'+currentTest.id+'/submit',{method:'POST',body:{answers:answers,startedAt:started}});
+    sessionStorage.removeItem('test_start_'+currentTest.id);
     $('#progressBar').hidden=true;
-    showResult(currentTest,r.results,r.score,r.max);
+    if(r.expired)toast('Работа сдана после истечения времени','warn');
+    showResult(currentTest,r);
   }catch(e){toast(e.message,'err');}
+}
+
+$('#btnSubmitTest').onclick=function(){
+  if(!confirm('Завершить работу и отправить учителю?'))return;
+  submitTest(false);
 };
 
-/* ============ РЕЗУЛЬТАТ ============ */
-function showResult(test,results,score,max){
+/* ---------- результат ---------- */
+function showResult(test,r){
   var card=$('#resultCard');
+  var score=r.score,max=r.max;
   var pct=max?Math.round(score/max*100):0;
-  var grade = pct>=80?'great' : pct>=60?'mid' : 'bad';
-  var gradeClass = pct>=80?'' : pct>=60?'mid' : 'bad';
-  var gradeText = pct>=80?'Отличный результат!' : pct>=60?'Хороший результат' : 'Стоит повторить';
+  var gradeClass=pct>=80?'':(pct>=60?'mid':'bad');
+  var gradeText=pct>=80?'Отличный результат!':(pct>=60?'Хороший результат':'Стоит повторить');
 
-  card.innerHTML=
-    '<h2 style="margin-bottom:20px">'+esc(test.title)+'</h2>'+
+  card.innerHTML='<h2 style="margin-bottom:20px">'+esc(test.title)+'</h2>'+
     '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
       '<div class="score-circle" data-grade="'+gradeClass+'" style="--pct:'+pct+'">'+
-        '<div class="val">'+score+' / '+max+'</div>'+
-        '<div class="lbl">'+pct+'%</div>'+
-      '</div>'+
+        '<div class="val">'+score+' / '+max+'</div><div class="lbl">'+pct+'%</div></div>'+
       '<div style="flex:1;min-width:200px">'+
         '<div style="font-size:18px;font-weight:600;margin-bottom:6px">'+gradeText+'</div>'+
-        '<div class="muted">Работа отправлена учителю.</div>'+
+        '<div class="muted">Работа отправлена учителю.'+
+          (r.durationMs?' <br>Время: '+fmtDur(r.durationMs):'')+
+          (r.attempt?' <br>Попытка №'+r.attempt:'')+
+        '</div>'+
       '</div>'+
     '</div>';
 
   test.tasks.forEach(function(task,i){
-    var r=results[i]||{ok:false};
-    var line=document.createElement('div');line.className='result-line '+(r.ok?'ok':'err');
+    var res=r.results[i]||{ok:false};
+    var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
     var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
-    var info=document.createElement('div');
-    info.style.fontSize='13.5px';
-    info.innerHTML=r.ok
+    var info=document.createElement('div');info.style.fontSize='13.5px';
+    info.innerHTML=res.ok
       ? '<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
       : '<span class="err" style="font-weight:600">✗ Неверно</span> <span class="muted">· 0 из '+(task.points||1)+' б.</span>';
     line.appendChild(info);
-    if(!r.ok&&task.type==='input'){
+    if(!res.ok&&res.correctAnswer){
       var a=document.createElement('div');a.style.marginTop='10px';
       a.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
-      var mf=createMathInput(task.answer,true);a.appendChild(mf.el);line.appendChild(a);
+      var mf=createMathInput(res.correctAnswer,true);a.appendChild(mf.el);line.appendChild(a);
+    }
+    if(!res.ok&&!res.correctAnswer&&r.settings&&!r.settings.showAnswers){
+      var n=document.createElement('div');n.className='muted';n.style.marginTop='6px';
+      n.textContent='(Правильный ответ скрыт учителем)';line.appendChild(n);
+    }
+    if(task.type==='choice'&&res.correctIndex!==undefined){
+      var a2=document.createElement('div');a2.style.marginTop='10px';
+      a2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
+      var mf2=createMathInput(task.options[res.correctIndex].text,true);a2.appendChild(mf2.el);line.appendChild(a2);
     }
     card.appendChild(line);
   });
@@ -1448,39 +1020,35 @@ function showResult(test,results,score,max){
 }
 $('#btnResultBack').onclick=goStudent;
 
-/* ============ РЕЗУЛЬТАТЫ ДЛЯ УЧИТЕЛЯ ============ */
+/* ---------- результаты учителя ---------- */
 async function showSubmissions(test){
+  currentSubmissionTest=test;
   $('#subsTitle').textContent='Результаты: '+test.title;
-  var body=$('#subsBody');
-  skeleton(body,4);
+  var body=$('#subsBody');skeleton(body,4);
   show('view-submissions');
   try{
     var r=await api('/tests/'+test.id+'/submissions');
     body.innerHTML='';
-    if(!r.groups.length){
-      body.innerHTML='<div class="card"><div class="empty">Работа не назначена ни одному классу.</div></div>';
-      return;
-    }
+    if(!r.groups.length){body.innerHTML='<div class="card"><div class="empty">Работа не назначена ни одному классу.</div></div>';return;}
+
     r.groups.forEach(function(g){
       var card=document.createElement('div');card.className='card';
       var total=g.submitted.length+g.notSubmitted.length;
       var avg=g.submitted.length?Math.round(g.submitted.reduce(function(s,x){return s+(x.max?x.score/x.max:0);},0)/g.submitted.length*100):0;
-      card.innerHTML=
-        '<div class="row tight">'+
-          '<h3 style="flex:1;margin:0">'+esc(g.className)+'</h3>'+
-          '<span class="pill">сдано: '+g.submitted.length+' / '+total+'</span>'+
-          (g.submitted.length?'<span class="pill green">средний: '+avg+'%</span>':'')+
-        '</div>';
-
+      card.innerHTML='<div class="row tight"><h3 style="flex:1;margin:0">'+esc(g.className)+'</h3>'+
+        '<span class="pill">сдано: '+g.submitted.length+' / '+total+'</span>'+
+        (g.submitted.length?'<span class="pill green">средний: '+avg+'%</span>':'')+'</div>';
       if(g.submitted.length){
         var h=document.createElement('h4');h.className='sec';h.textContent='Сдали';card.appendChild(h);
         g.submitted.forEach(function(s){
           var pct=s.max?Math.round(s.score/s.max*100):0;
           var el=document.createElement('div');el.className='stu-row';
-          el.innerHTML=
-            '<div class="avatar">'+esc((s.studentName[0]||'?').toUpperCase())+'</div>'+
-            '<div class="name"><div>'+esc(s.studentName)+'</div>'+
-            '<div class="muted">'+fmt(s.at)+'</div></div>'+
+          el.innerHTML='<div class="avatar">'+esc((s.studentName[0]||'?').toUpperCase())+'</div>'+
+            '<div class="name"><div>'+esc(s.studentName)+
+              (s.attempt>1?' <span class="pill" style="font-size:10.5px">попытка '+s.attempt+'</span>':'')+
+            '</div><div class="muted">'+fmt(s.at)+(s.durationMs?' · '+fmtDur(s.durationMs):'')+
+              (s.expired?' <span class="pill red" style="font-size:10.5px">просрочено</span>':'')+
+            '</div></div>'+
             '<div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+' ('+pct+'%)</div>';
           var b=document.createElement('button');b.className='ghost small';b.textContent='Работа';
           b.onclick=function(){openSubmissionDetail(s.id,test.id);};
@@ -1488,15 +1056,11 @@ async function showSubmissions(test){
         });
       }
       if(g.notSubmitted.length){
-        var h2=document.createElement('h4');h2.className='sec';h2.textContent='Не сдали ('+g.notSubmitted.length+')';
-        card.appendChild(h2);
+        var h2=document.createElement('h4');h2.className='sec';h2.textContent='Не сдали ('+g.notSubmitted.length+')';card.appendChild(h2);
         g.notSubmitted.forEach(function(u){
-          var el=document.createElement('div');el.className='stu-row';
-          el.style.opacity='.7';
-          el.innerHTML=
-            '<div class="avatar" style="background:#3a465c">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
-            '<div class="name">'+esc(u.name)+'</div>'+
-            '<div class="muted">нет сдачи</div>';
+          var el=document.createElement('div');el.className='stu-row';el.style.opacity='.7';
+          el.innerHTML='<div class="avatar" style="background:#3a465c">'+esc((u.name[0]||'?').toUpperCase())+'</div>'+
+            '<div class="name">'+esc(u.name)+'</div><div class="muted">нет сдачи</div>';
           card.appendChild(el);
         });
       }
@@ -1506,6 +1070,56 @@ async function showSubmissions(test){
 }
 $('#btnBackFromSubs').onclick=goTeacher;
 
+/* ---------- экспорт CSV ---------- */
+$('#btnExportCsv').onclick=async function(){
+  if(!currentSubmissionTest)return;
+  try{
+    var tk=getToken();
+    var url='/api/tests/'+currentSubmissionTest.id+'/export.csv';
+    var res=await fetch(url,{headers:{Authorization:'Bearer '+tk}});
+    if(!res.ok)throw new Error('Не удалось скачать');
+    var blob=await res.blob();
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='results.csv';
+    document.body.appendChild(a);a.click();a.remove();
+    toast('CSV скачан','ok');
+  }catch(e){toast(e.message,'err');}
+};
+
+/* ---------- аналитика ---------- */
+$('#btnShowAnalytics').onclick=async function(){
+  if(!currentSubmissionTest)return;
+  $('#subsTitle').textContent='Аналитика: '+currentSubmissionTest.title;
+  var body=$('#subsBody');skeleton(body,4);
+  try{
+    var r=await api('/tests/'+currentSubmissionTest.id+'/submissions');
+    body.innerHTML='';
+    var card=document.createElement('div');card.className='card';
+    card.innerHTML='<h3>📊 Успешность по заданиям</h3>'+
+      '<div class="muted" style="margin-bottom:14px">Процент учеников, справившихся с каждым заданием (по всем классам).</div>';
+    if(!r.analytics||!r.analytics.length){card.innerHTML+='<div class="empty">Нет данных</div>';}
+    r.analytics.forEach(function(a){
+      var color=a.pct>=75?'var(--ok)':(a.pct>=40?'var(--warn)':'var(--err)');
+      var row=document.createElement('div');row.className='analytics-row';
+      row.innerHTML='<div class="num">'+a.index+'</div>'+
+        '<div class="body">'+
+          '<div style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
+            esc(a.statement.replace(/[#*_`~]/g,'').slice(0,70))+
+          '</div>'+
+          '<div class="bar-track"><div class="bar-fill" style="width:'+a.pct+'%;background:'+color+'"></div></div>'+
+        '</div>'+
+        '<div class="pct" style="color:'+color+'">'+a.pct+'%</div>'+
+        '<div class="muted" style="font-size:11.5px;min-width:60px;text-align:right">'+a.correct+' / '+a.total+'</div>';
+      card.appendChild(row);
+    });
+    body.appendChild(card);
+    var back=document.createElement('button');back.className='primary';back.textContent='← К результатам';
+    back.onclick=function(){showSubmissions(currentSubmissionTest);};
+    body.appendChild(back);
+  }catch(e){body.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+};
+
 async function openSubmissionDetail(subId,testId){
   try{
     var r=await api('/submissions/'+subId);
@@ -1514,23 +1128,20 @@ async function openSubmissionDetail(subId,testId){
     body.innerHTML='';
     var card=document.createElement('div');card.className='card';
     var pct=r.submission.max?Math.round(r.submission.score/r.submission.max*100):0;
-    var gradeClass = pct>=80?'' : pct>=60?'mid' : 'bad';
-    card.innerHTML=
-      '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
-        '<div class="score-circle" data-grade="'+gradeClass+'" style="--pct:'+pct+'">'+
-          '<div class="val">'+r.submission.score+' / '+r.submission.max+'</div>'+
-          '<div class="lbl">'+pct+'%</div>'+
-        '</div>'+
-        '<div class="muted" style="flex:1">'+fmt(r.submission.at)+'</div>'+
-      '</div>';
+    var gradeClass=pct>=80?'':(pct>=60?'mid':'bad');
+    card.innerHTML='<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:20px">'+
+      '<div class="score-circle" data-grade="'+gradeClass+'" style="--pct:'+pct+'">'+
+        '<div class="val">'+r.submission.score+' / '+r.submission.max+'</div><div class="lbl">'+pct+'%</div></div>'+
+      '<div class="muted" style="flex:1">'+fmt(r.submission.at)+
+        (r.submission.durationMs?'<br>Время: '+fmtDur(r.submission.durationMs):'')+
+        (r.submission.attempt?'<br>Попытка №'+r.submission.attempt:'')+'</div></div>';
     r.test.tasks.forEach(function(task,i){
       var res=r.submission.results[i]||{ok:false,studentText:''};
       var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
       var s=createMathInput(task.statement,true);s.el.style.marginBottom='6px';line.appendChild(s.el);
       var info=document.createElement('div');
-      info.innerHTML=res.ok
-        ? '<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
-        : '<span class="err" style="font-weight:600">✗ Неверно</span> <span class="muted">· '+(task.points||1)+' б.</span>';
+      info.innerHTML=res.ok?'<span class="ok" style="font-weight:600">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
+                          :'<span class="err" style="font-weight:600">✗ Неверно</span> <span class="muted">· '+(task.points||1)+' б.</span>';
       line.appendChild(info);
       if(task.type==='input'){
         var st=document.createElement('div');st.style.marginTop='10px';
@@ -1541,35 +1152,33 @@ async function openSubmissionDetail(subId,testId){
           c.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный ответ:</div>';
           var mfc=createMathInput(task.answer,true);c.appendChild(mfc.el);line.appendChild(c);
         }
+      }else if(!res.ok){
+        var c2=document.createElement('div');c2.style.marginTop='10px';
+        c2.innerHTML='<div class="muted" style="margin-bottom:4px">Правильный вариант:</div>';
+        var mf2=createMathInput(task.options[task.correctIndex].text,true);c2.appendChild(mf2.el);line.appendChild(c2);
       }
       card.appendChild(line);
     });
     var b=document.createElement('button');b.className='primary';b.textContent='← К результатам';
     b.onclick=function(){
-      api('/tests').then(function(rr){
-        var t=rr.tests.find(function(x){return x.id===testId;});
-        if(t)showSubmissions(t);else goTeacher();
-      });
+      var t=currentSubmissionTest||{};
+      if(t.id===testId)showSubmissions(t);else goTeacher();
     };
     card.appendChild(b);body.appendChild(card);
   }catch(e){toast(e.message,'err');}
 }
 
-/* ============ КНОПКА ВВЕРХ ============ */
+/* ---------- кнопка вверх ---------- */
 var toTop=$('#toTop');
-window.addEventListener('scroll',function(){
-  toTop.classList.toggle('show',window.scrollY>300);
-});
+window.addEventListener('scroll',function(){toTop.classList.toggle('show',window.scrollY>300);});
 toTop.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
 
-/* ============ СТАРТ ============ */
+/* ---------- старт ---------- */
 async function boot(){
   initEditorFields();
   if(getToken()){
-    try{
-      var r=await api('/auth/me');
-      enterApp(r.user);return;
-    }catch(e){setToken(null);}
+    try{var r=await api('/auth/me');enterApp(r.user);return;}
+    catch(e){setToken(null);}
   }
   show('view-auth');
   setTimeout(function(){$('#loginEmail').focus();},150);
