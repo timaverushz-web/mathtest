@@ -365,6 +365,59 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .theme-option:hover{border-color:var(--accent)}
 .theme-option.active{border-color:var(--accent);background:rgba(91,141,255,.1)}
 
+/* ===== Соц. вход ===== */
+.social-login{
+  margin-top:22px;
+  width:100%;
+}
+.social-divider{
+  display:flex;align-items:center;gap:12px;
+  color:var(--muted);font-size:12px;
+  margin:8px 0 16px;
+}
+.social-divider::before,
+.social-divider::after{
+  content:'';flex:1;height:1px;background:var(--line-soft);
+}
+.social-buttons{
+  display:flex;flex-direction:column;gap:10px;
+  align-items:center;width:100%;
+}
+.social-btn-box{
+  width:100%;max-width:340px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:10px;overflow:hidden;
+}
+.social-btn-box > div,
+.social-btn-box > iframe{
+  width:100% !important;
+  height:44px !important;
+  max-width:100% !important;
+}
+/* Google widget внутри */
+.social-btn-box .g_id_signin > div,
+.social-btn-box .g_id_signin iframe{
+  width:100% !important;
+  height:44px !important;
+  border-radius:10px !important;
+  border:1px solid var(--line) !important;
+  box-shadow:none !important;
+  background:var(--bg-soft) !important;
+}
+/* Telegram widget внутри */
+#tgLoginWrap iframe{
+  width:100% !important;
+  height:44px !important;
+  border:none !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  overflow:hidden !important;
+}
+.social-login .err{
+  text-align:center;margin-top:10px;min-height:0;
+}
+.social-login .err:empty{display:none}
+
 /* Mobile */
 @media(max-width:640px){
   main{padding:18px 14px 70px}
