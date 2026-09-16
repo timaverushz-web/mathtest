@@ -4,6 +4,8 @@ const jwt     = require('jsonwebtoken');
 const path    = require('path');
 const crypto  = require('crypto');
 const { Pool } = require('pg');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const SECRET    = process.env.JWT_SECRET || 'dev-secret-change-me';
 const PORT      = process.env.PORT || 3000;
@@ -355,6 +357,40 @@ app.get('/api/telegram/bot-info', async (req, res) => {
     res.json({ username: me.username });
   } catch (e) {
     res.json({ username: null });
+  }
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'Нет токена от Google' });
+
+    // Проверяем ID Token на сервере
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { email, name, sub: googleId } = payload;
+
+    // Ищем пользователя по email
+    let user = await getUserByEmail(email);
+    if (!user) {
+      // Если нет — создаём нового ученика
+      const id = uid();
+      await pool.query(
+        `INSERT INTO users (id, name, email, pass, role, link_code, created_at)
+         VALUES ($1,$2,$3,$4,'student',$5,$6)`,
+        [id, name, email, 'google_no_password', uid() + uid(), Date.now()]
+      );
+      user = await getUserById(id);
+    }
+
+    const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+  } catch (e) {
+    console.error('google auth error:', e.message);
+    res.status(500).json({ error: 'Ошибка авторизации через Google' });
   }
 });
 
