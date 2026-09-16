@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MathTest</title>
+<title>MathTest — конструктор контрольных работ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <link rel="stylesheet" href="/style.css">
@@ -15,8 +15,8 @@
 </head>
 <body>
 
-<!-- SVG-спрайт иконок — используется через <use href="#i-name"> -->
-<svg width="0" height="0" style="position:absolute">
+<!-- ===== SVG-СПРАЙТ ИКОНОК ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
@@ -36,20 +36,21 @@
     <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
     <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
-    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
     <symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
     <symbol id="i-paperclip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></symbol>
   </defs>
 </svg>
 
 <div id="toasts"></div>
 
+<!-- ==================== ШАПКА ==================== -->
 <header id="topbar">
-  <div class="brand">
+  <div class="brand" id="brandBtn">
     <span class="sigma">∑</span>
     <span>MathTest</span>
   </div>
@@ -84,6 +85,7 @@
   <svg><use href="#i-arrow-up"/></svg>
 </button>
 
+<!-- ==================== ПАНЕЛЬ УВЕДОМЛЕНИЙ ==================== -->
 <div class="notif-panel" id="notifPanel" hidden>
   <div class="notif-head">
     <b>Уведомления</b>
@@ -94,19 +96,120 @@
 
 <main>
 
-<!-- АВТОРИЗАЦИЯ -->
-<section id="view-auth" class="view active">
-  <div class="card narrow">
-    <h2 style="text-align:center;margin-bottom:28px">
-      <span class="gradient-text">Добро пожаловать</span>
+<!-- ==================== ЛЕНДИНГ ==================== -->
+<section id="view-landing" class="view active">
+  <div class="landing">
+    <!-- Декоративные математические символы -->
+    <span class="math-deco d1">∑</span>
+    <span class="math-deco d2">∫</span>
+    <span class="math-deco d3">π</span>
+    <span class="math-deco d4">√</span>
+
+    <div class="landing-hero">
+      <div class="landing-badge">
+        <span class="dot"></span>
+        Работает для школы и вуза
+      </div>
+
+      <h1 class="landing-h1">
+        Конструктор<br>
+        контрольных работ<br>
+        по <span class="accent">высшей математике</span>
+      </h1>
+
+      <p class="landing-sub">
+        Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку книг. Всё в одном месте — без бумажной волокиты.
+      </p>
+
+      <div class="landing-cta">
+        <button class="primary" id="landingStart">Начать бесплатно</button>
+        <button class="ghost" id="landingLogin">Войти в аккаунт</button>
+      </div>
+    </div>
+
+    <div class="landing-stats-row">
+      <div class="landing-stat">
+        <div class="ls-value accent">∞</div>
+        <div class="ls-label">Работ и классов</div>
+      </div>
+      <div class="landing-stat">
+        <div class="ls-value">0 ₽</div>
+        <div class="ls-label">Плата за использование</div>
+      </div>
+      <div class="landing-stat">
+        <div class="ls-value">24/7</div>
+        <div class="ls-label">Доступ с любого устройства</div>
+      </div>
+      <div class="landing-stat">
+        <div class="ls-value accent">100%</div>
+        <div class="ls-label">Автопроверка формул</div>
+      </div>
+    </div>
+
+    <h2 class="landing-section-title">
+      Всё, что нужно <span class="muted">преподавателю</span>
     </h2>
-    <div class="tabs" style="width:100%;justify-content:center;display:flex;margin-bottom:24px">
+
+    <div class="landing-features">
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-edit"/></svg></div>
+        <h3>Умный конструктор</h3>
+        <p>Формулы прямо в браузере — корни, интегралы, пределы. Панель символов и предпросмотр в реальном времени.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-chart"/></svg></div>
+        <h3>Автопроверка</h3>
+        <p>Система сравнит ответ ученика с правильным — численно, символьно и точно. √16 = 4 = 2² будет зачтено.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-users"/></svg></div>
+        <h3>Классы и группы</h3>
+        <p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам. Учитель видит, кто сдал и кто нет.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-book"/></svg></div>
+        <h3>Библиотека книг</h3>
+        <p>Загружайте учебники и пособия, выдавайте доступ классам. Ученики читают прямо в браузере или скачивают.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-chat"/></svg></div>
+        <h3>Чат класса</h3>
+        <p>Обсуждайте задачи в чате класса. Обмен файлами, уведомления в Telegram — всё под рукой.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="lf-icon"><svg><use href="#i-crown"/></svg></div>
+        <h3>Роли и права</h3>
+        <p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности. Никакой путаницы.</p>
+      </div>
+    </div>
+
+    <div class="landing-final">
+      <h2>Готовы начать?</h2>
+      <p>Создайте первый класс за 30 секунд. Никаких ограничений, никакой платы.</p>
+      <button class="primary" id="landingStart2">Создать аккаунт</button>
+    </div>
+
+    <div class="landing-footer">
+      MathTest · сделано для преподавателей и студентов
+    </div>
+  </div>
+</section>
+
+<!-- ==================== АВТОРИЗАЦИЯ ==================== -->
+<section id="view-auth" class="view">
+  <div class="auth-card">
+    <div class="auth-title">Добро пожаловать</div>
+    <div class="auth-sub">Войдите, чтобы продолжить</div>
+
+    <div class="tabs" style="width:100%;justify-content:center;display:flex;margin-bottom:26px">
       <button class="tab active" data-tab="login" style="flex:1">Вход</button>
       <button class="tab" data-tab="reg" style="flex:1">Регистрация</button>
     </div>
 
     <div id="loginForm">
-      <label>Email<input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Email
+        <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
+      </label>
       <label>Пароль
         <div class="pass-wrap">
           <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
@@ -115,7 +218,7 @@
           </button>
         </div>
       </label>
-      <button class="primary block" id="doLogin" style="margin-top:12px">Войти</button>
+      <button class="primary block" id="doLogin" style="margin-top:14px">Войти</button>
 
       <div class="social-login">
         <div class="social-divider"><span>или войдите через</span></div>
@@ -146,14 +249,14 @@
           <option value="librarian">Библиотекарь</option>
         </select>
       </label>
-      <button class="primary block" id="doRegister" style="margin-top:12px">Создать аккаунт</button>
+      <button class="primary block" id="doRegister" style="margin-top:14px">Создать аккаунт</button>
     </div>
 
     <p class="err" id="authErr" style="text-align:center"></p>
   </div>
 </section>
 
-<!-- УЧИТЕЛЬ -->
+<!-- ==================== УЧИТЕЛЬ ==================== -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:36px">
     <h1 class="page-title" style="flex:1">Кабинет</h1>
@@ -168,11 +271,11 @@
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
-<!-- РЕДАКТОР -->
+<!-- ==================== РЕДАКТОР ==================== -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackToTeacher"><svg><use href="#i-arrow-left"/></svg> Назад</button>
-    <input id="testTitle" placeholder="Название работы" style="flex:1;min-width:260px;margin:0;font-size:18px;font-weight:700">
+    <input id="testTitle" placeholder="Название работы" style="flex:1;min-width:260px;margin:0;font-size:18px;font-weight:800">
     <button class="primary" id="btnSaveTest"><svg><use href="#i-save"/></svg> Сохранить</button>
   </div>
   <div class="card">
@@ -232,7 +335,7 @@
   </div>
 </section>
 
-<!-- КЛАСС -->
+<!-- ==================== КЛАСС ==================== -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromClass"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -288,7 +391,7 @@
   </div>
 </section>
 
-<!-- УЧЕНИК -->
+<!-- ==================== УЧЕНИК ==================== -->
 <section id="view-student" class="view">
   <h1 class="page-title" style="margin-bottom:36px">Мой кабинет</h1>
   <div class="tabs">
@@ -300,7 +403,7 @@
     <div class="card">
       <h3>Присоединиться к классу</h3>
       <div class="row" style="margin-bottom:0">
-        <input id="joinCode" placeholder="Введите код класса" style="flex:1;min-width:220px;margin:0;text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px" maxlength="10">
+        <input id="joinCode" placeholder="Введите код класса" style="flex:1;min-width:220px;margin:0;text-transform:uppercase;letter-spacing:3px;font-weight:900;font-size:18px" maxlength="10">
         <button class="primary" id="btnJoinClass">Присоединиться</button>
       </div>
       <p class="err" id="joinErr" style="margin-top:12px"></p>
@@ -309,7 +412,7 @@
   </div>
 </section>
 
-<!-- ПРОХОЖДЕНИЕ -->
+<!-- ==================== ПРОХОЖДЕНИЕ ==================== -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -326,24 +429,24 @@
   <div id="takeBody"></div>
 </section>
 
-<!-- РЕЗУЛЬТАТ -->
+<!-- ==================== РЕЗУЛЬТАТ ==================== -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack"><svg><use href="#i-arrow-left"/></svg> К списку работ</button>
 </section>
 
-<!-- РЕЗУЛЬТАТЫ УЧИТЕЛЯ -->
+<!-- ==================== РЕЗУЛЬТАТЫ УЧИТЕЛЯ ==================== -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromSubs"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 id="subsTitle" class="page-title" style="margin:0;flex:1"></h1>
-    <button class="small" id="btnExportCsv"><svg><use href="#i-download"/></svg> Экспорт CSV</button>
+    <button class="small" id="btnExportCsv"><svg><use href="#i-download"/></svg> Экспорт</button>
     <button class="small" id="btnShowAnalytics"><svg><use href="#i-chart"/></svg> Аналитика</button>
   </div>
   <div id="subsBody"></div>
 </section>
 
-<!-- ДАШБОРД -->
+<!-- ==================== ДАШБОРД ==================== -->
 <section id="view-dashboard" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromDashboard"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -352,7 +455,7 @@
   <div id="dashboardBody"></div>
 </section>
 
-<!-- БИБЛИОТЕКА -->
+<!-- ==================== БИБЛИОТЕКА ==================== -->
 <section id="view-library" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromLibrary"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -397,7 +500,7 @@
   <div id="bookList"></div>
 </section>
 
-<!-- АДМИН-ПАНЕЛЬ -->
+<!-- ==================== АДМИН-ПАНЕЛЬ ==================== -->
 <section id="view-admin" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -448,17 +551,16 @@
   </div>
 </section>
 
-<!-- ЛИЧНЫЙ КАБИНЕТ -->
+<!-- ==================== ЛИЧНЫЙ КАБИНЕТ ==================== -->
 <section id="view-profile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 class="page-title" style="margin:0;flex:1">Личный кабинет</h1>
-    <button class="primary small" id="btnEditProfile"><svg><use href="#i-edit"/></svg> Редактировать</button>
   </div>
   <div id="profileStats"></div>
 </section>
 
-<!-- РЕДАКТИРОВАНИЕ ПРОФИЛЯ -->
+<!-- ==================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ==================== -->
 <section id="view-editprofile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromEditProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -489,7 +591,7 @@
 
 </main>
 
-<!-- МОДАЛКА ПРОФИЛЯ / НАСТРОЕК -->
+<!-- ==================== МОДАЛКА ПРОФИЛЯ / НАСТРОЕК ==================== -->
 <div id="profileModal" class="modal-overlay" hidden>
   <div class="modal-card">
     <div class="modal-head">
@@ -500,7 +602,7 @@
       <div class="row" style="align-items:center;gap:16px;margin-bottom:24px">
         <div class="avatar" id="profAvatar" style="width:56px;height:56px;font-size:22px"></div>
         <div>
-          <div style="font-weight:700;font-size:17px" id="profName"></div>
+          <div style="font-weight:800;font-size:17px" id="profName"></div>
           <div class="muted" id="profRole"></div>
         </div>
       </div>
@@ -518,17 +620,16 @@
   </div>
 </div>
 
-<!-- ПЛАВАЮЩАЯ КНОПКА ЧАТА ПОДДЕРЖКИ -->
+<!-- ==================== ЧАТ ПОДДЕРЖКИ ==================== -->
 <button id="supportBtn" title="Чат поддержки">
   <svg><use href="#i-chat"/></svg>
   <span class="support-badge"></span>
 </button>
 
-<!-- ПАНЕЛЬ ЧАТА ПОДДЕРЖКИ -->
 <div id="supportPanel" hidden>
   <div class="support-head">
     <div class="support-avatar">
-      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L15 9 L22 9 L17 14 L19 21 L12 17 L5 21 L7 14 L2 9 L9 9 Z"/></svg>
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg>
     </div>
     <div class="support-info">
       <b>Поддержка MathTest</b>
@@ -543,7 +644,7 @@
     <button data-q="Как создать класс?">Как создать класс?</button>
     <button data-q="Как загрузить книгу?">Загрузить книгу</button>
     <button data-q="Как пригласить ученика?">Пригласить ученика</button>
-    <button data-q="Не приходит письмо">Не приходит письмо</button>
+    <button data-q="Как работает автопроверка?">Автопроверка</button>
   </div>
 
   <div class="support-input-row">
@@ -552,7 +653,7 @@
   </div>
 </div>
 
-<!-- МОБИЛЬНАЯ НИЖНЯЯ НАВИГАЦИЯ -->
+<!-- ==================== МОБИЛЬНАЯ НАВИГАЦИЯ ==================== -->
 <nav id="mobile-nav">
   <div class="mn-inner">
     <button data-mnav="home">
