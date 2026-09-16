@@ -249,16 +249,14 @@ function renderTop(){
   var bn=$('#btnNotif'),bp=$('#btnProfile'),ba=$('#btnAdmin'),bl=$('#btnLibrary');
   if(!currentUser){
     box.innerHTML='';
-    if(bn)bn.style.display='none';
-    if(bp)bp.style.display='none';
-    if(ba)ba.style.display='none';
-    if(bl)bl.style.display='none';
+    [bn,bp,ba,bl].forEach(function(el){ if(el) el.setAttribute('hidden',''); });
     return;
   }
-  if(bn)bn.style.display='';
-  if(bp)bp.style.display='';
-  if(bl)bl.style.display='';
-  if(ba)ba.style.display=isAdmin()?'':'none';
+  [bn,bp,bl].forEach(function(el){ if(el) el.removeAttribute('hidden'); });
+  if(ba){
+    if(isAdmin()) ba.removeAttribute('hidden');
+    else ba.setAttribute('hidden','');
+  }
   box.innerHTML='<div class="user-chip">'+
     '<div class="avatar" id="topAvatar"></div>'+
     '<div><div style="font-weight:500;font-size:13.5px">'+esc(currentUser.name)+'</div>'+
