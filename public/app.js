@@ -322,7 +322,65 @@ async function openProfile(){
   }
 }
 
-/* ============ TELEGRAM LOGIN WIDGET ============ */
+/* ============ GOOGLE LOGIN ============ */
+var GOOGLE_CLIENT_ID = '279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com';
+
+function initGoogleLogin(){
+  if(!GOOGLE_CLIENT_ID) return;
+  if(window.__googleReady) return;
+  window.__googleReady = true;
+
+  window.handleGoogleLogin = async function(response){
+    var errEl = document.getElementById('googleLoginErr');
+    if(errEl) errEl.textContent = '';
+    try{
+      var r = await api('/auth/google', { method: 'POST', body: { credential: response.credential } });
+      setToken(r.token);
+      enterApp(r.user);
+      toast('Вы вошли через Google', 'ok');
+    }catch(e){
+      if(errEl) errEl.textContent = e.message;
+      toast(e.message, 'err');
+    }
+  };
+
+  function tryRender(){
+    if(!window.google || !window.google.accounts || !window.google.accounts.id){
+      setTimeout(tryRender, 200);
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: window.handleGoogleLogin
+    });
+    var box = document.getElementById('googleBtnBox');
+    if(!box) return;
+    box.innerHTML = '';
+    google.accounts.id.renderButton(box, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width: 340
+    });
+  }
+
+  if(!document.getElementById('gsi-script')){
+    var s = document.createElement('script');
+    s.id = 'gsi-script';
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.defer = true;
+    s.onload = tryRender;
+    document.head.appendChild(s);
+  } else {
+    tryRender();
+  }
+}
+
+/* ============ TELEGRAM LOGIN ============ */
 function initTelegramLogin(){
   var wrap = document.getElementById('tgLoginWrap');
   if(!wrap || !window.TELEGRAM_BOT_USERNAME) return;
@@ -349,10 +407,10 @@ function initTelegramLogin(){
   script.setAttribute('data-telegram-login', window.TELEGRAM_BOT_USERNAME);
   script.setAttribute('data-size', 'large');
   script.setAttribute('data-radius', '10');
+  script.setAttribute('data-userpic', 'false');
+  script.setAttribute('data-color', 'white');
   script.setAttribute('data-onauth', 'onTelegramAuth(user)');
   script.setAttribute('data-request-access', 'write');
-    script.setAttribute('data-userpic', 'false');
-  script.setAttribute('data-color', 'ffffff');
   wrap.appendChild(script);
 }
 
@@ -1449,31 +1507,8 @@ async function boot(){
     }
   }
 
-   // 12. Инициализируем Google-вход
-  window.handleGoogleLogin = async function(response){
-    var errEl = document.getElementById('googleLoginErr');
-    if(errEl) errEl.textContent = '';
-    try{
-      var r = await api('/auth/google', { method: 'POST', body: { credential: response.credential } });
-      setToken(r.token);
-      enterApp(r.user);
-      toast('Вы вошли через Google', 'ok');
-    }catch(e){
-      if(errEl) errEl.textContent = e.message;
-      toast(e.message, 'err');
-    }
-  };
-  (function loadGSI(){
-    if(document.getElementById('gsi-script')) return;
-    var s = document.createElement('script');
-    s.id = 'gsi-script';
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.defer = true;
-    document.head.appendChild(s);
-  })();
-
-  // 13. Инициализируем Telegram-виджет
+  // 12. Инициализируем Google и Telegram
+  initGoogleLogin();
   initTelegramLogin();
   show('view-auth');
   setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
