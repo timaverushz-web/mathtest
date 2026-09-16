@@ -322,6 +322,38 @@ async function openProfile(){
   }
 }
 
+/* ============ TELEGRAM LOGIN WIDGET ============ */
+function initTelegramLogin(){
+  var wrap = document.getElementById('tgLoginWrap');
+  if(!wrap || !window.TELEGRAM_BOT_USERNAME) return;
+  if(wrap.dataset.ready) return;
+  wrap.dataset.ready = '1';
+
+  window.onTelegramAuth = async function(user){
+    var errEl = document.getElementById('tgLoginErr');
+    if(errEl) errEl.textContent = '';
+    try{
+      var r = await api('/auth/telegram', { method: 'POST', body: user });
+      setToken(r.token);
+      enterApp(r.user);
+      toast('Вы вошли через Telegram', 'ok');
+    }catch(e){
+      if(errEl) errEl.textContent = e.message;
+      toast(e.message, 'err');
+    }
+  };
+
+  var script = document.createElement('script');
+  script.async = true;
+  script.src = 'https://telegram.org/js/telegram-widget.js?22';
+  script.setAttribute('data-telegram-login', window.TELEGRAM_BOT_USERNAME);
+  script.setAttribute('data-size', 'large');
+  script.setAttribute('data-radius', '10');
+  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+  script.setAttribute('data-request-access', 'write');
+  wrap.appendChild(script);
+}
+
 /* ============ УЧИТЕЛЬ ============ */
 async function goTeacher(){
   show('view-teacher');
@@ -1256,9 +1288,15 @@ function enterApp(u){
 }
 
 async function boot(){
+  // 1. Получаем username бота для виджета Telegram
+  try{
+    var tgInfo = await fetch('/api/telegram/bot-info').then(function(r){return r.json();});
+    if(tgInfo && tgInfo.username) window.TELEGRAM_BOT_USERNAME = tgInfo.username;
+  }catch(e){}
+
   initEditorFields();
 
-  // Обработчики шапки
+  // 2. Обработчики шапки
   var bt=$('#btnTheme');
   if(bt)bt.onclick=function(){
     var cur=document.documentElement.getAttribute('data-theme');
@@ -1274,14 +1312,13 @@ async function boot(){
   var bprof=$('#btnProfile');
   if(bprof)bprof.onclick=openProfile;
 
-  // Закрытие панели уведомлений по клику снаружи
   document.addEventListener('click',function(e){
     if(!notifOpen)return;
     if(e.target.closest('#notifPanel')||e.target.closest('#btnNotif'))return;
     closeNotifPanel();
   });
 
-  // Профиль — модалка
+  // 3. Профиль — модалка
   var bcp=$('#btnCloseProfile');
   if(bcp)bcp.onclick=function(){$('#profileModal').hidden=true;};
   var pm=$('#profileModal');
@@ -1295,7 +1332,7 @@ async function boot(){
     };
   });
 
-  // Показать пароль
+  // 4. Показать пароль
   $$('.pass-toggle').forEach(function(btn){
     btn.onclick=function(){
       var inp=$('#'+btn.dataset.target);if(!inp)return;
@@ -1305,7 +1342,7 @@ async function boot(){
     };
   });
 
-  // Enter на формах
+  // 5. Enter на формах
   ['loginEmail','loginPass'].forEach(function(id){
     var el=$('#'+id);
     if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter')$('#doLogin').click();});
@@ -1317,7 +1354,7 @@ async function boot(){
   var jc=$('#joinCode');
   if(jc)jc.addEventListener('keydown',function(e){if(e.key==='Enter')$('#btnJoinClass').click();});
 
-  // Табы
+  // 6. Табы
   $$('.tab').forEach(function(t){
     if(!t.dataset.tab)return;
     t.onclick=function(){
@@ -1346,7 +1383,7 @@ async function boot(){
     };
   });
 
-  // Кнопки авторизации
+  // 7. Кнопки авторизации
   $('#doLogin').onclick=async function(){
     var ae=$('#authErr');if(ae)ae.textContent='';
     try{
@@ -1368,7 +1405,7 @@ async function boot(){
     }catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
   };
 
-  // Кнопки учителя
+  // 8. Кнопки учителя
   var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
   var bnc=$('#btnNewClass');if(bnc)bnc.onclick=async function(){
     var name=prompt('Название класса (например: Математика 101)');
@@ -1388,16 +1425,17 @@ async function boot(){
   var bbfs=$('#btnBackFromSubs');if(bbfs)bbfs.onclick=goTeacher;
   var brb=$('#btnResultBack');if(brb)brb.onclick=goStudent;
 
-  // Наверх
+  // 9. Наверх
   var tt=$('#toTop');
   window.addEventListener('scroll',function(){
     if(tt)tt.classList.toggle('show',window.scrollY>300);
   });
   if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
 
-  // Показываем экран входа до проверки токена
+  // 10. Показываем шапку и экран входа
   renderTop();
 
+  // 11. Проверка токена
   if(getToken()){
     try{
       var r=await api('/auth/me');
@@ -1408,6 +1446,9 @@ async function boot(){
       setToken(null);
     }
   }
+
+  // 12. Инициализируем Telegram-виджет
+  initTelegramLogin();
   show('view-auth');
   setTimeout(function(){var el=$('#loginEmail');if(el)el.focus();},150);
 }
