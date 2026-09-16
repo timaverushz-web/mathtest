@@ -176,7 +176,6 @@ async function initDB() {
       auto BOOLEAN DEFAULT FALSE,
       created_at BIGINT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_backups_at ON backups(at DESC);
   `);
   // исправляем возможную ошибку: колонка называется created_at, не at
   await pool.query(`DROP INDEX IF EXISTS idx_backups_at`);
