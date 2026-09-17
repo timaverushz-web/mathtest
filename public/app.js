@@ -2520,6 +2520,8 @@ async function openEditProfile(){
       av.style.backgroundImage="url('/api/users/"+user.id+"/avatar"+(bust?('?v='+bust):'')+"')";
       av.textContent='';
     } else {av.style.backgroundImage='';av.textContent=(user.name?user.name[0]:'?').toUpperCase();}
+    var bdel=$('#btnDeleteAvatar');
+    if(bdel) bdel.hidden = !user.hasAvatar;
   }catch(e){toast(e.message,'err');}
 }
 async function saveProfile(){
@@ -2545,15 +2547,12 @@ async function uploadAvatarFile(file){
   var fd=new FormData();fd.append('avatar',file);
   try{
     await apiForm('/users/me/avatar',fd);
-
-    // Обновляем локально сразу — аватар показывается мгновенно
     currentUser.hasAvatar = true;
     try{localStorage.setItem('avatar_bust_'+currentUser.id,String(Date.now()));}catch(e){}
     renderTop();
     renderAvatar($('#editAvatar'),currentUser,148);
-    renderAvatar($('#chipAvatar'),currentUser,32);
-
-    // Пробуем синхронизироваться с сервером, но не ломаемся если не выйдет
+    var bdel=$('#btnDeleteAvatar');
+    if(bdel) bdel.hidden=false;
     try{
       var me = await api('/auth/me');
       if(me && me.user){
@@ -2562,9 +2561,27 @@ async function uploadAvatarFile(file){
         renderAvatar($('#editAvatar'),currentUser,148);
       }
     }catch(e){ console.warn('sync /auth/me:', e.message); }
-
     toast('Аватар обновлён','ok');
   }catch(e){toast(e.message,'err');}
+}
+
+async function deleteAvatarFile(){
+  if(!currentUser)return;
+  if(!confirm('Удалить аватар?'))return;
+  var btn=$('#btnDeleteAvatar'); if(btn) btn.disabled=true;
+  try{
+    await api('/users/me/avatar',{method:'DELETE'});
+    currentUser.hasAvatar=false;
+    try{localStorage.removeItem('avatar_bust_'+currentUser.id);}catch(e){}
+    renderTop();
+    renderAvatar($('#editAvatar'),currentUser,148);
+    var bdel=$('#btnDeleteAvatar');
+    if(bdel){ bdel.hidden=true; bdel.disabled=false; }
+    toast('Аватар удалён','ok');
+  }catch(e){
+    toast(e.message,'err');
+    if(btn) btn.disabled=false;
+  }
 }
 
 /* ENTER APP */
@@ -2777,6 +2794,7 @@ function bindAll(){
   var bce=$('#btnCancelEdit');if(bce)bce.onclick=openProfileStats;
   var bua=$('#btnUploadAvatar');if(bua)bua.onclick=function(){$('#avatarInput').click();};
   var ain=$('#avatarInput');if(ain)ain.onchange=function(){if(this.files[0])uploadAvatarFile(this.files[0]);};
+  var bda=$('#btnDeleteAvatar');if(bda)bda.onclick=deleteAvatarFile;
 
   var sb=$('#supportBtn');if(sb)sb.onclick=toggleSupport;
   var scl=$('#supportClose');if(scl)scl.onclick=toggleSupport;
