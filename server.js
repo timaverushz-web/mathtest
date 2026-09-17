@@ -181,11 +181,18 @@ async function initDB() {
     );
     CREATE INDEX IF NOT EXISTS idx_backups_created ON backups(created_at DESC);
   `);
+   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT`); } catch (e) { console.error('migr users.avatar_key:', e.message); }
+  try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username TEXT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS link_code TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE tests ADD COLUMN IF NOT EXISTS deadline BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS late BOOLEAN DEFAULT FALSE`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS expired BOOLEAN DEFAULT FALSE`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS seen BOOLEAN DEFAULT FALSE`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_key TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_key TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_size BIGINT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS class_ids JSONB DEFAULT '[]'::jsonb`); } catch (e) {}
 }
 
 async function logAction(userId, userName, action, details) {
