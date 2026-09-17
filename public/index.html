@@ -18,14 +18,12 @@
 </head>
 <body>
 
-<!-- ===== SVG-СПРАЙТ ===== -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
     <symbol id="i-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4 5 5-7 5 7 4-5v11H3z"/><path d="M3 18h18"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
-    <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
     <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></symbol>
@@ -64,7 +62,6 @@
 
 <div id="toasts"></div>
 
-<!-- ==================== ШАПКА ==================== -->
 <header id="topbar">
   <div class="brand" id="brandBtn">
     <span class="sigma">∑</span>
@@ -94,7 +91,6 @@
   <svg><use href="#i-arrow-up"/></svg>
 </button>
 
-<!-- ==================== ПАНЕЛЬ УВЕДОМЛЕНИЙ ==================== -->
 <div class="notif-panel" id="notifPanel" hidden>
   <div class="notif-head">
     <b>Уведомления</b>
@@ -105,7 +101,6 @@
 
 <main>
 
-<!-- ==================== ЛЕНДИНГ ==================== -->
 <section id="view-landing" class="view">
   <div class="landing">
     <span class="math-deco d1">∑</span>
@@ -222,7 +217,6 @@
   </div>
 </section>
 
-<!-- ==================== АВТОРИЗАЦИЯ ==================== -->
 <section id="view-auth" class="view">
   <div class="auth-card">
     <div class="auth-title">Добро пожаловать</div>
@@ -283,7 +277,6 @@
   </div>
 </section>
 
-<!-- ==================== УЧИТЕЛЬ ==================== -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:24px">
     <h1 class="page-title" style="flex:1">Кабинет</h1>
@@ -302,7 +295,6 @@
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
-<!-- ==================== РЕДАКТОР ==================== -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackToTeacher"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -371,7 +363,6 @@
   </div>
 </section>
 
-<!-- ==================== КЛАСС ==================== -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromClass"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -432,7 +423,6 @@
   </div>
 </section>
 
-<!-- ==================== АНАЛИТИКА КЛАССА ==================== -->
 <section id="view-analytics" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAnalytics"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -441,7 +431,6 @@
   <div id="analyticsBody"></div>
 </section>
 
-<!-- ==================== РЕЙТИНГ КЛАССА ==================== -->
 <section id="view-rating" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromRating"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -450,7 +439,6 @@
   <div id="ratingBody"></div>
 </section>
 
-<!-- ==================== УЧЕНИК ==================== -->
 <section id="view-student" class="view">
   <h1 class="page-title" style="margin-bottom:24px">Мой кабинет</h1>
 
@@ -476,7 +464,6 @@
   </div>
 </section>
 
-<!-- ==================== ПРОХОЖДЕНИЕ ==================== -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -493,13 +480,11 @@
   <div id="takeBody"></div>
 </section>
 
-<!-- ==================== РЕЗУЛЬТАТ ==================== -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack"><svg><use href="#i-arrow-left"/></svg> К списку работ</button>
 </section>
 
-<!-- ==================== РЕЗУЛЬТАТЫ УЧИТЕЛЯ ==================== -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromSubs"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -510,7 +495,6 @@
   <div id="subsBody"></div>
 </section>
 
-<!-- ==================== ДАШБОРД ==================== -->
 <section id="view-dashboard" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromDashboard"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -524,32 +508,58 @@
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromLibrary"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 class="page-title" style="margin:0;flex:1">Библиотека</h1>
-    <button class="primary" id="btnAddBook" hidden><svg><use href="#i-plus"/></svg> Добавить книгу</button>
+    <button class="primary" id="btnAddBook" hidden><svg><use href="#i-plus"/></svg> Загрузить</button>
   </div>
 
   <div class="card" id="bookUploadForm" hidden>
     <h3 id="bookFormTitle">Новая книга</h3>
-    <div class="two-col">
-      <label>Название<input id="bookTitle" placeholder="Математический анализ, том 1"></label>
-      <label>Автор<input id="bookAuthor" placeholder="Иванов И.И."></label>
-    </div>
-    <div class="two-col">
-      <label>Предмет<input id="bookSubject" placeholder="Математика"></label>
-      <label>Обложка (необязательно, до 5 МБ)
-        <input id="bookCover" type="file" accept="image/*">
-      </label>
-    </div>
-    <label>Описание<textarea id="bookDescription" rows="2" placeholder="Краткое описание"></textarea></label>
-    <label>Текст книги (Markdown + формулы)
-      <div class="muted" style="margin-top:6px;font-weight:400;font-size:12.5px">
-        Заголовки: <code>## Глава 1</code> · Формулы в строке: <code>$x^2$</code> · Формулы отдельно: <code>$$\int_0^1 x^2 dx$$</code> · Жирный: <code>**текст**</code> · Курсив: <code>*текст*</code> · Списки: <code>- пункт</code>
+
+    <div class="book-form-grid">
+      <div class="book-cover-upload" id="bookCoverDrop">
+        <input type="file" id="bookCover" accept="image/jpeg,image/png,image/webp" hidden>
+        <div class="bcu-preview" id="bookCoverPreview">
+          <div class="bcu-empty">
+            <svg><use href="#i-image"/></svg>
+            <b>Обложка</b>
+            <span>Перетащите или нажмите</span>
+            <span class="bcu-hint">JPG, PNG, WebP · до 5 МБ</span>
+          </div>
+        </div>
+        <button type="button" class="bcu-clear" id="bookCoverClear" hidden>✕</button>
       </div>
+
+      <div class="book-fields">
+        <label>Название *
+          <input id="bookTitle" placeholder="Математический анализ, том 1">
+        </label>
+        <label>Автор
+          <input id="bookAuthor" placeholder="Иванов И.И.">
+        </label>
+        <label>Предмет
+          <input id="bookSubject" placeholder="Математика">
+        </label>
+        <label>Описание
+          <textarea id="bookDescription" rows="3" placeholder="Краткое описание"></textarea>
+        </label>
+      </div>
+    </div>
+
+    <label class="book-content-label">
+      <div class="bcl-head">
+        <span>Текст книги *</span>
+        <span class="muted" style="font-weight:400;font-size:12.5px">Markdown + формулы KaTeX</span>
+      </div>
+      <div class="muted" style="font-weight:400;font-size:12.5px;margin-bottom:10px;line-height:1.7">
+        Заголовки: <code>## Глава 1</code> · В строке: <code>$x^2$</code> · Отдельно: <code>$$\int_0^1 x^2 dx$$</code> · Жирный: <code>**текст**</code> · Курсив: <code>*текст*</code> · Списки: <code>- пункт</code>
+      </div>
+      <textarea id="bookContent" rows="18" placeholder="## Глава 1. Пределы&#10;&#10;**Определение.** Число $A$ называется пределом функции $f(x)$ при $x \to a$, если...&#10;&#10;$$\lim_{x \to a} f(x) = A$$&#10;&#10;### Примеры&#10;&#10;1. $\lim_{x \to 0} \frac{\sin x}{x} = 1$&#10;2. $\lim_{x \to \infty} \frac{1}{x} = 0$"></textarea>
     </label>
-    <textarea id="bookContent" rows="16" placeholder="## Глава 1. Пределы&#10;&#10;**Определение.** Число $A$ называется пределом функции $f(x)$ при $x \to a$, если...&#10;&#10;$$\lim_{x \to a} f(x) = A$$&#10;&#10;### Примеры&#10;&#10;1. $\lim_{x \to 0} \frac{\sin x}{x} = 1$&#10;2. $\lim_{x \to \infty} \frac{1}{x} = 0$"></textarea>
-    <label>Доступно классам</label>
+
+    <label style="margin-top:18px">Доступно классам</label>
     <div id="bookClassPicker"></div>
     <p class="muted" style="font-size:12.5px;margin-top:8px">Если ни один класс не отмечен — книга видна всем.</p>
-    <div class="row" style="margin-top:18px">
+
+    <div class="row" style="margin-top:22px">
       <button class="primary" id="btnSaveBook"><svg><use href="#i-save"/></svg> Сохранить</button>
       <button class="ghost" id="btnCancelBook">Отмена</button>
     </div>
@@ -570,7 +580,6 @@
   <div id="bookList"></div>
 </section>
 
-<!-- ==================== READER ==================== -->
 <section id="view-reader" class="view">
   <div class="reader-topbar">
     <button class="ghost small" id="btnReaderBack"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -615,7 +624,6 @@
   </div>
 </section>
 
-<!-- ==================== АДМИН-ПАНЕЛЬ ==================== -->
 <section id="view-admin" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -666,7 +674,6 @@
   </div>
 </section>
 
-<!-- ==================== ЛИЧНЫЙ КАБИНЕТ ==================== -->
 <section id="view-profile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -676,7 +683,6 @@
   <div id="profileStats"></div>
 </section>
 
-<!-- ==================== РЕДАКТИРОВАНИЕ ПРОФИЛЯ ==================== -->
 <section id="view-editprofile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromEditProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -707,36 +713,6 @@
 
 </main>
 
-<!-- ==================== МОДАЛКА ПРОФИЛЯ ==================== -->
-<div id="profileModal" class="modal-overlay" hidden>
-  <div class="modal-card">
-    <div class="modal-head">
-      <h3>Профиль и настройки</h3>
-      <button class="ghost small" id="btnCloseProfile"><svg><use href="#i-x"/></svg></button>
-    </div>
-    <div id="profileBody">
-      <div class="row" style="align-items:center;gap:16px;margin-bottom:24px">
-        <div class="avatar" id="profAvatar" style="width:56px;height:56px;font-size:22px"></div>
-        <div>
-          <div style="font-weight:800;font-size:17px" id="profName"></div>
-          <div class="muted" id="profRole"></div>
-        </div>
-      </div>
-      <h4 class="sec">Telegram-уведомления</h4>
-      <div id="tgBlock">
-        <div class="muted" id="tgStatus">Проверка…</div>
-        <div id="tgActions" style="margin-top:12px"></div>
-      </div>
-      <h4 class="sec">Тема оформления</h4>
-      <div class="theme-picker">
-        <button class="theme-option" data-theme-set="dark">🌙 Тёмная</button>
-        <button class="theme-option" data-theme-set="light">☀️ Светлая</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ==================== ЧАТ ПОДДЕРЖКИ ==================== -->
 <button id="supportBtn" title="Чат поддержки">
   <svg><use href="#i-chat"/></svg>
   <span class="support-badge"></span>
@@ -769,7 +745,6 @@
   </div>
 </div>
 
-<!-- ==================== МОБИЛЬНАЯ НАВИГАЦИЯ ==================== -->
 <nav id="mobile-nav">
   <div class="mn-inner">
     <button data-mnav="home">
