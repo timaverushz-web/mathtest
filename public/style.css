@@ -980,3 +980,19 @@ body.reader-mode main { padding: 0 !important; }
   .reader-page-slot { padding: 8px 4px; }
   .reader-spread { gap: 6px; }
 }
+.edit-avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+}
+.edit-upload-btn.danger {
+  color: var(--err);
+  border-color: rgba(239,68,68,.35);
+}
+.edit-upload-btn.danger:hover {
+  background: rgba(239,68,68,.1);
+  border-color: var(--err);
+  color: var(--err);
+}
