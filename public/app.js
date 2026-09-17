@@ -265,6 +265,7 @@ var reader = {
 function show(id){
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   window.scrollTo(0,0);
+  document.body.classList.toggle('reading', id==='view-reader');
   if(id!=='view-class'&&chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}
   if(id!=='view-reader'&&reader.scrollHandler){
     window.removeEventListener('scroll',reader.scrollHandler);
@@ -3150,6 +3151,60 @@ function bindAll(){
   var brBmC=$('#btnReaderBookmarksClose');
   if(brBmC)brBmC.onclick=function(){$('#readerBookmarksPanel').hidden=true;};
   var brZo=$('#btnReaderZoomOut');
+    /* === Листание: кнопки по бокам, клавиатура, свайпы === */
+  function goToPage(num, smooth){
+    if(!reader.totalPages) return;
+    num=Math.max(1,Math.min(reader.totalPages,num));
+    var el=document.getElementById('pdfpage-'+num);
+    if(!el) return;
+    var y=el.getBoundingClientRect().top + window.scrollY - 110;
+    window.scrollTo({top:y,behavior:smooth?'smooth':'auto'});
+    reader.currentPage=num;
+    var ind=$('#readerPageIndicator');
+    if(ind) ind.textContent=num+' / '+reader.totalPages;
+    // синхронизируем прогресс-бар
+    setTimeout(updateReaderProgress,400);
+  }
+  window.__readerGoToPage=goToPage;
+
+  var rp=$('#readerPrev');
+  if(rp)rp.onclick=function(){ goToPage(reader.currentPage-1,true); };
+  var rn=$('#readerNext');
+  if(rn)rn.onclick=function(){ goToPage(reader.currentPage+1,true); };
+
+  /* Клавиатура */
+  document.addEventListener('keydown',function(e){
+    var v=$('#view-reader');
+    if(!v||!v.classList.contains('active')) return;
+    if(e.target && /input|textarea|select/i.test(e.target.tagName)) return;
+    if(e.key==='ArrowLeft' || e.key==='PageUp'){ e.preventDefault(); goToPage(reader.currentPage-1,true); }
+    else if(e.key==='ArrowRight' || e.key==='PageDown'){ e.preventDefault(); goToPage(reader.currentPage+1,true); }
+    else if(e.key==='Home'){ e.preventDefault(); goToPage(1,true); }
+    else if(e.key==='End'){ e.preventDefault(); goToPage(reader.totalPages,true); }
+  });
+
+  /* Свайпы на тач-экране */
+  (function(){
+    var wrap=$('.reader-pdf-wrap');
+    if(!wrap) return;
+    var sX=0,sY=0,sT=0;
+    wrap.addEventListener('touchstart',function(e){
+      if(e.touches.length!==1) return;
+      sX=e.touches[0].clientX;
+      sY=e.touches[0].clientY;
+      sT=Date.now();
+    },{passive:true});
+    wrap.addEventListener('touchend',function(e){
+      if(!e.changedTouches || !e.changedTouches.length) return;
+      var dx=e.changedTouches[0].clientX-sX;
+      var dy=e.changedTouches[0].clientY-sY;
+      var dt=Date.now()-sT;
+      if(Math.abs(dx)>60 && Math.abs(dy)<50 && dt<600){
+        if(dx<0) goToPage(reader.currentPage+1,true);
+        else goToPage(reader.currentPage-1,true);
+      }
+    },{passive:true});
+  })();
   if(brZo)brZo.onclick=function(){readerZoom(-0.15);};
   var brZi=$('#btnReaderZoomIn');
   if(brZi)brZi.onclick=function(){readerZoom(0.15);};
