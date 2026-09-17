@@ -12,9 +12,8 @@
 
 <link rel="canonical" href="https://mathconst.ru">
 
-<!-- Open Graph (Telegram, VK, WhatsApp, Facebook) -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MathTest">
+<meta property="og:site_name" content="MathTest"> 
 <meta property="og:title" content="MathTest — конструктор контрольных по математике">
 <meta property="og:description" content="Создавайте контрольные с формулами, проверяйте автоматически, ведите классы и библиотеку.">
 <meta property="og:url" content="https://mathconst.ru">
@@ -23,25 +22,21 @@
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ru_RU">
 
-<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="MathTest — конструктор контрольных по математике">
 <meta name="twitter:description" content="Создавайте контрольные с формулами, проверяйте автоматически.">
 <meta name="twitter:image" content="https://mathconst.ru/og-image.png">
 
-<!-- Иконки -->
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#ff6b1f">
 
-<!-- PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MathTest">
 
-<!-- KaTeX + pdf.js -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -49,7 +44,6 @@
 <style>.view:not(.active){display:none !important;}</style>
 <link rel="stylesheet" href="/style.css">
 
-<!-- Structured Data для Google -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -61,16 +55,8 @@
   "applicationCategory": "EducationalApplication",
   "operatingSystem": "Web",
   "inLanguage": "ru-RU",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "RUB"
-  },
-  "creator": {
-    "@type": "Organization",
-    "name": "MathTest",
-    "url": "https://mathconst.ru"
-  }
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" },
+  "creator": { "@type": "Organization", "name": "MathTest", "url": "https://mathconst.ru" }
 }
 </script>
 </head>
@@ -117,6 +103,7 @@
     <symbol id="i-zoom-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
     <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
   </defs>
 </svg>
 
@@ -157,7 +144,6 @@
 
 <main>
 
-<!-- ЛЕНДИНГ -->
 <section id="view-landing" class="view">
   <div class="landing">
     <span class="math-deco d1">∑</span>
@@ -206,7 +192,6 @@
   </div>
 </section>
 
-<!-- AUTH -->
 <section id="view-auth" class="view">
   <div class="auth-card">
     <div class="auth-title">Добро пожаловать</div>
@@ -256,7 +241,6 @@
   </div>
 </section>
 
-<!-- УЧИТЕЛЬ -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:24px">
     <h1 class="page-title" style="flex:1">Кабинет</h1>
@@ -273,7 +257,6 @@
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
-<!-- РЕДАКТОР -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackToTeacher"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -336,7 +319,6 @@
   </div>
 </section>
 
-<!-- КЛАСС -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromClass"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -387,7 +369,6 @@
   <div class="card"><h3>Работы класса</h3><div id="classTests"></div></div>
 </section>
 
-<!-- АНАЛИТИКА -->
 <section id="view-analytics" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAnalytics"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -396,7 +377,6 @@
   <div id="analyticsBody"></div>
 </section>
 
-<!-- РЕЙТИНГ -->
 <section id="view-rating" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromRating"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -405,7 +385,6 @@
   <div id="ratingBody"></div>
 </section>
 
-<!-- УЧЕНИК -->
 <section id="view-student" class="view">
   <h1 class="page-title" style="margin-bottom:24px">Мой кабинет</h1>
   <div class="dash-summary" id="studentSummary"></div>
@@ -428,7 +407,6 @@
   </div>
 </section>
 
-<!-- ПРОХОЖДЕНИЕ -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -445,13 +423,11 @@
   <div id="takeBody"></div>
 </section>
 
-<!-- РЕЗУЛЬТАТ -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack"><svg><use href="#i-arrow-left"/></svg> К списку работ</button>
 </section>
 
-<!-- СДАЧИ -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromSubs"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -462,7 +438,6 @@
   <div id="subsBody"></div>
 </section>
 
-<!-- ДАШБОРД -->
 <section id="view-dashboard" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromDashboard"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -471,7 +446,6 @@
   <div id="dashboardBody"></div>
 </section>
 
-<!-- БИБЛИОТЕКА -->
 <section id="view-library" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromLibrary"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -535,7 +509,6 @@
   <div id="bookList"></div>
 </section>
 
-<!-- READER (горизонтальное листание) -->
 <section id="view-reader" class="view">
   <div class="reader-topbar" id="readerTopbar">
     <button class="ghost small" id="btnReaderBack"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -584,7 +557,6 @@
   <div class="reader-hint" id="readerHint" hidden>Свайп влево/вправо или ← → для листания</div>
 </section>
 
-<!-- АДМИН -->
 <section id="view-admin" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -630,7 +602,6 @@
   </div>
 </section>
 
-<!-- ПРОФИЛЬ -->
 <section id="view-profile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -640,7 +611,6 @@
   <div id="profileStats"></div>
 </section>
 
-<!-- РЕДАКТИРОВАНИЕ ПРОФИЛЯ -->
 <section id="view-editprofile" class="view">
   <div class="row" style="margin-bottom:20px">
     <button class="ghost" id="btnBackFromEditProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -650,9 +620,14 @@
     <div class="edit-row">
       <div class="edit-avatar-wrap">
         <div class="edit-avatar" id="editAvatar"></div>
-        <button class="edit-upload-btn" id="btnUploadAvatar" type="button">
-          <svg><use href="#i-image"/></svg> Загрузить фото
-        </button>
+        <div class="edit-avatar-actions">
+          <button class="edit-upload-btn" id="btnUploadAvatar" type="button">
+            <svg><use href="#i-image"/></svg> Загрузить фото
+          </button>
+          <button class="edit-upload-btn danger" id="btnDeleteAvatar" type="button" hidden>
+            <svg><use href="#i-trash"/></svg> Удалить
+          </button>
+        </div>
         <input type="file" id="avatarInput" hidden accept="image/*">
         <div class="edit-hint">JPG, PNG, WebP<br>до 5 МБ</div>
       </div>
@@ -681,7 +656,6 @@
 
 </main>
 
-<!-- SUPPORT -->
 <button id="supportBtn" title="Чат поддержки">
   <svg><use href="#i-chat"/></svg>
   <span class="support-badge"></span>
@@ -708,7 +682,6 @@
   </div>
 </div>
 
-<!-- MOBILE NAV -->
 <nav id="mobile-nav">
   <div class="mn-inner">
     <button data-mnav="home"><svg><use href="#i-home"/></svg> Главная</button>
