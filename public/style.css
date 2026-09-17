@@ -1910,3 +1910,232 @@ button.block { width: 100%; }
   line-height: 1.65;
   min-height: 380px;
 }
+/* ==========================================================
+   Форма загрузки книги (обложка + PDF)
+   ========================================================== */
+.book-form-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+@media (max-width: 720px) { .book-form-grid { grid-template-columns: 1fr; gap: 18px; } }
+
+.book-cover-upload {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  background: var(--bg-soft);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden; transition: var(--trans);
+}
+.book-cover-upload:hover, .book-cover-upload.drag { border-color: var(--accent); background: var(--accent-soft); }
+.book-cover-upload .bcu-preview {
+  width: 100%; height: 100%;
+  background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+}
+.book-cover-upload .bcu-empty, .book-pdf-drop .bpd-empty {
+  text-align: center; color: var(--text-2); padding: 16px;
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+}
+.book-cover-upload .bcu-empty svg, .book-pdf-drop .bpd-empty svg {
+  width: 42px; height: 42px; stroke: var(--accent); opacity: .75; margin-bottom: 8px;
+}
+.book-cover-upload .bcu-empty b, .book-pdf-drop .bpd-empty b { font-size: 14.5px; color: var(--text); }
+.book-cover-upload .bcu-empty span, .book-pdf-drop .bpd-empty span { font-size: 12.5px; }
+.book-cover-upload .bcu-hint, .book-pdf-drop .bcu-hint { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+.book-cover-upload .bcu-clear, .book-pdf-drop .bcu-clear {
+  position: absolute; top: 8px; right: 8px;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.72); color: #fff;
+  font-size: 13px; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: var(--trans-fast); z-index: 2;
+}
+.book-cover-upload .bcu-clear:hover, .book-pdf-drop .bcu-clear:hover { background: var(--err); }
+
+.book-fields { display: flex; flex-direction: column; }
+.book-fields label { margin: 0 0 10px; }
+.book-fields label:last-child { margin-bottom: 0; }
+
+.book-pdf-drop {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  background: var(--bg-soft);
+  padding: 28px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--trans);
+  min-height: 130px;
+  display: flex; align-items: center; justify-content: center;
+}
+.book-pdf-drop:hover, .book-pdf-drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+.book-pdf-drop.has-file { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+.book-pdf-drop .bpd-preview { width: 100%; }
+.book-pdf-drop .bpd-meta {
+  display: flex; gap: 14px; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+}
+.book-pdf-drop .bpd-meta svg { width: 32px; height: 32px; stroke: var(--accent); }
+.book-pdf-drop .bpd-meta .bpd-name { color: var(--text); font-weight: 800; }
+.book-pdf-drop .bpd-meta .bpd-size { color: var(--text-2); font-weight: 600; font-size: 13px; }
+
+/* ==========================================================
+   PDF Reader (canvas, непрерывный скролл)
+   ========================================================== */
+#view-reader { margin: -40px -32px 0; }
+
+.reader-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 28px;
+  background: rgba(8, 8, 10, .85);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky; top: 74px; z-index: 45;
+}
+[data-theme="light"] .reader-topbar { background: rgba(255,255,255,.9); }
+.reader-title {
+  flex: 1; text-align: center;
+  font-weight: 800; font-size: 15px; letter-spacing: -0.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-2);
+}
+.reader-actions { display: flex; gap: 4px; align-items: center; }
+.reader-actions .icon-btn { width: 38px; height: 38px; }
+.reader-zoom-val {
+  font-size: 12.5px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2); min-width: 44px; text-align: center;
+}
+
+.reader-progress {
+  height: 3px; background: var(--border-soft);
+  position: sticky; top: 133px; z-index: 44;
+}
+.reader-progress-fill {
+  height: 100%; width: 0; background: var(--accent);
+  transition: width .1s linear;
+}
+
+.reader-pdf-wrap {
+  padding: 28px 20px 120px;
+  display: flex; flex-direction: column; align-items: center;
+  background: var(--bg);
+  min-height: calc(100vh - 200px);
+}
+.reader-pdf {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  max-width: 100%;
+}
+.reader-pdf .pdf-page {
+  position: relative;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 6px 28px -8px rgba(0,0,0,.6);
+  overflow: hidden;
+  transition: box-shadow var(--trans);
+}
+[data-theme="light"] .reader-pdf .pdf-page { box-shadow: 0 6px 24px -10px rgba(0,0,0,.18); }
+.reader-pdf .pdf-page canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.reader-pdf .pdf-page .pdf-page-num {
+  position: absolute; bottom: 6px; right: 10px;
+  font-size: 11px; font-weight: 700;
+  color: rgba(0,0,0,.35);
+  background: rgba(255,255,255,.7);
+  padding: 2px 8px; border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+.reader-pdf .pdf-page.is-loading::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent),
+    var(--bg-soft);
+  animation: sk 1.6s ease-in-out infinite;
+}
+[data-theme="light"] .reader-pdf .pdf-page.is-loading::before {
+  background:
+    linear-gradient(90deg, transparent, rgba(0,0,0,.03), transparent),
+    #f4f4f5;
+}
+
+.reader-page-indicator {
+  position: fixed; bottom: 26px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 8px 18px;
+  font-size: 13px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  box-shadow: var(--shadow);
+  z-index: 40;
+  user-select: none;
+}
+
+.reader-toc-panel, .reader-bookmarks-panel {
+  position: fixed; top: 133px; right: 32px;
+  width: 340px; max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 200px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 110;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  animation: menu-in .25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.reader-toc-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.reader-toc-head b { font-size: 15px; font-weight: 800; }
+.reader-toc-list { overflow-y: auto; padding: 8px; }
+.reader-toc-item {
+  display: block; padding: 10px 16px;
+  border-radius: 8px;
+  color: var(--text); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: var(--trans-fast);
+  border: none; background: transparent; width: 100%; text-align: left;
+  font-family: inherit;
+}
+.reader-toc-item:hover { background: var(--panel-2); color: var(--accent); }
+.reader-toc-item.lvl-2 { padding-left: 28px; font-weight: 500; font-size: 13px; color: var(--text-2); }
+.reader-toc-item.lvl-3 { padding-left: 44px; font-weight: 400; font-size: 12.5px; color: var(--text-3); }
+
+.bookmark-item {
+  background: var(--panel-2); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 8px;
+  display: flex; align-items: flex-start; gap: 10px;
+  cursor: pointer;
+}
+.bookmark-item .bm-body { flex: 1; }
+.bookmark-item .bm-pos { font-size: 11.5px; color: var(--accent); font-weight: 800; }
+.bookmark-item .bm-note { font-size: 13px; margin-top: 4px; color: var(--text); }
+.bookmark-item button {
+  background: transparent; border: none; color: var(--text-3);
+  cursor: pointer; font-size: 16px; padding: 0; line-height: 1;
+}
+.bookmark-item button:hover { color: var(--err); }
+
+@media (max-width: 720px) {
+  .reader-topbar { padding: 10px 14px; top: 66px; gap: 8px; }
+  .reader-progress { top: 118px; }
+  .reader-zoom-val { display: none; }
+  .reader-pdf-wrap { padding: 16px 6px 120px; }
+  .reader-pdf { gap: 12px; }
+  .reader-pdf .pdf-page { border-radius: 4px; }
+  .reader-toc-panel, .reader-bookmarks-panel { left: 12px; right: 12px; width: auto; top: 120px; }
+  .reader-page-indicator { bottom: 84px; }
+}
