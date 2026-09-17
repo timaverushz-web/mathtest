@@ -19,11 +19,19 @@ const B2_KEY_ID  = process.env.B2_KEY_ID;
 const B2_APP_KEY = process.env.B2_APP_KEY;
 const B2_BUCKET  = process.env.B2_BUCKET;
 const B2_ENDPOINT = process.env.B2_ENDPOINT;
-const B2_REGION = process.env.B2_REGION || 'us-west-004';
+const B2_REGION = process.env.B2_REGION || 'eu-central-003';
 
 if (!DATABASE_URL) { console.error('❌ Нет DATABASE_URL'); process.exit(1); }
-if (!B2_KEY_ID || !B2_APP_KEY || !B2_BUCKET || !B2_ENDPOINT) {
-  console.warn('⚠️  B2 не настроен — обложки не будут загружаться');
+
+/* ---------- Нормализация endpoint B2 ---------- */
+let s3Endpoint = (B2_ENDPOINT || '').trim();
+if (s3Endpoint && !/^https?:\/\//i.test(s3Endpoint)) {
+  s3Endpoint = 'https://' + s3Endpoint;
+}
+s3Endpoint = s3Endpoint.replace(/\/+$/, '');
+
+if (!B2_KEY_ID || !B2_APP_KEY || !B2_BUCKET || !s3Endpoint) {
+  console.warn('⚠️  B2 не настроен — обложки и файлы не будут загружаться');
 }
 
 const pool = new Pool({
@@ -31,14 +39,21 @@ const pool = new Pool({
   ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
+/* ---------- S3 клиент ---------- */
 let s3 = null;
-if (B2_KEY_ID && B2_APP_KEY && B2_ENDPOINT) {
-  s3 = new S3Client({
-    endpoint: B2_ENDPOINT,
-    region: B2_REGION,
-    credentials: { accessKeyId: B2_KEY_ID, secretAccessKey: B2_APP_KEY },
-    forcePathStyle: true
-  });
+if (B2_KEY_ID && B2_APP_KEY && s3Endpoint) {
+  try {
+    s3 = new S3Client({
+      endpoint: s3Endpoint,
+      region: B2_REGION,
+      credentials: { accessKeyId: B2_KEY_ID, secretAccessKey: B2_APP_KEY },
+      forcePathStyle: true
+    });
+    console.log('📦 S3 endpoint: ' + s3Endpoint + ' | bucket: ' + B2_BUCKET + ' | region: ' + B2_REGION);
+  } catch (e) {
+    console.error('❌ Не удалось инициализировать S3:', e.message);
+    s3 = null;
+  }
 }
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -59,11 +74,25 @@ const genPass = () => {
 
 /* ---------- S3 helpers ---------- */
 async function s3Put(key, buffer, contentType) {
-  if (!s3) throw new Error('S3 не настроен');
-  await s3.send(new PutObjectCommand({
-    Bucket: B2_BUCKET, Key: key, Body: buffer, ContentType: contentType
-  }));
-  return key;
+  if (!s3) throw new Error('Хранилище B2 не настроено. Проверьте переменные B2_KEY_ID, B2_APP_KEY, B2_BUCKET, B2_ENDPOINT.');
+  try {
+    await s3.send(new PutObjectCommand({
+      Bucket: B2_BUCKET, Key: key, Body: buffer, ContentType: contentType
+    }));
+    return key;
+  } catch (e) {
+    console.error('❌ s3Put [' + key + ']:', e.name, '—', e.message);
+    if (e.message && e.message.includes('Invalid URL')) {
+      throw new Error('B2_ENDPOINT указан неверно. Нужен полный URL с https://, например https://s3.us-west-004.backblazeb2.com');
+    }
+    if (e.name === 'InvalidAccessKeyId' || e.name === 'SignatureDoesNotMatch') {
+      throw new Error('B2_KEY_ID или B2_APP_KEY неверны. Проверьте Application Key в Backblaze.');
+    }
+    if (e.name === 'NoSuchBucket') {
+      throw new Error('Бакет «' + B2_BUCKET + '» не найден на Backblaze. Проверьте B2_BUCKET.');
+    }
+    throw new Error('B2: ' + e.message);
+  }
 }
 async function s3Get(key) {
   if (!s3) throw new Error('S3 не настроен');
@@ -165,7 +194,6 @@ async function initDB() {
     );
     CREATE INDEX IF NOT EXISTS idx_backups_created ON backups(created_at DESC);
   `);
-  // Миграции — добавляем колонки, если их нет (для старых баз)
   try { await pool.query(`ALTER TABLE tests ADD COLUMN IF NOT EXISTS deadline BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS late BOOLEAN DEFAULT FALSE`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS content TEXT`); } catch (e) {}
@@ -571,7 +599,7 @@ app.post('/api/users/me/avatar', auth, uploadSmall.single('avatar'), async (req,
     await s3Put(key, buf, 'image/jpeg');
     await pool.query('UPDATE users SET avatar_key=$1 WHERE id=$2', [key, u.id]);
     res.json({ ok: true, hasAvatar: true });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+  } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
 });
 
 app.get('/api/users/:id/avatar', async (req, res) => {
@@ -883,13 +911,11 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
     const students = await getStudentsInClass(c.id);
     const totalStudents = students.length;
 
-    // Все работы, назначенные этому классу
     const tR = await pool.query(
       `SELECT * FROM tests WHERE class_ids @> $1::jsonb ORDER BY created_at DESC`,
       [JSON.stringify([c.id])]);
     const tests = tR.rows;
 
-    // Для каждой работы — средний %, сдано/не сдано
     const perTest = [];
     for (const t of tests) {
       const subs = await pool.query(
@@ -907,7 +933,6 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
       });
     }
 
-    // Для каждого ученика — средний балл, сдано/не сдано, отставание
     const perStudent = [];
     for (const s of students) {
       const subs = await pool.query(
@@ -924,14 +949,12 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
         avgPercent: avg
       });
     }
-    // сортируем по среднему (null в конце)
     perStudent.sort((a, b) => {
       if (a.avgPercent === null) return 1;
       if (b.avgPercent === null) return -1;
       return b.avgPercent - a.avgPercent;
     });
 
-    // Провальные задания (по всей истории класса)
     const allSubs = await pool.query(
       `SELECT s.results, t.tasks
        FROM submissions s JOIN tests t ON t.id = s.test_id
@@ -991,7 +1014,7 @@ app.get('/api/classes/:id/rating', auth, async (req, res) => {
          FROM submissions WHERE class_id=$1 AND student_id=$2`,
         [c.id, s.id]);
       const row = r.rows[0];
-      if (row.n === 0) continue; // не показываем тех, кто ещё ничего не сдал
+      if (row.n === 0) continue;
       out.push({
         id: s.id,
         name: s.name,
@@ -1003,7 +1026,6 @@ app.get('/api/classes/:id/rating', auth, async (req, res) => {
     }
     out.sort((a, b) => b.avgPercent - a.avgPercent);
 
-    // моя позиция (если студент)
     let myRank = null;
     if (req.user.role === 'student') {
       myRank = out.findIndex(x => x.id === req.user.id);
@@ -1048,7 +1070,6 @@ app.get('/api/student/schedule', auth, async (req, res) => {
       const deadline = t.deadline ? Number(t.deadline) : null;
       const isOverdue = deadline && now > deadline;
 
-      // показываем только те, что ещё не сданы или можно пересдать
       if (canTry) {
         out.push({
           testId: t.id,
@@ -1061,7 +1082,6 @@ app.get('/api/student/schedule', auth, async (req, res) => {
         });
       }
     }
-    // сортируем: сначала с дедлайном поближе
     out.sort((a, b) => {
       if (a.deadline && b.deadline) return a.deadline - b.deadline;
       if (a.deadline) return -1;
@@ -1137,7 +1157,7 @@ app.post('/api/classes/:id/messages', auth, uploadSmall.single('file'), async (r
       }
     }
     res.json({ id });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+  } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
 });
 
 app.get('/api/messages/:id/file', auth, async (req, res) => {
@@ -1236,7 +1256,6 @@ app.get('/api/books/:id', auth, async (req, res) => {
       if (cids.length > 0 && !cids.some(id => myCids.includes(id)))
         return res.status(403).json({ error: 'Нет доступа' });
     }
-    // закладки пользователя
     const bm = await pool.query(
       'SELECT id, position, note, created_at FROM bookmarks WHERE user_id=$1 AND book_id=$2 ORDER BY position',
       [req.user.id, b.id]);
@@ -1269,7 +1288,7 @@ app.post('/api/books', auth, canUploadBooks, upload.single('cover'), async (req,
 
     let coverKey = null;
     if (req.file) {
-      if (!s3) return res.status(400).json({ error: 'Хранилище не настроено' });
+      if (!s3) return res.status(400).json({ error: 'Хранилище B2 не настроено. Обложка не может быть загружена.' });
       const buf = await sharp(req.file.buffer)
         .resize(600, 900, { fit: 'cover' })
         .jpeg({ quality: 82 })
@@ -1303,7 +1322,7 @@ app.post('/api/books', auth, canUploadBooks, upload.single('cover'), async (req,
     }
     res.json({ id });
   } catch (e) {
-    res.status(500).json({ error: 'Ошибка: ' + e.message });
+    res.status(500).json({ error: e.message || 'Ошибка' });
   }
 });
 
@@ -1335,7 +1354,7 @@ app.put('/api/books/:id', auth, canUploadBooks, upload.single('cover'), async (r
        content != null ? content : b.content,
        coverKey, b.id]);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+  } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
 });
 
 app.get('/api/books/:id/cover', async (req, res) => {
@@ -1553,7 +1572,7 @@ function isCorrect(student, correct, tol = 1e-6) {
 }
 
 /* =========================================================
-   СДАЧА РАБОТЫ (с проверкой дедлайна)
+   СДАЧА РАБОТЫ
    ========================================================= */
 app.post('/api/tests/:id/submit', auth, async (req, res) => {
   try {
@@ -2056,13 +2075,29 @@ app.use((err, req, res, next) => {
 (async () => {
   try { await initDB(); console.log('✅ Схема БД готова'); }
   catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
+
+  /* --- Самотест B2 --- */
+  if (s3) {
+    try {
+      const probeKey = 'healthcheck/probe_' + Date.now() + '.txt';
+      await s3Put(probeKey, Buffer.from('ok'), 'text/plain');
+      await s3Del(probeKey);
+      console.log('✅ B2 проверен — загрузка работает');
+    } catch (e) {
+      console.error('❌ B2 self-test:', e.message);
+      console.error('   endpoint=' + s3Endpoint + ' | bucket=' + B2_BUCKET + ' | region=' + B2_REGION);
+    }
+  } else {
+    console.warn('⚠️  B2 self-test пропущен — S3 клиент не инициализирован');
+  }
+
   app.listen(PORT, () => {
     console.log('═══════════════════════════════════');
     console.log('✅ MathTest v3.0 запущен');
     console.log('🌐 Порт: ' + PORT);
     console.log('🗄️  БД: PostgreSQL');
-    console.log('📦 Обложки: ' + (s3 ? 'Backblaze B2' : '❌'));
-    console.log('📚 Книги: текст + обложка');
+    console.log('📦 Хранилище: ' + (s3 ? ('Backblaze B2 (' + s3Endpoint + ')') : '❌ не настроено'));
+    console.log('📚 Библиотека: текст + обложка (без PDF)');
     console.log('⏰ Дедлайны: включены');
     console.log('📊 Аналитика: включена');
     console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
