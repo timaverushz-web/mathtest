@@ -838,6 +838,7 @@ app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
+/* ========== АНАЛИТИКА КЛАССА ========== */
 app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
@@ -929,26 +930,6 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
     console.error('analytics fatal:', e.message, e.stack);
     res.status(500).json({ error: 'Ошибка аналитики: ' + e.message });
   }
-});
-    const allSubs = await pool.query(
-      `SELECT s.results, t.tasks FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.class_id = $1`, [c.id]);
-    const taskStats = {};
-    for (const row of allSubs.rows) {
-      const tasks = row.tasks || [];
-      const results = row.results || [];
-      tasks.forEach((task, i) => {
-        const key = (task.statement || '').slice(0, 120);
-        if (!taskStats[key]) taskStats[key] = { total: 0, correct: 0 };
-        taskStats[key].total++;
-        if (results[i] && results[i].ok) taskStats[key].correct++;
-      });
-    }
-    const hardTasks = Object.keys(taskStats).map(k => ({
-      statement: k, total: taskStats[k].total, correct: taskStats[k].correct,
-      pct: taskStats[k].total ? Math.round(taskStats[k].correct / taskStats[k].total * 100) : 0
-    })).filter(x => x.total >= 2).sort((a, b) => a.pct - b.pct).slice(0, 10);
-    res.json({ totalStudents, totalTests: tests.length, perTest, perStudent, hardTasks });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 app.get('/api/classes/:id/rating', auth, async (req, res) => {
@@ -1222,14 +1203,17 @@ app.post('/api/books', auth, canUploadBooks, uploadBook.fields([
     await logAction(req.user.id, req.user.name, 'Загрузил книгу',
       title.trim() + ' (' + Math.round(pdfFile.size / 1024 / 1024 * 10) / 10 + ' МБ)');
 
-    for (const cid of parsedCids) {
-      const studs = await getStudentsInClass(cid);
-      for (const s of studs) {
-        await notify(s.id, 'new_book', 'Новая книга в библиотеке',
-          '«' + title.trim() + '» — доступна для чтения', { bookId });
-      }
-    }
     res.json({ id: bookId });
+
+    for (const cid of parsedCids) {
+      try {
+        const studs = await getStudentsInClass(cid);
+        for (const s of studs) {
+          await notify(s.id, 'new_book', 'Новая книга в библиотеке',
+            '«' + title.trim() + '» — доступна для чтения', { bookId });
+        }
+      } catch (e) { console.error('notify book:', e.message); }
+    }
   } catch (e) {
     console.error('books POST:', e.message);
     res.status(500).json({ error: e.message || 'Ошибка' });
@@ -1281,7 +1265,6 @@ app.put('/api/books/:id', auth, canUploadBooks, uploadBook.fields([
   } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
 });
 
-/* PDF-поток с поддержкой Range (для pdf.js) */
 app.get('/api/books/:id/pdf', auth, async (req, res) => {
   try {
     const b = (await pool.query('SELECT * FROM books WHERE id=$1', [req.params.id])).rows[0];
@@ -1440,7 +1423,6 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
     return res.status(500).json({ error: 'Не удалось создать работу: ' + e.message });
   }
 
-  // Работа уже в БД. Дальше — только уведомления, любые ошибки глотаем.
   res.json({ id });
 
   try {
@@ -1579,14 +1561,8 @@ app.post('/api/tests/:id/submit', auth, async (req, res) => {
     const pct = max ? Math.round(score / max * 100) : 0;
     let notifText = '«' + t.title + '» — ' + score + '/' + max + ' (' + pct + '%)';
     if (isLate) notifText += ' · сдано с опозданием';
-    await notify(t.owner_id, 'submission', 'Новая сдача: ' + req.user.name, notifText, { testId: t.id, submissionId: subId });
-    const teacher = await getUserById(t.owner_id);
-    if (teacher && teacher.telegram_chat_id) {
-      tgSend(Number(teacher.telegram_chat_id),
-        '📥 *' + req.user.name + '* сдал «' + t.title + '»\n' + score + '/' + max + ' (' + pct + '%)' +
-        (isLate ? '\n⚠ с опозданием' : ''), { parse_mode: 'Markdown' });
-    }
-    const resultsFull = results.map((r, i) => {
+
+    res.json({ id: subId, score, max, results: results.map((r, i) => {
       const task = tasks[i];
       const out = { ok: r.ok, studentText: r.studentText };
       if (settings.showAnswers && !r.ok) {
@@ -1594,10 +1570,19 @@ app.post('/api/tests/:id/submit', auth, async (req, res) => {
         else out.correctIndex = task.correctIndex;
       }
       return out;
-    });
-    res.json({ id: subId, score, max, results: resultsFull,
-               attempt: cnt + 1, durationMs, expired, late: isLate, settings });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+    }), attempt: cnt + 1, durationMs, expired, late: isLate, settings });
+
+    try { await notify(t.owner_id, 'submission', 'Новая сдача: ' + req.user.name, notifText, { testId: t.id, submissionId: subId }); } catch (e) {}
+    const teacher = await getUserById(t.owner_id);
+    if (teacher && teacher.telegram_chat_id) {
+      tgSend(Number(teacher.telegram_chat_id),
+        '📥 *' + req.user.name + '* сдал «' + t.title + '»\n' + score + '/' + max + ' (' + pct + '%)',
+        { parse_mode: 'Markdown' }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('submit:', e.message, e.stack);
+    res.status(500).json({ error: 'Ошибка отправки: ' + e.message });
+  }
 });
 
 app.get('/api/tests/:id/submissions', auth, teacherOnly, async (req, res) => {
@@ -1992,7 +1977,6 @@ app.use((err, req, res, next) => {
       console.log('✅ B2 проверен');
     } catch (e) {
       console.error('❌ B2 self-test:', e.message);
-      console.error('   endpoint=' + s3Endpoint + ' | bucket=' + B2_BUCKET);
     }
   }
 
