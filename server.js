@@ -31,6 +31,49 @@ if (!B2_KEY_ID || !B2_APP_KEY || !B2_BUCKET || !s3Endpoint) {
   console.warn('⚠️  B2 не настроен — файлы загружаться не будут');
 }
 
+/* ---------- Простой rate limiter для логина ---------- */
+const loginAttempts = new Map(); // ip -> { fails, resetAt, blockedUntil }
+const LOGIN_MAX_FAILS = 5;        // попыток
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // окно 15 минут
+const LOGIN_BLOCK_MS = 15 * 60 * 1000;  // блокировка 15 минут
+
+function loginRateCheck(ip){
+  const now = Date.now();
+  let rec = loginAttempts.get(ip);
+  if(!rec){
+    rec = { fails: 0, resetAt: now + LOGIN_WINDOW_MS, blockedUntil: 0 };
+    loginAttempts.set(ip, rec);
+  }
+  // если окно истекло и не заблокирован — сбрасываем
+  if(now > rec.resetAt && now > rec.blockedUntil){
+    rec.fails = 0;
+    rec.resetAt = now + LOGIN_WINDOW_MS;
+  }
+  if(rec.blockedUntil && now < rec.blockedUntil){
+    const sec = Math.ceil((rec.blockedUntil - now) / 1000);
+    return { ok: false, error: 'Слишком много попыток входа. Повторите через ' + sec + ' сек.' };
+  }
+  return { ok: true };
+}
+function loginRateFail(ip){
+  const rec = loginAttempts.get(ip);
+  if(!rec) return;
+  rec.fails++;
+  if(rec.fails >= LOGIN_MAX_FAILS){
+    rec.blockedUntil = Date.now() + LOGIN_BLOCK_MS;
+  }
+}
+function loginRateSuccess(ip){
+  loginAttempts.delete(ip);
+}
+// раз в час чистим старые записи
+setInterval(function(){
+  const now = Date.now();
+  for(const [ip, rec] of loginAttempts){
+    if(now > rec.resetAt + LOGIN_BLOCK_MS) loginAttempts.delete(ip);
+  }
+}, 60 * 60 * 1000);
+
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
@@ -450,11 +493,21 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() || 'unknown';
+
+  const rate = loginRateCheck(ip);
+  if(!rate.ok) return res.status(429).json({ error: rate.error });
+
   try {
     const { email, password } = req.body || {};
     const u = await getUserByEmail((email || '').toLowerCase().trim());
-    if (!u || !(await bcrypt.compare(password || '', u.pass)))
+    const ok = u && await bcrypt.compare(password || '', u.pass);
+    if (!ok) {
+      loginRateFail(ip);
       return res.status(401).json({ error: 'Неверный email или пароль' });
+    }
+    loginRateSuccess(ip);
+
     let role = u.role;
     if (process.env.ADMIN_EMAIL &&
         u.email.toLowerCase().trim() === process.env.ADMIN_EMAIL.toLowerCase().trim() &&
@@ -464,13 +517,9 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const token = jwt.sign({ id: u.id, role: role, name: u.name }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: u.id, name: u.name, role: role } });
-  } catch (err) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/api/auth/me', auth, async (req, res) => {
-  const u = await getUserById(req.user.id);
-  if (!u) return res.status(401).json({ error: 'Войдите заново' });
-  res.json({ user: userToJSON(u) });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка' });
+  }
 });
 
 /* ========== TELEGRAM LOGIN ========== */
