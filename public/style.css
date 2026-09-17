@@ -2244,3 +2244,57 @@ body.reading #toTop { display: none !important; }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
+/* ==========================================================
+   Исправление «чёрные буквы на чёрном фоне»
+   ========================================================== */
+html { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+
+input, textarea, select, button {
+  color-scheme: inherit;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-soft) inset !important;
+  box-shadow: 0 0 0 1000px var(--bg-soft) inset !important;
+  transition: background-color 9999s ease-out 0s;
+  caret-color: var(--text);
+}
+
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* Дата/время — нативные элементы в тёмной теме */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+  cursor: pointer;
+}
+[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+/* Файловые инпуты — тоже */
+input[type="file"] {
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+/* Код класса — сделаем явно кликабельным */
+.code-box {
+  cursor: pointer;
+  user-select: none;
+  transition: var(--trans);
+}
+.code-box:hover { transform: scale(1.03); }
+.code-box:active { transform: scale(.98); }
