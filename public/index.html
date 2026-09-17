@@ -6,6 +6,7 @@
 <title>MathTest — конструктор контрольных работ</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   .view:not(.active) { display: none !important; }
 </style>
@@ -53,10 +54,12 @@
     <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
     <symbol id="i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
     <symbol id="i-bookmark-fill" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
-    <symbol id="i-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></symbol>
   </defs>
 </svg>
 
@@ -87,9 +90,7 @@
   </div>
 </header>
 
-<button id="toTop" title="Наверх">
-  <svg><use href="#i-arrow-up"/></svg>
-</button>
+<button id="toTop" title="Наверх"><svg><use href="#i-arrow-up"/></svg></button>
 
 <div class="notif-panel" id="notifPanel" hidden>
   <div class="notif-head">
@@ -191,7 +192,7 @@
       <div class="landing-feature reveal">
         <div class="lf-icon"><svg><use href="#i-book"/></svg></div>
         <h3>Библиотека книг</h3>
-        <p>Учебники и пособия в виде текста с формулами. Ученики читают прямо в браузере, без скачивания.</p>
+        <p>Учебники и пособия в PDF. Ученики читают прямо в браузере — как в Яндекс.Книгах.</p>
       </div>
       <div class="landing-feature reveal">
         <div class="lf-icon"><svg><use href="#i-chat"/></svg></div>
@@ -441,11 +442,8 @@
 
 <section id="view-student" class="view">
   <h1 class="page-title" style="margin-bottom:24px">Мой кабинет</h1>
-
   <div class="dash-summary" id="studentSummary"></div>
-
   <div id="scheduleBlock"></div>
-
   <div class="tabs">
     <button class="tab active" data-stab="tests">Мои работы</button>
     <button class="tab" data-stab="classes">Мои классы</button>
@@ -544,16 +542,19 @@
       </div>
     </div>
 
-    <label class="book-content-label">
-      <div class="bcl-head">
-        <span>Текст книги *</span>
-        <span class="muted" style="font-weight:400;font-size:12.5px">Markdown + формулы KaTeX</span>
+    <div class="book-pdf-drop" id="bookPdfDrop">
+      <input type="file" id="bookPdf" accept="application/pdf,.pdf" hidden>
+      <div class="bpd-preview" id="bookPdfPreview">
+        <div class="bpd-empty">
+          <svg><use href="#i-file"/></svg>
+          <b>PDF-файл книги *</b>
+          <span>Перетащите или нажмите</span>
+          <span class="bcu-hint">До 60 МБ</span>
+        </div>
       </div>
-      <div class="muted" style="font-weight:400;font-size:12.5px;margin-bottom:10px;line-height:1.7">
-        Заголовки: <code>## Глава 1</code> · В строке: <code>$x^2$</code> · Отдельно: <code>$$\int_0^1 x^2 dx$$</code> · Жирный: <code>**текст**</code> · Курсив: <code>*текст*</code> · Списки: <code>- пункт</code>
-      </div>
-      <textarea id="bookContent" rows="18" placeholder="## Глава 1. Пределы&#10;&#10;**Определение.** Число $A$ называется пределом функции $f(x)$ при $x \to a$, если...&#10;&#10;$$\lim_{x \to a} f(x) = A$$&#10;&#10;### Примеры&#10;&#10;1. $\lim_{x \to 0} \frac{\sin x}{x} = 1$&#10;2. $\lim_{x \to \infty} \frac{1}{x} = 0$"></textarea>
-    </label>
+      <div class="bpd-meta" id="bookPdfMeta" hidden></div>
+      <button type="button" class="bcu-clear" id="bookPdfClear" hidden>✕</button>
+    </div>
 
     <label style="margin-top:18px">Доступно классам</label>
     <div id="bookClassPicker"></div>
@@ -580,6 +581,7 @@
   <div id="bookList"></div>
 </section>
 
+<!-- ==================== READER (PDF, непрерывный скролл) ==================== -->
 <section id="view-reader" class="view">
   <div class="reader-topbar">
     <button class="ghost small" id="btnReaderBack"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -587,7 +589,9 @@
     <div class="reader-actions">
       <button class="icon-btn" id="btnReaderToc" title="Оглавление"><svg><use href="#i-list"/></svg></button>
       <button class="icon-btn" id="btnReaderBookmark" title="Закладка"><svg><use href="#i-bookmark"/></svg></button>
-      <button class="icon-btn" id="btnReaderFont" title="Размер шрифта"><svg><use href="#i-type"/></svg></button>
+      <button class="icon-btn" id="btnReaderZoomOut" title="Уменьшить"><svg><use href="#i-zoom-out"/></svg></button>
+      <span class="reader-zoom-val" id="readerZoomVal">100%</span>
+      <button class="icon-btn" id="btnReaderZoomIn" title="Увеличить"><svg><use href="#i-zoom-in"/></svg></button>
     </div>
   </div>
   <div class="reader-progress"><div class="reader-progress-fill" id="readerProgress"></div></div>
@@ -600,27 +604,17 @@
     <div class="reader-toc-list" id="readerTocList"></div>
   </div>
 
-  <div class="reader-font-panel" id="readerFontPanel" hidden>
-    <div class="reader-font-row">
-      <span>Размер шрифта</span>
-      <input type="range" id="readerFontSize" min="14" max="24" value="18">
-      <span id="readerFontSizeValue">18px</span>
-    </div>
-    <div class="reader-font-row">
-      <span>Ширина колонки</span>
-      <input type="range" id="readerWidth" min="600" max="1000" value="800" step="50">
-      <span id="readerWidthValue">800px</span>
-    </div>
-  </div>
-
-  <div class="reader-content" id="readerContent"></div>
-
   <div class="reader-bookmarks-panel" id="readerBookmarksPanel" hidden>
     <div class="reader-toc-head">
       <b>Закладки</b>
       <button class="ghost small" id="btnReaderBookmarksClose"><svg><use href="#i-x"/></svg></button>
     </div>
     <div class="reader-toc-list" id="readerBookmarksList"></div>
+  </div>
+
+  <div class="reader-pdf-wrap">
+    <div class="reader-pdf" id="readerPdf"></div>
+    <div class="reader-page-indicator" id="readerPageIndicator">1 / 1</div>
   </div>
 </section>
 
@@ -629,15 +623,12 @@
     <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 class="page-title" style="margin:0;flex:1">Админ-панель</h1>
   </div>
-
   <div id="adminStats" class="grid" style="margin-bottom:24px"></div>
-
   <div class="tabs" style="width:100%;margin-bottom:20px">
     <button class="tab active" data-admintab="users" style="flex:1">Пользователи</button>
     <button class="tab" data-admintab="logs" style="flex:1">Логи</button>
     <button class="tab" data-admintab="backups" style="flex:1">Бэкапы</button>
   </div>
-
   <div id="admin-users-tab">
     <div class="card">
       <div class="row" style="margin-bottom:16px">
@@ -653,7 +644,6 @@
       <div id="adminUsersList"></div>
     </div>
   </div>
-
   <div id="admin-logs-tab" hidden>
     <div class="card">
       <h3>Логи действий</h3>
@@ -661,7 +651,6 @@
       <div id="adminLogsList"></div>
     </div>
   </div>
-
   <div id="admin-backups-tab" hidden>
     <div class="card">
       <div class="row tight">
@@ -729,16 +718,13 @@
     </div>
     <button class="support-close" id="supportClose"><svg><use href="#i-x"/></svg></button>
   </div>
-
   <div class="support-messages" id="supportMessages"></div>
-
   <div class="support-quick" id="supportQuick">
     <button data-q="Как создать класс?">Как создать класс?</button>
     <button data-q="Как добавить книгу?">Добавить книгу</button>
     <button data-q="Как поставить дедлайн?">Дедлайн</button>
     <button data-q="Как работает автопроверка?">Автопроверка</button>
   </div>
-
   <div class="support-input-row">
     <input id="supportInput" placeholder="Опишите проблему..." maxlength="500">
     <button class="primary small" id="supportSend"><svg><use href="#i-send"/></svg></button>
