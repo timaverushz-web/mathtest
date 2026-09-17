@@ -222,10 +222,10 @@ var editingBookId=null;
 /* READER STATE */
 var reader = {
   bookId:null, book:null, pdf:null, totalPages:0,
-  currentPage:1, zoom:1, baseZoom:1,
+  currentPage:1, zoom:1,
   activeSlot:'A',
   animating:false,
-  cache:{}, // pageNum -> canvas
+  cache:{},
   outline:[],
   uiHidden:false,
   hintShown:false
@@ -403,7 +403,7 @@ async function loadTelegramInfo(){
 /* SUPPORT */
 var SUPPORT_KB={
   'как создать класс':'В кабинете учителя нажмите «+ Класс» вверху страницы. После создания вы получите код — отправьте его ученикам.',
-  'как пригласить ученика':'Откройте класс и нажмите «Ссылка» — ученик перейдёт по ней и сразу присоединится. Или отправьте 6-значный код.',
+  'как пригласить ученика':'Откройте класс и нажмите «Ссылка» — ученик перейдёт по ней и сразу присоединится.',
   'как добавить книгу':'Библиотека → «Загрузить». Заполните поля, загрузите PDF (до 60 МБ) и, при желании, обложку.',
   'как поставить дедлайн':'В редакторе работы в блоке «Настройки» укажите дату в поле «Сдать до».',
   'как работает автопроверка':'Система сравнивает ответ ученика с правильным: точное совпадение, числовое сравнение с допуском, символьное упрощение через Nerdamer.'
@@ -1815,7 +1815,6 @@ function readerClose(){
   if(a)a.innerHTML='';if(b)b.innerHTML='';
   reader.animating=false;
 }
-function readerSlots(){return {A:$('#readerSlotA'),B:$('#readerSlotB')};}
 function activeSlot(){return reader.activeSlot==='A'?$('#readerSlotA'):$('#readerSlotB');}
 function inactiveSlot(){return reader.activeSlot==='A'?$('#readerSlotB'):$('#readerSlotA');}
 
@@ -1828,14 +1827,15 @@ async function renderPdfToCanvas(pageNum){
   var availH=stage.clientHeight-40;
   var fitScale=Math.min(availW/v1.width, availH/v1.height);
   var dpr=Math.min(2,window.devicePixelRatio||1);
-  var zoomFactor=reader.zoom;
-  var finalScale=fitScale*zoomFactor;
+  var finalScale=fitScale*reader.zoom;
   var viewport=page.getViewport({scale:finalScale*dpr});
   var canvas=document.createElement('canvas');
   canvas.width=Math.floor(viewport.width);
   canvas.height=Math.floor(viewport.height);
   canvas.style.width=Math.floor(viewport.width/dpr)+'px';
   canvas.style.height=Math.floor(viewport.height/dpr)+'px';
+  canvas.style.maxWidth='100%';
+  canvas.style.maxHeight='100%';
   var ctx=canvas.getContext('2d');
   await page.render({canvasContext:ctx, viewport:viewport}).promise;
   reader.cache[pageNum]=canvas;
@@ -1857,15 +1857,9 @@ async function renderCurrentPage(){
   var loading=$('#readerLoading');
   if(loading)loading.hidden=false;
   try{
-    var cached=reader.cache[reader.currentPage];
-    if(cached){
-      slot.innerHTML='';
-      slot.appendChild(cached.cloneNode(true));
-    } else {
-      var canvas=await renderPdfToCanvas(reader.currentPage);
-      slot.innerHTML='';
-      slot.appendChild(canvas);
-    }
+    var canvas=await renderPdfToCanvas(reader.currentPage);
+    slot.innerHTML='';
+    slot.appendChild(canvas.cloneNode(true));
     slot.style.transform='translateX(0)';
     slot.classList.remove('hidden');
   }catch(e){ console.error('render page:',e); }
@@ -1882,36 +1876,28 @@ async function goToPage(target, direction){
   var cur = activeSlot();
   var nxt = inactiveSlot();
 
-  // 1. Рендерим целевую страницу в неактивный слот, за кадром справа/слева
   nxt.innerHTML='';
   var loading=$('#readerLoading');
   if(loading)loading.hidden=false;
   try{
-    var cached=reader.cache[target];
-    var canvasEl;
-    if(cached) canvasEl=cached.cloneNode(true);
-    else canvasEl=await renderPdfToCanvas(target);
-    nxt.appendChild(canvasEl);
+    var canvasEl=await renderPdfToCanvas(target);
+    nxt.appendChild(canvasEl.cloneNode(true));
   }catch(e){console.error(e);}
   if(loading)loading.hidden=true;
 
   var offX = dir==='next' ? '100%' : '-100%';
   var exitX = dir==='next' ? '-100%' : '100%';
 
-  // 2. Ставим в стартовую позицию без анимации
   nxt.style.transition='none';
   nxt.style.transform='translateX('+offX+')';
   nxt.classList.remove('hidden');
-  // force reflow
   void nxt.offsetWidth;
 
-  // 3. Анимируем
   nxt.style.transition='';
   cur.style.transition='';
   nxt.style.transform='translateX(0)';
   cur.style.transform='translateX('+exitX+')';
 
-  // 4. По завершении — прячем уехавшую, переключаем активный слот
   setTimeout(function(){
     cur.classList.add('hidden');
     cur.style.transform='translateX(0)';
@@ -1919,10 +1905,6 @@ async function goToPage(target, direction){
     reader.currentPage = target;
     updateReaderIndicator();
     reader.animating=false;
-    // Обновим пропорции canvas на всякий случай
-    var act=activeSlot();
-    var c=act.querySelector('canvas');
-    if(c){ c.style.maxWidth='100%'; c.style.maxHeight='100%'; }
   }, 340);
 }
 
@@ -1934,11 +1916,66 @@ function readerZoom(delta){
   var z=Math.max(0.5, Math.min(3, reader.zoom + delta));
   if(z===reader.zoom) return;
   reader.zoom=z;
-  reader.cache={}; // сбрасываем кеш, т.к. размеры изменились
+  reader.cache={};
   updateReaderZoomLabel();
-  // Перерендер текущей страницы
   var slot=activeSlot(); if(slot) slot.innerHTML='';
   renderCurrentPage();
+}
+
+/* -------- Оглавление: резолв ссылок -------- */
+async function resolveOutlineDest(dest){
+  if(!dest || !reader.pdf) return -1;
+  try{
+    var d = dest;
+    if(typeof d === 'string'){
+      d = await reader.pdf.getDestination(d);
+      if(!d) return -1;
+    }
+    if(!d || !d[0]) return -1;
+    var ref = d[0];
+    if(typeof ref === 'number') return ref;
+    var idx = await reader.pdf.getPageIndex(ref);
+    return (typeof idx === 'number' && idx >= 0) ? idx : -1;
+  }catch(e){ console.warn('outline dest:', e.message); return -1; }
+}
+
+async function renderReaderToc(){
+  var host=$('#readerTocList');if(!host)return;
+  host.innerHTML='<div class="muted" style="padding:20px;text-align:center;font-size:13px">Загрузка оглавления…</div>';
+  if(!reader.outline || !reader.outline.length){
+    host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
+    return;
+  }
+
+  var flat = [];
+  async function collect(items, level){
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      var pageIdx = await resolveOutlineDest(it.dest);
+      flat.push({ title: it.title || '—', level: Math.min(3, level), pageIndex: pageIdx });
+      if(it.items && it.items.length) await collect(it.items, level+1);
+    }
+  }
+  try { await collect(reader.outline, 1); } catch(e){ console.error(e); }
+
+  host.innerHTML='';
+  if(!flat.length){ host.innerHTML='<div class="empty" style="padding:24px 16px">Пустое оглавление</div>'; return; }
+  flat.forEach(function(item){
+    var btn=document.createElement('button');
+    btn.className='reader-toc-item lvl-'+item.level;
+    btn.textContent=item.title;
+    if(item.pageIndex < 0){
+      btn.style.opacity='.5';
+      btn.title='Страница не определена';
+    }
+    btn.onclick=function(){
+      if(item.pageIndex < 0){ toast('Не удалось определить страницу','warn'); return; }
+      $('#readerTocPanel').hidden=true;
+      var target = item.pageIndex + 1;
+      goToPage(target, target > reader.currentPage ? 'next' : 'prev');
+    };
+    host.appendChild(btn);
+  });
 }
 
 async function openReader(bookId){
@@ -1965,8 +2002,7 @@ async function openReader(bookId){
     $('#readerTitle').textContent=b.title;
     if(!b.hasPdf){
       if(loading)loading.hidden=true;
-      var main=$('#readerSlotA');
-      main.innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">К этой книге не загружен PDF-файл.</div>';
+      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">К этой книге не загружен PDF-файл.</div>';
       return;
     }
     pdfSetupWorker();
@@ -1984,7 +2020,6 @@ async function openReader(bookId){
     reader.pdf=await loadingTask.promise;
     reader.totalPages=reader.pdf.numPages;
 
-    // Восстанавливаем страницу
     var saved=1;
     try{ saved=parseInt(localStorage.getItem('reader_page_'+bookId)||'1')||1; }catch(e){}
     reader.currentPage=Math.max(1, Math.min(reader.totalPages, saved));
@@ -1993,23 +2028,19 @@ async function openReader(bookId){
     await renderCurrentPage();
     if(loading)loading.hidden=true;
 
-    // Оглавление
     try{
       var outline=await reader.pdf.getOutline();
       reader.outline=outline||[];
     }catch(e){reader.outline=[];}
     renderReaderToc();
 
-    // Закладки
     renderReaderBookmarks(b.bookmarks||[]);
 
-    // Показ подсказки один раз
     if(!reader.hintShown && 'ontouchstart' in window){
       reader.hintShown=true;
       var hint=$('#readerHint');
       if(hint){hint.hidden=false;setTimeout(function(){hint.hidden=true;},3500);}
     }
-    // Сохраняем страницу при выходе
     window.__readerSavePage=function(){
       try{localStorage.setItem('reader_page_'+bookId, String(reader.currentPage));}catch(e){}
     };
@@ -2018,54 +2049,6 @@ async function openReader(bookId){
     if(loading)loading.hidden=true;
     $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">'+esc(e.message||'Ошибка загрузки PDF')+'</div>';
   }
-}
-
-/* Оглавление — поддерживает и строку и массив dest */
-function renderReaderToc(){
-  var host=$('#readerTocList');if(!host)return;
-  host.innerHTML='';
-  if(!reader.outline || !reader.outline.length){
-    host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
-    return;
-  }
-  function resolveDest(dest){
-    if(!dest || !reader.pdf) return Promise.resolve(-1);
-    return new Promise(function(resolve){
-      function tryArray(d){
-        if(!d || !d[0]) return resolve(-1);
-        reader.pdf.getPageIndex(d[0]).then(function(idx){
-          resolve(typeof idx==='number'?idx:-1);
-        }).catch(function(){resolve(-1);});
-      }
-      if(typeof dest==='string'){
-        reader.pdf.getDestination(dest).then(function(d){
-          if(!d) return resolve(-1);
-          tryArray(d);
-        }).catch(function(){resolve(-1);});
-      } else tryArray(dest);
-    });
-  }
-  function walk(items, level){
-    items.forEach(function(it){
-      var btn=document.createElement('button');
-      btn.className='reader-toc-item lvl-'+Math.min(3,level);
-      btn.textContent=it.title||'—';
-      var dest=it.dest;
-      btn.onclick=function(){
-        btn.style.opacity='.5';
-        resolveDest(dest).then(function(pageIdx){
-          btn.style.opacity='';
-          if(pageIdx<0){ toast('Не удалось определить страницу','warn'); return; }
-          var num=pageIdx+1;
-          $('#readerTocPanel').hidden=true;
-          goToPage(num, num>reader.currentPage?'next':'prev');
-        });
-      };
-      host.appendChild(btn);
-      if(it.items && it.items.length) walk(it.items, level+1);
-    });
-  }
-  walk(reader.outline, 1);
 }
 
 function renderReaderBookmarks(bms){
@@ -2095,7 +2078,6 @@ async function addBookmarkFromReader(){
   catch(e){toast(e.message,'err');}
 }
 
-/* UI toggle в ридере (тап по центру) */
 function toggleReaderUI(){
   reader.uiHidden=!reader.uiHidden;
   ['#readerTopbar','#readerProgress'].forEach(function(sel){
@@ -2379,11 +2361,8 @@ function enterApp(user){
   else show('view-landing');
 }
 
-/* ============================================================
-   BIND ALL
-   ============================================================ */
+/* BIND ALL */
 function bindAll(){
-  /* Brand */
   var br=$('#brandBtn');
   if(br) br.onclick=function(){
     if(!currentUser) return show('view-landing');
@@ -2392,7 +2371,6 @@ function bindAll(){
     if(currentUser.role==='librarian') return openLibrary();
     show('view-landing');
   };
-  /* Notifications */
   var bn=$('#btnNotif');
   if(bn) bn.onclick=function(e){e.stopPropagation();if(notifOpen){closeNotifPanel();return;}notifOpen=true;var p=$('#notifPanel');if(p)p.hidden=false;loadNotifications();};
   document.addEventListener('click',function(e){
@@ -2404,7 +2382,6 @@ function bindAll(){
   var uc=$('#userChip');
   if(uc) uc.onclick=function(e){e.stopPropagation();if(userMenuOpen)closeUserMenu();else openUserMenu();};
 
-  /* Auth tabs */
   function switchAuthTab(tab){
     $$('.tab[data-tab]').forEach(function(x){x.classList.toggle('active',x.dataset.tab===tab);});
     var lf=$('#loginForm'),rf=$('#regForm');
@@ -2441,7 +2418,6 @@ function bindAll(){
     finally{dr.disabled=false;}
   };
 
-  /* Teacher */
   var bnc=$('#btnNewClass');
   if(bnc)bnc.onclick=async function(){
     var name=prompt('Название класса:');if(!name||!name.trim())return;
@@ -2450,7 +2426,6 @@ function bindAll(){
   };
   var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
 
-  /* Tabs */
   $$('.tab[data-ttab]').forEach(function(t){t.onclick=function(){
     $$('.tab[data-ttab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
     var tab=t.dataset.ttab;$('#tt-tests').hidden=(tab!=='tests');$('#tt-classes').hidden=(tab!=='classes');
@@ -2470,7 +2445,6 @@ function bindAll(){
     currentSymTab=t.dataset.symtab;buildSymbolBar($('#symbolBar'));
   };});
 
-  /* Back buttons */
   var backMap={
     'btnBackToTeacher':goTeacher,
     'btnBackFromClass':function(){if(isTeacherLike())goTeacher();else goStudent();},
@@ -2488,16 +2462,13 @@ function bindAll(){
   };
   Object.keys(backMap).forEach(function(id){var b=$('#'+id);if(b)b.onclick=backMap[id];});
 
-  /* Class */
   var bca=$('#btnClassAnalytics');if(bca)bca.onclick=openClassAnalytics;
   var bcr=$('#btnClassRating');if(bcr)bcr.onclick=openClassRating;
 
-  /* Admin */
   var bcb=$('#btnCreateBackup');if(bcb)bcb.onclick=createBackupNow;
   var as=$('#adminSearch');if(as)as.oninput=(function(){var t=null;return function(){clearTimeout(t);t=setTimeout(loadAdminUsers,300);};})();
   var arf=$('#adminRoleFilter');if(arf)arf.onchange=loadAdminUsers;
 
-  /* Library */
   var bab=$('#btnAddBook');
   if(bab)bab.onclick=function(){var form=$('#bookUploadForm');form.hidden=!form.hidden;if(!form.hidden){clearBookForm();renderBookClassPicker();}};
   var bsb=$('#btnSaveBook');if(bsb)bsb.onclick=saveBook;
@@ -2509,7 +2480,6 @@ function bindAll(){
   if(bbv)bbv.onclick=function(){bookView=(bookView==='grid')?'list':'grid';bbv.textContent=(bookView==='grid')?'Список':'Сетка';searchBooks();};
   bindCoverDrop();bindPdfDrop();
 
-  /* Reader buttons */
   var brToc=$('#btnReaderToc');
   if(brToc)brToc.onclick=function(){var p=$('#readerTocPanel');p.hidden=!p.hidden;$('#readerBookmarksPanel').hidden=true;};
   var brTocC=$('#btnReaderTocClose');if(brTocC)brTocC.onclick=function(){$('#readerTocPanel').hidden=true;};
@@ -2535,11 +2505,9 @@ function bindAll(){
     if(ic) ic.setAttribute('href', document.fullscreenElement ? '#i-minimize' : '#i-maximize');
   });
 
-  /* Reader prev/next */
   var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-1,'prev');};
   var rn=$('#readerNext');if(rn)rn.onclick=function(){goToPage(reader.currentPage+1,'next');};
 
-  /* Reader keyboard */
   document.addEventListener('keydown',function(e){
     var v=$('#view-reader');
     if(!v||!v.classList.contains('active'))return;
@@ -2551,7 +2519,6 @@ function bindAll(){
     else if(e.key==='f'||e.key==='F'){ if(brFull) brFull.click(); }
   });
 
-  /* Reader swipe + tap по центру */
   (function(){
     var stage=$('#readerStage');
     if(!stage)return;
@@ -2566,23 +2533,19 @@ function bindAll(){
       var dx=e.changedTouches[0].clientX-sx;
       var dy=e.changedTouches[0].clientY-sy;
       var dt=Date.now()-st;
-      // Свайп
       if(Math.abs(dx)>50 && Math.abs(dy)<70 && dt<600){
         if(dx<0) goToPage(reader.currentPage+1,'next');
         else goToPage(reader.currentPage-1,'prev');
         return;
       }
-      // Тап по центру → toggle UI
       if(Math.abs(dx)<10 && Math.abs(dy)<10 && dt<300){
         var target=e.changedTouches[0].target;
-        // не переключаем UI, если тап по кнопкам/панелям
         if(target.closest('.reader-page-nav,.reader-topbar,.reader-toc-panel,.reader-bookmarks-panel')) return;
         toggleReaderUI();
       }
     },{passive:true});
   })();
 
-  /* Клик по stage — toggle UI (для десктопа) */
   (function(){
     var stage=$('#readerStage');
     if(!stage)return;
@@ -2592,21 +2555,18 @@ function bindAll(){
     });
   })();
 
-  /* Profile edit */
   var bep=$('#btnEditProfile');if(bep)bep.onclick=openEditProfile;
   var bsp=$('#btnSaveProfile');if(bsp)bsp.onclick=saveProfile;
   var bce=$('#btnCancelEdit');if(bce)bce.onclick=openProfileStats;
   var bua=$('#btnUploadAvatar');if(bua)bua.onclick=function(){$('#avatarInput').click();};
   var ain=$('#avatarInput');if(ain)ain.onchange=function(){if(this.files[0])uploadAvatarFile(this.files[0]);};
 
-  /* Support */
   var sb=$('#supportBtn');if(sb)sb.onclick=toggleSupport;
   var scl=$('#supportClose');if(scl)scl.onclick=toggleSupport;
   var ss=$('#supportSend');if(ss)ss.onclick=function(){supportSend();};
   var si=$('#supportInput');if(si)si.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();supportSend();}};
   $$('#supportQuick button').forEach(function(b){b.onclick=function(){supportSend(b.dataset.q);};});
 
-  /* Mobile nav */
   $$('#mobile-nav button').forEach(function(b){
     b.onclick=function(){
       var k=b.dataset.mnav;
@@ -2618,7 +2578,6 @@ function bindAll(){
     };
   });
 
-  /* ToTop */
   var tt=$('#toTop');if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
   window.addEventListener('scroll',function(){var t=$('#toTop');if(!t)return;if(window.scrollY>500)t.classList.add('show');else t.classList.remove('show');});
 
