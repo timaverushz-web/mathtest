@@ -1,25 +1,18 @@
 {
-  "name": "MathTest — контрольные работы",
+  "name": "MathTest — конструктор контрольных работ",
   "short_name": "MathTest",
-  "description": "Конструктор контрольных работ по высшей математике",
+  "description": "Конструктор контрольных работ по высшей математике с автоматической проверкой формул.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#0b1018",
-  "theme_color": "#5b8dff",
+  "orientation": "any",
+  "background_color": "#08080a",
+  "theme_color": "#ff6b1f",
   "lang": "ru",
+  "categories": ["education", "productivity"],
   "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    }
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
 }
