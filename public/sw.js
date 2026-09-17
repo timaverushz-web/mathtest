@@ -1,25 +1,22 @@
 // Service Worker для PWA MathTest
-const CACHE_NAME = 'mathtest-v1';
+const CACHE_NAME = 'mathtest-v3';
 const STATIC_ASSETS = [
   '/',
   '/style.css',
   '/app.js',
-  '/icon.svg',
+  '/favicon.svg',
+  '/apple-touch-icon.png',
   '/manifest.json'
 ];
 
-// Установка — кешируем статику
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // если что-то не закешировалось — не падаем
-      });
+      return cache.addAll(STATIC_ASSETS).catch(() => {});
     }).then(() => self.skipWaiting())
   );
 });
 
-// Активация — удаляем старые кеши
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -30,22 +27,20 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch — не кешируем API, остальное отдаём из кеша с фолбэком в сеть
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // API и загрузки — всегда через сеть
+  // API, иконки, файлы и всё не-GET — всегда через сеть
   if (url.pathname.startsWith('/api/') ||
-      url.pathname.startsWith('/icon') ||
+      url.pathname.startsWith('/favicon') ||
+      url.pathname.startsWith('/apple-touch') ||
       event.request.method !== 'GET') {
     return;
   }
 
-  // Для статики: сначала кеш, потом сеть
   event.respondWith(
     caches.match(event.request).then(cached => {
       const fetchPromise = fetch(event.request).then(response => {
-        // Обновляем кеш свежей версией
         if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
@@ -57,15 +52,15 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Обработка клика по push (на будущее)
 self.addEventListener('push', event => {
   if (!event.data) return;
-  const data = event.data.json();
+  let data = {};
+  try { data = event.data.json(); } catch(e) {}
   event.waitUntil(
     self.registration.showNotification(data.title || 'MathTest', {
       body: data.body || '',
-      icon: '/icon.svg',
-      badge: '/icon.svg'
+      icon: '/favicon.svg',
+      badge: '/favicon.svg'
     })
   );
 });
