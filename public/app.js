@@ -115,13 +115,17 @@ function roleLabel(){
   if(!currentUser)return '';
   return {'admin':'администратор','teacher':'учитель','librarian':'библиотекарь','student':'ученик'}[currentUser.role]||currentUser.role;
 }
-function avatarUrl(id){return '/api/users/'+id+'/avatar';}
+function avatarUrl(id, bust){
+  return '/api/users/'+id+'/avatar'+(bust ? ('?v='+bust) : '');
+}
 function renderAvatar(el,user,size){
   if(!el)return;
   el.style.width=(size||28)+'px';el.style.height=(size||28)+'px';
   el.style.fontSize=Math.round((size||28)*0.45)+'px';
   if(user&&user.hasAvatar){
-    el.style.backgroundImage="url('"+avatarUrl(user.id)+"')";
+    var bust = null;
+    try{ bust = localStorage.getItem('avatar_bust_'+user.id); }catch(e){}
+    el.style.backgroundImage="url('"+avatarUrl(user.id, bust)+"')";
     el.textContent='';
   } else {
     el.style.backgroundImage='';
@@ -700,18 +704,47 @@ async function openClassView(id){
     var r=await api('/classes/'+id);
     $('#classTitle').textContent=r.class.name;
     $('#classCodeBig').textContent=r.class.code;
-    $('#classCodeBig').onclick=function(){
-      try{navigator.clipboard.writeText(r.class.code);
-        var old=$('#classCodeBig').textContent;
-        $('#classCodeBig').textContent='✓';
-        toast('Код скопирован','ok');
-        setTimeout(function(){$('#classCodeBig').textContent=old;},900);
-      }catch(e){}
-    };
-    var bci=$('#btnCopyInvite');if(bci)bci.onclick=function(){
+        function copyToClipboard(text){
+      return new Promise(function(resolve){
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(function(){resolve(true);})
+            .catch(function(){ resolve(fallbackCopy(text)); });
+        } else {
+          resolve(fallbackCopy(text));
+        }
+      });
+      function fallbackCopy(t){
+        try{
+          var ta=document.createElement('textarea');
+          ta.value=t;
+          ta.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0';
+          document.body.appendChild(ta);
+          ta.focus(); ta.select();
+          var ok=document.execCommand('copy');
+          document.body.removeChild(ta);
+          return ok;
+        }catch(e){ return false; }
+      }
+    }
+
+    var codeBig=$('#classCodeBig');
+    if(codeBig){
+      codeBig.style.cursor='pointer';
+      codeBig.onclick=function(){
+        copyToClipboard(r.class.code).then(function(ok){
+          var old=codeBig.textContent;
+          codeBig.textContent = ok ? '✓ скопировано' : r.class.code;
+          toast(ok ? 'Код скопирован' : 'Скопируйте вручную: '+r.class.code, ok ? 'ok' : 'warn');
+          setTimeout(function(){ codeBig.textContent = old === '✓ скопировано' ? r.class.code : old; }, 1000);
+        });
+      };
+    }
+    var bci=$('#btnCopyInvite');
+    if(bci) bci.onclick=function(){
       var url=location.origin+location.pathname+'?join='+r.class.code;
-      try{navigator.clipboard.writeText(url);toast('Ссылка скопирована','ok');}
-      catch(e){toast('Не удалось','err');}
+      copyToClipboard(url).then(function(ok){
+        toast(ok ? 'Ссылка скопирована' : 'Скопируйте вручную: '+url, ok ? 'ok' : 'warn');
+      });
     };
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
@@ -2428,37 +2461,51 @@ function renderReaderToc(){
     host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
     return;
   }
-  function goToDest(dest){
-    if(!dest || !reader.pdf) return Promise.resolve(null);
-    var p;
-    if(typeof dest === 'string'){
-      p = reader.pdf.getDestination(dest);
-    } else {
-      p = Promise.resolve(dest);
-    }
-    return p.then(function(d){
-      if(!d || !d[0]) return null;
-      return reader.pdf.getPageIndex(d[0]).then(function(idx){ return idx; });
+
+  function resolveDest(dest){
+    if(!dest || !reader.pdf) return Promise.resolve(-1);
+    return new Promise(function(resolve){
+      function tryArray(d){
+        if(!d || !d[0]) return resolve(-1);
+        reader.pdf.getPageIndex(d[0]).then(function(idx){
+          resolve(typeof idx === 'number' ? idx : -1);
+        }).catch(function(){ resolve(-1); });
+      }
+      if(typeof dest === 'string'){
+        reader.pdf.getDestination(dest).then(function(d){
+          if(!d){ resolve(-1); return; }
+          tryArray(d);
+        }).catch(function(){ resolve(-1); });
+      } else {
+        tryArray(dest);
+      }
     });
   }
+
   function walk(items, level){
     items.forEach(function(it){
       var btn=document.createElement('button');
       btn.className='reader-toc-item lvl-'+Math.min(3,level);
       btn.textContent=it.title||'—';
+      var dest = it.dest;
+      // Иногда пункты — «контейнеры» без dest, но с items
       btn.onclick=function(){
         btn.style.opacity='.5';
-        goToDest(it.dest).then(function(pageIdx){
+        resolveDest(dest).then(function(pageIdx){
           btn.style.opacity='';
-          if(pageIdx==null){ toast('Не удалось перейти','warn'); return; }
-          var num=pageIdx+1;
-          var el=document.getElementById('pdfpage-'+num);
-          if(el){
-            var y=el.getBoundingClientRect().top + window.scrollY - 110;
-            window.scrollTo({top:y,behavior:'smooth'});
+          if(pageIdx < 0){
+            // запасной вариант: открыть первую страницу главы-родителя
+            toast('Не удалось определить страницу','warn');
+            return;
           }
-          $('#readerTocPanel').hidden=true;
-        }).catch(function(){ btn.style.opacity=''; toast('Не удалось перейти','warn'); });
+          var num = pageIdx + 1;
+          var el = document.getElementById('pdfpage-'+num);
+          if(el){
+            var y = el.getBoundingClientRect().top + window.scrollY - 110;
+            window.scrollTo({top:y, behavior:'smooth'});
+          }
+          $('#readerTocPanel').hidden = true;
+        });
       };
       host.appendChild(btn);
       if(it.items && it.items.length) walk(it.items, level+1);
@@ -2466,7 +2513,7 @@ function renderReaderToc(){
   }
   walk(reader.outline, 1);
 }
-
+  
 function renderReaderBookmarks(bms){
   var host=$('#readerBookmarksList');if(!host)return;
   host.innerHTML='';
@@ -2904,20 +2951,7 @@ async function saveProfile(){
   }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
   finally{btn.disabled=false;}
 }
-async function uploadAvatarFile(file){
-  if(!file)return;
-  if(file.size>5*1024*1024){toast('Файл больше 5 МБ','warn');return;}
-  var fd=new FormData();
-  fd.append('avatar',file);
-  try{
-    await apiForm('/users/me/avatar',fd);
-    var me=await api('/auth/me');
-    currentUser=me.user;
-    renderTop();
-    renderAvatar($('#editAvatar'),me.user,96);
-    toast('Аватар обновлён','ok');
-  }catch(e){toast(e.message,'err');}
-}
+async function uploadAvatarFile
 
 /* ENTER APP */
 function enterApp(user){
