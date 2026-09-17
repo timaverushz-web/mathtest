@@ -1812,3 +1812,101 @@ button.block { width: 100%; }
     transition-duration: .01ms !important;
   }
 }
+/* ==========================================================
+   Форма загрузки книги (в стиле Яндекс.Книг)
+   ========================================================== */
+.book-form-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (max-width: 720px) {
+  .book-form-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+
+.book-cover-upload {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: var(--trans);
+}
+.book-cover-upload:hover,
+.book-cover-upload.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.book-cover-upload .bcu-preview {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.book-cover-upload .bcu-empty {
+  text-align: center;
+  color: var(--text-2);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.book-cover-upload .bcu-empty svg {
+  width: 42px;
+  height: 42px;
+  stroke: var(--accent);
+  opacity: .75;
+  margin-bottom: 8px;
+}
+.book-cover-upload .bcu-empty b { font-size: 14.5px; color: var(--text); }
+.book-cover-upload .bcu-empty span { font-size: 12.5px; }
+.book-cover-upload .bcu-hint { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+.book-cover-upload .bcu-clear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,.72);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--trans-fast);
+  z-index: 2;
+}
+.book-cover-upload .bcu-clear:hover { background: var(--err); }
+
+.book-fields { display: flex; flex-direction: column; }
+.book-fields label { margin: 0 0 10px; }
+.book-fields label:last-child { margin-bottom: 0; }
+
+.book-content-label { display: block; margin-top: 6px; }
+.bcl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+#bookContent {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.65;
+  min-height: 380px;
+}
