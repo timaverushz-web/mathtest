@@ -2545,9 +2545,24 @@ async function uploadAvatarFile(file){
   var fd=new FormData();fd.append('avatar',file);
   try{
     await apiForm('/users/me/avatar',fd);
+
+    // Обновляем локально сразу — аватар показывается мгновенно
+    currentUser.hasAvatar = true;
     try{localStorage.setItem('avatar_bust_'+currentUser.id,String(Date.now()));}catch(e){}
-    var me=await api('/auth/me');currentUser=me.user;renderTop();
-    renderAvatar($('#editAvatar'),me.user,148);
+    renderTop();
+    renderAvatar($('#editAvatar'),currentUser,148);
+    renderAvatar($('#chipAvatar'),currentUser,32);
+
+    // Пробуем синхронизироваться с сервером, но не ломаемся если не выйдет
+    try{
+      var me = await api('/auth/me');
+      if(me && me.user){
+        currentUser = me.user;
+        renderTop();
+        renderAvatar($('#editAvatar'),currentUser,148);
+      }
+    }catch(e){ console.warn('sync /auth/me:', e.message); }
+
     toast('Аватар обновлён','ok');
   }catch(e){toast(e.message,'err');}
 }
