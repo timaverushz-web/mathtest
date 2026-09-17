@@ -522,6 +522,12 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.get('/api/auth/me', auth, async (req, res) => {
+  const u = await getUserById(req.user.id);
+  if (!u) return res.status(401).json({ error: 'Войдите заново' });
+  res.json({ user: userToJSON(u) });
+});
+
 /* ========== TELEGRAM LOGIN ========== */
 app.get('/api/telegram/bot-info', async (req, res) => {
   if (!bot) return res.json({ username: null });
