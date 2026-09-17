@@ -2079,6 +2079,7 @@ function clearBookForm(){
   editingBookId=null;
   editingBookCoverKey=null;
   $('#bookFormTitle').textContent='Новая книга';
+   if(window.__bookCoverReset) window.__bookCoverReset();
 }
 
 async function editBook(id){
@@ -2094,6 +2095,8 @@ async function editBook(id){
     $('#bookDescription').value=b.description||'';
     $('#bookContent').value=b.content||'';
     $('#bookCover').value='';
+        if(window.__bookCoverReset) window.__bookCoverReset();
+    if(b.hasCover && window.__bookCoverShowExisting) window.__bookCoverShowExisting(b.id);
     $('#bookUploadForm').hidden=false;
     await renderBookClassPicker();
     window.__bookClassIds=(b.classIds||[]).slice();
@@ -3104,6 +3107,64 @@ function bindAll(){
   initEditorFields();
 }
 
+  /* === Drag&drop обложки книги === */
+  (function(){
+    var drop=$('#bookCoverDrop');
+    var input=$('#bookCover');
+    var preview=$('#bookCoverPreview');
+    var clearBtn=$('#bookCoverClear');
+    if(!drop||!input||!preview) return;
+
+    function emptyHtml(){
+      return '<div class="bcu-empty">'+
+        '<svg><use href="#i-image"/></svg>'+
+        '<b>Обложка</b>'+
+        '<span>Перетащите или нажмите</span>'+
+        '<span class="bcu-hint">JPG, PNG, WebP · до 5 МБ</span>'+
+        '</div>';
+    }
+    function showPreview(file){
+      if(!file) return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        preview.style.backgroundImage='url('+e.target.result+')';
+        preview.innerHTML='';
+        if(clearBtn)clearBtn.hidden=false;
+      };
+      reader.readAsDataURL(file);
+    }
+    window.__bookCoverReset=function(){
+      preview.style.backgroundImage='';
+      preview.innerHTML=emptyHtml();
+      input.value='';
+      if(clearBtn)clearBtn.hidden=true;
+    };
+    window.__bookCoverShowExisting=function(bookId){
+      preview.style.backgroundImage='url(/api/books/'+bookId+'/cover)';
+      preview.innerHTML='';
+      if(clearBtn)clearBtn.hidden=false;
+    };
+
+    drop.onclick=function(e){ if(e.target===clearBtn) return; input.click(); };
+    input.onchange=function(){ if(this.files[0]) showPreview(this.files[0]); };
+    drop.ondragover=function(e){ e.preventDefault(); drop.classList.add('drag'); };
+    drop.ondragleave=function(){ drop.classList.remove('drag'); };
+    drop.ondrop=function(e){
+      e.preventDefault(); drop.classList.remove('drag');
+      var f=e.dataTransfer.files[0];
+      if(!f) return;
+      if(!/^image\//.test(f.type)){ toast('Только изображения','warn'); return; }
+      if(f.size>5*1024*1024){ toast('Файл больше 5 МБ','warn'); return; }
+      try{
+        var dt=new DataTransfer();
+        dt.items.add(f);
+        input.files=dt.files;
+      }catch(err){}
+      showPreview(f);
+    };
+    if(clearBtn) clearBtn.onclick=function(e){ e.stopPropagation(); window.__bookCoverReset(); };
+  })();
+  
 async function bootstrap(){
   var params=new URLSearchParams(location.search);
   var joinCode=params.get('join');
