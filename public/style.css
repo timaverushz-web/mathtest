@@ -951,3 +951,32 @@ body.reader-mode main { padding: 0 !important; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+/* Разворот: две страницы рядом */
+.reader-page-slot {
+  padding: 20px 12px;
+}
+.reader-spread {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+.reader-spread canvas {
+  display: block;
+  border-radius: 3px;
+  box-shadow: 0 12px 40px -14px rgba(0,0,0,.7);
+  background: #fff;
+  object-fit: contain;
+}
+[data-theme="light"] .reader-spread canvas {
+  box-shadow: 0 12px 36px -16px rgba(0,0,0,.2);
+}
+.reader-spread.single canvas {
+  max-width: 100%;
+}
+@media (max-width: 720px) {
+  .reader-page-slot { padding: 8px 4px; }
+  .reader-spread { gap: 6px; }
+}
