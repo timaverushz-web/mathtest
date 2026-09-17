@@ -2427,27 +2427,37 @@ function renderReaderToc(){
     host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
     return;
   }
+  function goToDest(dest){
+    if(!dest || !reader.pdf) return Promise.resolve(null);
+    var p;
+    if(typeof dest === 'string'){
+      p = reader.pdf.getDestination(dest);
+    } else {
+      p = Promise.resolve(dest);
+    }
+    return p.then(function(d){
+      if(!d || !d[0]) return null;
+      return reader.pdf.getPageIndex(d[0]).then(function(idx){ return idx; });
+    });
+  }
   function walk(items, level){
     items.forEach(function(it){
       var btn=document.createElement('button');
       btn.className='reader-toc-item lvl-'+Math.min(3,level);
       btn.textContent=it.title||'—';
       btn.onclick=function(){
-        var dest=it.dest;
-        if(!dest) return;
-        Promise.resolve(reader.pdf.getDestination(dest)).then(function(d){
-          if(!d) return;
-          return reader.pdf.getPageIndex(d[0]);
-        }).then(function(pageIdx){
-          if(pageIdx==null) return;
+        btn.style.opacity='.5';
+        goToDest(it.dest).then(function(pageIdx){
+          btn.style.opacity='';
+          if(pageIdx==null){ toast('Не удалось перейти','warn'); return; }
           var num=pageIdx+1;
           var el=document.getElementById('pdfpage-'+num);
           if(el){
-            var y=el.offsetTop-90;
+            var y=el.getBoundingClientRect().top + window.scrollY - 110;
             window.scrollTo({top:y,behavior:'smooth'});
           }
           $('#readerTocPanel').hidden=true;
-        }).catch(function(){});
+        }).catch(function(){ btn.style.opacity=''; toast('Не удалось перейти','warn'); });
       };
       host.appendChild(btn);
       if(it.items && it.items.length) walk(it.items, level+1);
