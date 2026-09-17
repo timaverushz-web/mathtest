@@ -1508,4 +1508,1147 @@ async function openSubmissionDetail(subId,testId){
       (r.submission.attempt?'<br>Попытка №'+r.submission.attempt:'')+
       (r.submission.late?'<br><span style="color:var(--err)">С опозданием</span>':'')+'</div></div>';
     r.test.tasks.forEach(function(task,i){
-     
+      var res=r.submission.results[i]||{ok:false,studentText:''};
+      var line=document.createElement('div');line.className='result-line '+(res.ok?'ok':'err');
+      var s=createMathInput(task.statement,true);s.el.style.marginBottom='10px';line.appendChild(s.el);
+      var info=document.createElement('div');info.style.fontWeight='600';
+      info.innerHTML=res.ok
+        ?'<span class="ok">✓ Верно</span> <span class="muted">· '+(task.points||1)+' б.</span>'
+        :'<span class="err">✗ Неверно</span> <span class="muted">· '+(task.points||1)+' б.</span>';
+      line.appendChild(info);
+      if(task.type==='input'){
+        var st=document.createElement('div');st.style.marginTop='14px';
+        st.innerHTML='<div class="muted" style="margin-bottom:6px">Ответ ученика:</div>';
+        var mf=createMathInput(res.studentText||'(пусто)',true);st.appendChild(mf.el);line.appendChild(st);
+        if(!res.ok){
+          var c=document.createElement('div');c.style.marginTop='14px';
+          c.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный ответ:</div>';
+          var mfc=createMathInput(task.answer,true);c.appendChild(mfc.el);line.appendChild(c);
+        }
+      } else if(!res.ok){
+        var c2=document.createElement('div');c2.style.marginTop='14px';
+        c2.innerHTML='<div class="muted" style="margin-bottom:6px">Правильный вариант:</div>';
+        var mf2=createMathInput(task.options[task.correctIndex].text,true);c2.appendChild(mf2.el);line.appendChild(c2);
+      }
+      card.appendChild(line);
+    });
+    var b=document.createElement('button');b.className='primary';b.textContent='К результатам';
+    b.onclick=function(){var t=currentSubmissionTest||{};if(t.id===testId)showSubmissions(t);else goTeacher();};
+    card.appendChild(b);body.appendChild(card);
+  }catch(e){toast(e.message,'err');}
+}
+
+/* DASHBOARD */
+async function openDashboard(){
+  if(!isTeacherLike())return;
+  show('view-dashboard');
+  var host=$('#dashboardBody');skeleton(host,6);
+  try{
+    var r=await api('/teacher/dashboard');
+    host.innerHTML='';
+    var top=document.createElement('div');top.className='grid';
+    [['Классов',r.total.classes],['Всего сдач',r.total.submissions],['Средний балл',r.total.avgPercent+'%']].forEach(function(s){
+      var c=document.createElement('div');c.className='stat-card';
+      c.innerHTML='<div class="stat-value">'+s[1]+'</div><div class="stat-label">'+s[0]+'</div>';
+      top.appendChild(c);
+    });
+    host.appendChild(top);
+    var wCard=document.createElement('div');wCard.className='card';wCard.style.marginTop='24px';
+    wCard.innerHTML='<h3>Динамика по неделям</h3>';
+    var wrap=document.createElement('div');wrap.className='chart-wrap';
+    var bars=document.createElement('div');bars.className='chart-bars';
+    r.weeks.forEach(function(w){
+      var b=document.createElement('div');b.className='chart-bar';
+      var color=w.avgPercent>=80?'var(--ok)':(w.avgPercent>=60?'var(--warn)':(w.avgPercent>0?'var(--err)':'var(--border)'));
+      b.style.cssText='height:'+Math.max(6,w.avgPercent)+'%;background:'+color;
+      b.title=w.label+' — '+w.count+' сдач, средний '+w.avgPercent+'%';
+      b.dataset.label=w.label;bars.appendChild(b);
+    });
+    wrap.appendChild(bars);wCard.appendChild(wrap);host.appendChild(wCard);
+    var cCard=document.createElement('div');cCard.className='card';
+    cCard.innerHTML='<h3>Средний балл по классам</h3>';
+    if(!r.perClass.length)cCard.innerHTML+='<div class="empty" style="padding:40px">Классов нет</div>';
+    r.perClass.forEach(function(c){
+      var color=c.avgPercent>=80?'var(--ok)':(c.avgPercent>=60?'var(--warn)':'var(--err)');
+      var row=document.createElement('div');row.className='analytics-row';
+      row.innerHTML='<div class="body"><div style="font-size:14px;font-weight:700">'+esc(c.name)+' <span class="muted">('+c.submissions+' сдач)</span></div>'+
+        '<div class="bar-track"><div class="bar-fill" style="width:'+c.avgPercent+'%;background:'+color+'"></div></div></div>'+
+        '<div class="pct" style="color:'+color+'">'+c.avgPercent+'%</div>';
+      cCard.appendChild(row);
+    });
+    host.appendChild(cCard);
+    var twoCol=document.createElement('div');twoCol.className='two-col';
+    var topCard=document.createElement('div');topCard.className='card';
+    topCard.innerHTML='<h3>Лучшие ученики</h3>';
+    if(!r.top.length)topCard.innerHTML+='<div class="empty" style="padding:40px">Нет данных</div>';
+    r.top.forEach(function(u,i){
+      var el=document.createElement('div');el.className='stu-row';
+      el.innerHTML='<span class="badge" style="background:'+(i===0?'#ffb547':(i===1?'#c0c0c0':(i===2?'#cd7f32':'var(--panel-2)')))+';color:'+(i<3?'#000':'var(--text-2)')+'">'+(i+1)+'</span>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
+        '<div class="score ok">'+u.avgPercent+'%</div>';
+      topCard.appendChild(el);
+    });
+    twoCol.appendChild(topCard);
+    var bottomCard=document.createElement('div');bottomCard.className='card';
+    bottomCard.innerHTML='<h3>Требуют внимания</h3>';
+    if(!r.bottom.length)bottomCard.innerHTML+='<div class="empty" style="padding:40px">Нет данных</div>';
+    r.bottom.forEach(function(u,i){
+      var el=document.createElement('div');el.className='stu-row';
+      el.innerHTML='<span class="badge red">'+(i+1)+'</span>'+
+        '<div class="name"><div style="font-weight:600">'+esc(u.name)+'</div><div class="muted">'+u.submissions+' сдач</div></div>'+
+        '<div class="score err">'+u.avgPercent+'%</div>';
+      bottomCard.appendChild(el);
+    });
+    twoCol.appendChild(bottomCard);host.appendChild(twoCol);
+  }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+
+/* LIBRARY */
+async function openLibrary(){
+  show('view-library');
+  var host=$('#bookList');skeleton(host,4);
+  var bab=$('#btnAddBook');
+  if(bab)bab.hidden=!canUploadBooks();
+  if(!canUploadBooks())$('#bookUploadForm').hidden=true;
+  editingBookId=null;
+  try{
+    var cr=await api('/classes');
+    var sel=$('#bookClassFilter');
+    if(sel)sel.innerHTML='<option value="">Все классы</option>'+cr.classes.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
+  }catch(e){}
+  await searchBooks();
+}
+function bookCoverUrl(id){return '/api/books/'+id+'/cover';}
+function renderBookCard(b){
+  var card=document.createElement('div');card.className='book-card';
+  var coverStyle='',coverContent='';
+  if(b.hasCover)coverStyle='background-image:url(\''+bookCoverUrl(b.id)+'\')';
+  else coverContent='<div class="book-cover-fallback">'+esc((b.title[0]||'?').toUpperCase())+'</div>';
+  card.innerHTML='<div class="book-cover" style="'+coverStyle+'">'+coverContent+'</div>'+
+    '<div class="book-title">'+esc(b.title)+'</div>'+
+    (b.author?'<div class="book-author">'+esc(b.author)+'</div>':'')+
+    '<div class="book-meta">'+
+    (b.subject?'<span class="pill">'+esc(b.subject)+'</span>':'')+
+    (b.pdfSize?'<span class="pill">'+fmtSize(b.pdfSize)+'</span>':'')+
+    (b.ownerName?'<span class="pill">'+esc(b.ownerName)+'</span>':'')+'</div>'+
+    (b.description?'<div class="book-desc">'+esc(b.description)+'</div>':'');
+  var actions=document.createElement('div');actions.className='book-actions';
+  var read=document.createElement('button');read.className='primary small';
+  read.innerHTML='<svg><use href="#i-book"/></svg> Читать';
+  read.onclick=function(e){e.stopPropagation();openReader(b.id);};
+  actions.appendChild(read);
+  if(isAdmin()||(isTeacherLike()&&b.ownerId===currentUser.id)||currentUser.role==='librarian'){
+    var ed=document.createElement('button');ed.className='ghost small';ed.textContent='Изменить';
+    ed.onclick=function(e){e.stopPropagation();editBook(b.id);};actions.appendChild(ed);
+    var del=document.createElement('button');del.className='ghost small danger';del.textContent='Удалить';
+    del.onclick=async function(e){e.stopPropagation();if(!confirm('Удалить «'+b.title+'»?'))return;try{await api('/books/'+b.id,{method:'DELETE'});toast('Удалено','ok');searchBooks();}catch(e){toast(e.message,'err');}};
+    actions.appendChild(del);
+  }
+  card.appendChild(actions);
+  card.onclick=function(){openReader(b.id);};
+  return card;
+}
+function renderBookRow(b){
+  var el=document.createElement('div');el.className='book-list-row';
+  var coverStyle='',coverContent='';
+  if(b.hasCover)coverStyle='background-image:url(\''+bookCoverUrl(b.id)+'\')';
+  else coverContent=esc((b.title[0]||'?').toUpperCase());
+  el.innerHTML='<div class="blc-cover" style="'+coverStyle+'">'+coverContent+'</div>'+
+    '<div class="binfo"><div class="btitle">'+esc(b.title)+'</div>'+
+    '<div class="bauthor">'+esc(b.author||'—')+(b.subject?' · '+esc(b.subject):'')+(b.pdfSize?' · '+fmtSize(b.pdfSize):'')+(b.ownerName?' · '+esc(b.ownerName):'')+'</div></div>';
+  var actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px';
+  var read=document.createElement('button');read.className='primary small';read.textContent='Читать';
+  read.onclick=function(e){e.stopPropagation();openReader(b.id);};
+  actions.appendChild(read);
+  if(isAdmin()||(isTeacherLike()&&b.ownerId===currentUser.id)||currentUser.role==='librarian'){
+    var ed=document.createElement('button');ed.className='ghost small';ed.textContent='Изменить';
+    ed.onclick=function(e){e.stopPropagation();editBook(b.id);};actions.appendChild(ed);
+    var del=document.createElement('button');del.className='ghost small danger';del.textContent='✕';
+    del.onclick=async function(e){e.stopPropagation();if(!confirm('Удалить?'))return;try{await api('/books/'+b.id,{method:'DELETE'});toast('Удалено','ok');searchBooks();}catch(e){toast(e.message,'err');}};
+    actions.appendChild(del);
+  }
+  el.appendChild(actions);
+  el.onclick=function(){openReader(b.id);};
+  return el;
+}
+async function searchBooks(){
+  var host=$('#bookList');if(!host)return;
+  skeleton(host,3);
+  try{
+    var q=$('#bookSearch')?$('#bookSearch').value.trim():'';
+    var cid=$('#bookClassFilter')?$('#bookClassFilter').value:'';
+    var sort=$('#bookSort')?$('#bookSort').value:'new';
+    var params='?q='+encodeURIComponent(q)+'&classId='+encodeURIComponent(cid)+'&sort='+encodeURIComponent(sort);
+    var r=await api('/books'+params);
+    host.innerHTML='';
+    if(!r.books.length){
+      host.innerHTML='<div class="card"><div class="empty"><div class="icon">📚</div>'+(q||cid?'Ничего не найдено':'Книг пока нет')+'</div></div>';
+      return;
+    }
+    if(bookView==='grid'){
+      var grid=document.createElement('div');grid.className='grid';
+      r.books.forEach(function(b){grid.appendChild(renderBookCard(b));});
+      host.appendChild(grid);
+    } else r.books.forEach(function(b){host.appendChild(renderBookRow(b));});
+  }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+async function renderBookClassPicker(){
+  var host=$('#bookClassPicker');if(!host)return;
+  try{
+    var r=await api('/classes');
+    host.innerHTML='';window.__bookClassIds=[];
+    if(!r.classes.length){host.innerHTML='<div class="muted">Нет классов — книга видна всем.</div>';return;}
+    var currentBook=null;
+    if(editingBookId){try{currentBook=(await api('/books/'+editingBookId)).book;}catch(e){}}
+    r.classes.forEach(function(c){
+      var lab=document.createElement('label');lab.className='class-pick';
+      var cb=document.createElement('input');cb.type='checkbox';
+      if(currentBook&&(currentBook.classIds||[]).indexOf(c.id)>=0){cb.checked=true;window.__bookClassIds.push(c.id);}
+      cb.onchange=function(){
+        if(cb.checked){if(window.__bookClassIds.indexOf(c.id)<0)window.__bookClassIds.push(c.id);}
+        else window.__bookClassIds=window.__bookClassIds.filter(function(x){return x!==c.id;});
+      };
+      var s=document.createElement('span');
+      s.innerHTML='<b>'+esc(c.name)+'</b> <span class="muted">('+c.studentCount+')</span>';
+      lab.appendChild(cb);lab.appendChild(s);host.appendChild(lab);
+    });
+  }catch(e){}
+}
+function bindCoverDrop(){
+  var drop=$('#bookCoverDrop'),input=$('#bookCover'),preview=$('#bookCoverPreview'),clearBtn=$('#bookCoverClear');
+  if(!drop||!input||!preview)return;
+  function emptyHtml(){return '<div class="bcu-empty"><svg><use href="#i-image"/></svg><b>Обложка</b><span>Перетащите или нажмите</span><span class="bcu-hint">JPG, PNG, WebP · до 5 МБ</span></div>';}
+  function showPreview(file){if(!file)return;var r=new FileReader();r.onload=function(e){preview.style.backgroundImage='url('+e.target.result+')';preview.innerHTML='';if(clearBtn)clearBtn.hidden=false;};r.readAsDataURL(file);}
+  window.__bookCoverReset=function(){preview.style.backgroundImage='';preview.innerHTML=emptyHtml();input.value='';if(clearBtn)clearBtn.hidden=true;};
+  window.__bookCoverShowExisting=function(bookId){preview.style.backgroundImage='url(/api/books/'+bookId+'/cover)';preview.innerHTML='';if(clearBtn)clearBtn.hidden=false;};
+  drop.onclick=function(e){if(e.target===clearBtn)return;input.click();};
+  input.onchange=function(){if(this.files[0])showPreview(this.files[0]);};
+  drop.ondragover=function(e){e.preventDefault();drop.classList.add('drag');};
+  drop.ondragleave=function(){drop.classList.remove('drag');};
+  drop.ondrop=function(e){e.preventDefault();drop.classList.remove('drag');var f=e.dataTransfer.files[0];if(!f)return;if(!/^image\//.test(f.type)){toast('Только изображения','warn');return;}if(f.size>5*1024*1024){toast('Файл больше 5 МБ','warn');return;}try{var dt=new DataTransfer();dt.items.add(f);input.files=dt.files;}catch(err){}showPreview(f);};
+  if(clearBtn)clearBtn.onclick=function(e){e.stopPropagation();window.__bookCoverReset();};
+}
+function bindPdfDrop(){
+  var drop=$('#bookPdfDrop'),input=$('#bookPdf'),preview=$('#bookPdfPreview'),meta=$('#bookPdfMeta'),clearBtn=$('#bookPdfClear');
+  if(!drop||!input)return;
+  function emptyHtml(){return '<div class="bpd-empty"><svg><use href="#i-file"/></svg><b>PDF-файл книги *</b><span>Перетащите или нажмите</span><span class="bcu-hint">До 60 МБ</span></div>';}
+  function setFile(file){
+    if(!file)return;
+    if(!/\.pdf$/i.test(file.name) && file.type!=='application/pdf'){toast('Нужен файл PDF','warn');return;}
+    if(file.size>60*1024*1024){toast('Файл больше 60 МБ','warn');return;}
+    preview.hidden=true;meta.hidden=false;
+    meta.innerHTML='<svg><use href="#i-file"/></svg><div><div class="bpd-name">'+esc(file.name)+'</div><div class="bpd-size">'+fmtSize(file.size)+'</div></div>';
+    drop.classList.add('has-file');if(clearBtn)clearBtn.hidden=false;
+  }
+  window.__bookPdfReset=function(){preview.hidden=false;preview.innerHTML=emptyHtml();meta.hidden=true;meta.innerHTML='';input.value='';drop.classList.remove('has-file');if(clearBtn)clearBtn.hidden=true;};
+  window.__bookPdfShowExisting=function(name,size){
+    preview.hidden=true;meta.hidden=false;
+    meta.innerHTML='<svg><use href="#i-file"/></svg><div><div class="bpd-name">'+esc(name||'book.pdf')+'</div><div class="bpd-size">'+fmtSize(size||0)+' (текущий)</div></div>';
+    drop.classList.add('has-file');if(clearBtn)clearBtn.hidden=false;
+  };
+  drop.onclick=function(e){if(e.target===clearBtn)return;input.click();};
+  input.onchange=function(){if(this.files[0])setFile(this.files[0]);};
+  drop.ondragover=function(e){e.preventDefault();drop.classList.add('drag');};
+  drop.ondragleave=function(){drop.classList.remove('drag');};
+  drop.ondrop=function(e){e.preventDefault();drop.classList.remove('drag');var f=e.dataTransfer.files[0];if(!f)return;try{var dt=new DataTransfer();dt.items.add(f);input.files=dt.files;}catch(err){}setFile(f);};
+  if(clearBtn)clearBtn.onclick=function(e){e.stopPropagation();window.__bookPdfReset();};
+}
+function clearBookForm(){
+  ['bookTitle','bookAuthor','bookSubject','bookDescription'].forEach(function(id){var el=$('#'+id);if(el)el.value='';});
+  $('#bookErr').textContent='';editingBookId=null;
+  if(window.__bookCoverReset)window.__bookCoverReset();
+  if(window.__bookPdfReset)window.__bookPdfReset();
+  $('#bookFormTitle').textContent='Новая книга';
+}
+async function editBook(id){
+  try{
+    var r=await api('/books/'+id);
+    var b=r.book;editingBookId=b.id;
+    $('#bookFormTitle').textContent='Редактирование книги';
+    $('#bookTitle').value=b.title||'';$('#bookAuthor').value=b.author||'';
+    $('#bookSubject').value=b.subject||'';$('#bookDescription').value=b.description||'';
+    $('#bookUploadForm').hidden=false;
+    await renderBookClassPicker();
+    window.__bookClassIds=(b.classIds||[]).slice();
+    if(window.__bookCoverReset)window.__bookCoverReset();
+    if(b.hasCover && window.__bookCoverShowExisting)window.__bookCoverShowExisting(b.id);
+    if(window.__bookPdfReset)window.__bookPdfReset();
+    if(b.hasPdf && window.__bookPdfShowExisting)window.__bookPdfShowExisting(b.title+'.pdf',b.pdfSize);
+  }catch(e){toast(e.message,'err');}
+}
+async function saveBook(){
+  var err=$('#bookErr');if(err)err.textContent='';
+  var title=$('#bookTitle').value.trim();
+  if(!title){if(err)err.textContent='Введите название';return;}
+  var pdfInput=$('#bookPdf');var pdfFile=pdfInput && pdfInput.files[0];
+  if(!editingBookId && !pdfFile){if(err)err.textContent='Загрузите PDF-файл';return;}
+  var fd=new FormData();
+  fd.append('title',title);
+  fd.append('author',$('#bookAuthor').value.trim());
+  fd.append('subject',$('#bookSubject').value.trim());
+  fd.append('description',$('#bookDescription').value.trim());
+  fd.append('classIds',JSON.stringify(window.__bookClassIds||[]));
+  var cover=$('#bookCover').files[0];
+  if(cover){if(cover.size>5*1024*1024){if(err)err.textContent='Обложка больше 5 МБ';return;}fd.append('cover',cover);}
+  if(pdfFile)fd.append('pdf',pdfFile);
+  var btn=$('#btnSaveBook');btn.disabled=true;var oldTxt=btn.innerHTML;btn.innerHTML='Загрузка…';
+  try{
+    if(editingBookId){await apiForm('/books/'+editingBookId,fd,'PUT');toast('Книга обновлена','ok');}
+    else{await apiForm('/books',fd);toast('Книга добавлена','ok');}
+    $('#bookUploadForm').hidden=true;clearBookForm();searchBooks();
+  }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
+  finally{btn.disabled=false;btn.innerHTML=oldTxt;}
+}
+
+/* ============================================================
+   PDF READER — ГОРИЗОНТАЛЬНОЕ ЛИСТАНИЕ
+   ============================================================ */
+function pdfSetupWorker(){
+  if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+}
+function readerClose(){
+  if(reader.pdf){try{reader.pdf.destroy();}catch(e){}}
+  reader.pdf=null;reader.totalPages=0;reader.currentPage=1;reader.cache={};reader.outline=[];
+  var a=$('#readerSlotA'),b=$('#readerSlotB');
+  if(a)a.innerHTML='';if(b)b.innerHTML='';
+  reader.animating=false;
+}
+function readerSlots(){return {A:$('#readerSlotA'),B:$('#readerSlotB')};}
+function activeSlot(){return reader.activeSlot==='A'?$('#readerSlotA'):$('#readerSlotB');}
+function inactiveSlot(){return reader.activeSlot==='A'?$('#readerSlotB'):$('#readerSlotA');}
+
+async function renderPdfToCanvas(pageNum){
+  if(reader.cache[pageNum]) return reader.cache[pageNum];
+  var page=await reader.pdf.getPage(pageNum);
+  var v1=page.getViewport({scale:1});
+  var stage=$('#readerStage');
+  var availW=stage.clientWidth-40;
+  var availH=stage.clientHeight-40;
+  var fitScale=Math.min(availW/v1.width, availH/v1.height);
+  var dpr=Math.min(2,window.devicePixelRatio||1);
+  var zoomFactor=reader.zoom;
+  var finalScale=fitScale*zoomFactor;
+  var viewport=page.getViewport({scale:finalScale*dpr});
+  var canvas=document.createElement('canvas');
+  canvas.width=Math.floor(viewport.width);
+  canvas.height=Math.floor(viewport.height);
+  canvas.style.width=Math.floor(viewport.width/dpr)+'px';
+  canvas.style.height=Math.floor(viewport.height/dpr)+'px';
+  var ctx=canvas.getContext('2d');
+  await page.render({canvasContext:ctx, viewport:viewport}).promise;
+  reader.cache[pageNum]=canvas;
+  return canvas;
+}
+
+function updateReaderIndicator(){
+  var ind=$('#readerPageIndicator');
+  if(ind)ind.textContent=reader.currentPage+' / '+(reader.totalPages||1);
+  var pr=$('#readerProgress');
+  if(pr&&reader.totalPages) pr.style.width=((reader.currentPage/reader.totalPages)*100)+'%';
+  var prevBtn=$('#readerPrev');if(prevBtn)prevBtn.disabled=(reader.currentPage<=1);
+  var nextBtn=$('#readerNext');if(nextBtn)nextBtn.disabled=(reader.currentPage>=reader.totalPages);
+}
+
+async function renderCurrentPage(){
+  var slot=activeSlot();
+  if(!slot) return;
+  var loading=$('#readerLoading');
+  if(loading)loading.hidden=false;
+  try{
+    var cached=reader.cache[reader.currentPage];
+    if(cached){
+      slot.innerHTML='';
+      slot.appendChild(cached.cloneNode(true));
+    } else {
+      var canvas=await renderPdfToCanvas(reader.currentPage);
+      slot.innerHTML='';
+      slot.appendChild(canvas);
+    }
+    slot.style.transform='translateX(0)';
+    slot.classList.remove('hidden');
+  }catch(e){ console.error('render page:',e); }
+  if(loading)loading.hidden=true;
+}
+
+async function goToPage(target, direction){
+  if(!reader.pdf || reader.animating) return;
+  target=Math.max(1, Math.min(reader.totalPages, target));
+  if(target===reader.currentPage) return;
+
+  reader.animating=true;
+  var dir = direction || (target>reader.currentPage ? 'next' : 'prev');
+  var cur = activeSlot();
+  var nxt = inactiveSlot();
+
+  // 1. Рендерим целевую страницу в неактивный слот, за кадром справа/слева
+  nxt.innerHTML='';
+  var loading=$('#readerLoading');
+  if(loading)loading.hidden=false;
+  try{
+    var cached=reader.cache[target];
+    var canvasEl;
+    if(cached) canvasEl=cached.cloneNode(true);
+    else canvasEl=await renderPdfToCanvas(target);
+    nxt.appendChild(canvasEl);
+  }catch(e){console.error(e);}
+  if(loading)loading.hidden=true;
+
+  var offX = dir==='next' ? '100%' : '-100%';
+  var exitX = dir==='next' ? '-100%' : '100%';
+
+  // 2. Ставим в стартовую позицию без анимации
+  nxt.style.transition='none';
+  nxt.style.transform='translateX('+offX+')';
+  nxt.classList.remove('hidden');
+  // force reflow
+  void nxt.offsetWidth;
+
+  // 3. Анимируем
+  nxt.style.transition='';
+  cur.style.transition='';
+  nxt.style.transform='translateX(0)';
+  cur.style.transform='translateX('+exitX+')';
+
+  // 4. По завершении — прячем уехавшую, переключаем активный слот
+  setTimeout(function(){
+    cur.classList.add('hidden');
+    cur.style.transform='translateX(0)';
+    reader.activeSlot = reader.activeSlot==='A' ? 'B' : 'A';
+    reader.currentPage = target;
+    updateReaderIndicator();
+    reader.animating=false;
+    // Обновим пропорции canvas на всякий случай
+    var act=activeSlot();
+    var c=act.querySelector('canvas');
+    if(c){ c.style.maxWidth='100%'; c.style.maxHeight='100%'; }
+  }, 340);
+}
+
+function updateReaderZoomLabel(){
+  var el=$('#readerZoomVal');
+  if(el) el.textContent=Math.round(reader.zoom*100)+'%';
+}
+function readerZoom(delta){
+  var z=Math.max(0.5, Math.min(3, reader.zoom + delta));
+  if(z===reader.zoom) return;
+  reader.zoom=z;
+  reader.cache={}; // сбрасываем кеш, т.к. размеры изменились
+  updateReaderZoomLabel();
+  // Перерендер текущей страницы
+  var slot=activeSlot(); if(slot) slot.innerHTML='';
+  renderCurrentPage();
+}
+
+async function openReader(bookId){
+  show('view-reader');
+  readerClose();
+  reader.bookId=bookId;
+  reader.activeSlot='A';
+  reader.zoom=1;
+  updateReaderZoomLabel();
+
+  var slotA=$('#readerSlotA'),slotB=$('#readerSlotB');
+  slotA.innerHTML='';slotB.innerHTML='';
+  slotA.style.transform='translateX(0)';
+  slotB.style.transform='translateX(0)';
+  slotA.classList.remove('hidden');
+  slotB.classList.add('hidden');
+
+  var loading=$('#readerLoading');if(loading)loading.hidden=false;
+
+  try{
+    var r=await api('/books/'+bookId);
+    var b=r.book;
+    reader.book=b;
+    $('#readerTitle').textContent=b.title;
+    if(!b.hasPdf){
+      if(loading)loading.hidden=true;
+      var main=$('#readerSlotA');
+      main.innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">К этой книге не загружен PDF-файл.</div>';
+      return;
+    }
+    pdfSetupWorker();
+    if(!window.pdfjsLib){
+      if(loading)loading.hidden=true;
+      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">Не удалось загрузить pdf.js. Проверьте интернет.</div>';
+      return;
+    }
+    var tk=getToken();
+    var loadingTask=pdfjsLib.getDocument({
+      url:'/api/books/'+bookId+'/pdf',
+      httpHeaders: tk ? {'Authorization':'Bearer '+tk} : {},
+      withCredentials:false
+    });
+    reader.pdf=await loadingTask.promise;
+    reader.totalPages=reader.pdf.numPages;
+
+    // Восстанавливаем страницу
+    var saved=1;
+    try{ saved=parseInt(localStorage.getItem('reader_page_'+bookId)||'1')||1; }catch(e){}
+    reader.currentPage=Math.max(1, Math.min(reader.totalPages, saved));
+
+    updateReaderIndicator();
+    await renderCurrentPage();
+    if(loading)loading.hidden=true;
+
+    // Оглавление
+    try{
+      var outline=await reader.pdf.getOutline();
+      reader.outline=outline||[];
+    }catch(e){reader.outline=[];}
+    renderReaderToc();
+
+    // Закладки
+    renderReaderBookmarks(b.bookmarks||[]);
+
+    // Показ подсказки один раз
+    if(!reader.hintShown && 'ontouchstart' in window){
+      reader.hintShown=true;
+      var hint=$('#readerHint');
+      if(hint){hint.hidden=false;setTimeout(function(){hint.hidden=true;},3500);}
+    }
+    // Сохраняем страницу при выходе
+    window.__readerSavePage=function(){
+      try{localStorage.setItem('reader_page_'+bookId, String(reader.currentPage));}catch(e){}
+    };
+  }catch(e){
+    console.error(e);
+    if(loading)loading.hidden=true;
+    $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">'+esc(e.message||'Ошибка загрузки PDF')+'</div>';
+  }
+}
+
+/* Оглавление — поддерживает и строку и массив dest */
+function renderReaderToc(){
+  var host=$('#readerTocList');if(!host)return;
+  host.innerHTML='';
+  if(!reader.outline || !reader.outline.length){
+    host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
+    return;
+  }
+  function resolveDest(dest){
+    if(!dest || !reader.pdf) return Promise.resolve(-1);
+    return new Promise(function(resolve){
+      function tryArray(d){
+        if(!d || !d[0]) return resolve(-1);
+        reader.pdf.getPageIndex(d[0]).then(function(idx){
+          resolve(typeof idx==='number'?idx:-1);
+        }).catch(function(){resolve(-1);});
+      }
+      if(typeof dest==='string'){
+        reader.pdf.getDestination(dest).then(function(d){
+          if(!d) return resolve(-1);
+          tryArray(d);
+        }).catch(function(){resolve(-1);});
+      } else tryArray(dest);
+    });
+  }
+  function walk(items, level){
+    items.forEach(function(it){
+      var btn=document.createElement('button');
+      btn.className='reader-toc-item lvl-'+Math.min(3,level);
+      btn.textContent=it.title||'—';
+      var dest=it.dest;
+      btn.onclick=function(){
+        btn.style.opacity='.5';
+        resolveDest(dest).then(function(pageIdx){
+          btn.style.opacity='';
+          if(pageIdx<0){ toast('Не удалось определить страницу','warn'); return; }
+          var num=pageIdx+1;
+          $('#readerTocPanel').hidden=true;
+          goToPage(num, num>reader.currentPage?'next':'prev');
+        });
+      };
+      host.appendChild(btn);
+      if(it.items && it.items.length) walk(it.items, level+1);
+    });
+  }
+  walk(reader.outline, 1);
+}
+
+function renderReaderBookmarks(bms){
+  var host=$('#readerBookmarksList');if(!host)return;
+  host.innerHTML='';
+  if(!bms.length){host.innerHTML='<div class="empty" style="padding:24px 16px">Закладок нет</div>';return;}
+  bms.forEach(function(bm){
+    var el=document.createElement('div');el.className='bookmark-item';
+    el.innerHTML='<div class="bm-body"><div class="bm-pos">Страница '+bm.position+'</div>'+
+      (bm.note?'<div class="bm-note">'+esc(bm.note)+'</div>':'')+'</div>';
+    var del=document.createElement('button');del.textContent='✕';
+    del.onclick=async function(e){e.stopPropagation();try{await api('/bookmarks/'+bm.id,{method:'DELETE'});openReader(reader.bookId);}catch(e){toast(e.message,'err');}};
+    el.appendChild(del);
+    el.onclick=function(){
+      $('#readerBookmarksPanel').hidden=true;
+      goToPage(bm.position, bm.position>reader.currentPage?'next':'prev');
+    };
+    host.appendChild(el);
+  });
+}
+async function addBookmarkFromReader(){
+  if(!reader.bookId)return;
+  var page=reader.currentPage||1;
+  var note=prompt('Заметка к закладке (страница '+page+', можно оставить пустым):','');
+  if(note===null)return;
+  try{await api('/books/'+reader.bookId+'/bookmarks',{method:'POST',body:{position:page,note:note||null}});toast('Закладка добавлена','ok');openReader(reader.bookId);}
+  catch(e){toast(e.message,'err');}
+}
+
+/* UI toggle в ридере (тап по центру) */
+function toggleReaderUI(){
+  reader.uiHidden=!reader.uiHidden;
+  ['#readerTopbar','#readerProgress'].forEach(function(sel){
+    var el=$(sel);if(!el)return;
+    el.classList.toggle('hidden-ui', reader.uiHidden);
+  });
+  var ind=$('#readerPageIndicator');
+  if(ind)ind.classList.toggle('hidden-ui', reader.uiHidden);
+}
+
+/* ADMIN */
+async function openAdmin(){
+  if(!isAdmin())return;
+  show('view-admin');
+  skeleton($('#adminStats'),3);skeleton($('#adminUsersList'),4);
+  await loadAdminUsers();
+}
+async function loadAdminLogs(){
+  var host=$('#adminLogsList');if(!host)return;skeleton(host,5);
+  try{
+    var r=await api('/admin/logs?limit=200');
+    host.innerHTML='';
+    if(!r.logs.length){host.innerHTML='<div class="empty" style="padding:40px">Пока нет записей</div>';return;}
+    r.logs.forEach(function(l){
+      var el=document.createElement('div');el.className='log-row';
+      el.innerHTML='<div class="log-time">'+fmtDate(l.at)+'</div>'+
+        '<div class="log-who">'+esc(l.userName)+'</div>'+
+        '<div class="log-action">'+esc(l.action)+(l.details?'<div class="log-details">'+esc(l.details)+'</div>':'')+'</div>';
+      host.appendChild(el);
+    });
+  }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function loadBackups(){
+  var host=$('#adminBackupsList');if(!host)return;skeleton(host,3);
+  try{
+    var r=await api('/admin/backups');
+    host.innerHTML='';
+    if(!r.backups.length){host.innerHTML='<div class="empty" style="padding:40px">Пока нет бэкапов</div>';return;}
+    r.backups.forEach(function(b){
+      var el=document.createElement('div');el.className='backup-row';
+      var date=new Date(b.createdAt).toLocaleString('ru-RU');
+      el.innerHTML='<div class="bi-info"><b>'+(b.auto?'Авто':'Ручной')+'</b><div class="muted">'+date+' · '+fmtSize(b.size)+'</div></div>';
+      var dl=document.createElement('button');dl.className='primary small';dl.textContent='Скачать';
+      dl.onclick=async function(){
+        try{
+          var tk=getToken();
+          var res=await fetch('/api/admin/backups/'+b.id+'/download',{headers:{Authorization:'Bearer '+tk}});
+          if(!res.ok)throw new Error('Не удалось');
+          var blob=await res.blob();
+          var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=b.key.split('/').pop();
+          document.body.appendChild(a);a.click();a.remove();
+        }catch(e){toast(e.message,'err');}
+      };
+      var del=document.createElement('button');del.className='ghost small danger';del.textContent='✕';
+      del.onclick=async function(){if(!confirm('Удалить бэкап?'))return;try{await api('/admin/backups/'+b.id,{method:'DELETE'});toast('Удалён','ok');loadBackups();}catch(e){toast(e.message,'err');}};
+      el.appendChild(dl);el.appendChild(del);host.appendChild(el);
+    });
+  }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function createBackupNow(){
+  var btn=$('#btnCreateBackup');if(!btn)return;btn.disabled=true;
+  try{await api('/admin/backups/create',{method:'POST'});toast('Бэкап создан','ok');loadBackups();}
+  catch(e){toast(e.message,'err');}
+  finally{btn.disabled=false;}
+}
+async function loadAdminUsers(){
+  try{
+    var q=$('#adminSearch').value.trim();
+    var role=$('#adminRoleFilter').value;
+    var r=await api('/admin/users?q='+encodeURIComponent(q)+'&role='+encodeURIComponent(role));
+    var sh=$('#adminStats');sh.innerHTML='';
+    [['Всего',r.stats.total],['Админов',r.stats.admin],['Учителей',r.stats.teacher],
+     ['Библиотекарей',r.stats.librarian],['Учеников',r.stats.student],
+     ['Работ',r.stats.tests],['Книг',r.stats.books]].forEach(function(s){
+      var c=document.createElement('div');c.className='stat-card';
+      c.innerHTML='<div class="stat-value">'+s[1]+'</div><div class="stat-label">'+s[0]+'</div>';
+      sh.appendChild(c);
+    });
+    var host=$('#adminUsersList');host.innerHTML='';
+    if(!r.users.length){host.innerHTML='<div class="empty" style="padding:40px">Никого не найдено</div>';return;}
+    r.users.forEach(function(u){
+      var el=document.createElement('div');el.className='admin-row';
+      el.innerHTML='<div class="avatar"></div>'+
+        '<div class="info"><b>'+esc(u.name)+'</b>'+
+        '<div class="muted">'+esc(u.email)+' · '+fmtDate(u.createdAt)+'</div>'+
+        '<div class="muted" style="font-size:12px;margin-top:3px">Классов: '+u.stats.classes_created+' · В классах: '+u.stats.classes_joined+' · Сдач: '+u.stats.submissions+' · Книг: '+u.stats.books+'</div></div>';
+      renderAvatar(el.querySelector('.avatar'),u,44);
+      var sel=document.createElement('select');sel.style.cssText='width:auto;margin:0';
+      ['student','teacher','librarian','admin'].forEach(function(role){
+        var o=document.createElement('option');o.value=role;
+        o.textContent={'admin':'Администратор','teacher':'Учитель','librarian':'Библиотекарь','student':'Ученик'}[role];
+        if(role===u.role)o.selected=true;sel.appendChild(o);
+      });
+      sel.onchange=async function(){
+        if(u.id===currentUser.id){toast('Нельзя менять свою роль','warn');sel.value=u.role;return;}
+        if(!confirm('Изменить роль '+u.name+' на «'+sel.options[sel.selectedIndex].text+'»?')){sel.value=u.role;return;}
+        try{await api('/admin/users/'+u.id+'/role',{method:'POST',body:{role:sel.value}});toast('Роль изменена','ok');loadAdminUsers();}
+        catch(e){toast(e.message,'err');sel.value=u.role;}
+      };
+      el.appendChild(sel);
+      var bReset=document.createElement('button');bReset.className='ghost small';bReset.textContent='Сбросить пароль';
+      bReset.onclick=async function(){
+        if(!confirm('Сбросить пароль для '+u.name+'?'))return;
+        try{var rr=await api('/admin/users/'+u.id+'/reset-password',{method:'POST'});prompt('Новый пароль:',rr.password);}
+        catch(e){toast(e.message,'err');}
+      };
+      el.appendChild(bReset);
+      var bDel=document.createElement('button');bDel.className='ghost small danger';bDel.textContent='Удалить';
+      bDel.onclick=async function(){
+        if(u.id===currentUser.id){toast('Нельзя удалить себя','warn');return;}
+        if(!confirm('Удалить '+u.name+' ('+u.email+')?'))return;
+        try{await api('/admin/users/'+u.id,{method:'DELETE'});toast('Удалён','ok');loadAdminUsers();}
+        catch(e){toast(e.message,'err');}
+      };
+      el.appendChild(bDel);host.appendChild(el);
+    });
+  }catch(e){toast(e.message,'err');}
+}
+
+/* PROFILE */
+async function openProfileStats(){
+  if(!currentUser)return;
+  show('view-profile');
+  var host=$('#profileStats');if(!host)return;skeleton(host,4);
+  try{
+    var meR=await api('/auth/me');var user=meR.user;currentUser=user;renderTop();
+    var stats=null;
+    if(user.role==='student'){try{stats=await api('/profile/student');}catch(e){}}
+    else if(user.role==='teacher'||user.role==='admin'){try{stats=await api('/profile/teacher');}catch(e){}}
+    host.innerHTML='';
+    var hero=document.createElement('div');hero.className='card';
+    hero.style.cssText='display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:24px 26px';
+    hero.innerHTML='<div class="avatar" id="profHeroAvatar" style="width:88px;height:88px;font-size:34px"></div>'+
+      '<div style="flex:1;min-width:200px">'+
+      '<div style="font-size:28px;font-weight:900;letter-spacing:-0.03em;line-height:1.1;margin-bottom:8px">'+esc(user.name)+'</div>'+
+      '<span class="pill blue">'+roleLabel()+'</span>'+
+      '<div class="muted" style="margin-top:10px;font-size:13.5px">'+esc(user.email)+'</div></div>';
+    host.appendChild(hero);
+    renderAvatar($('#profHeroAvatar'),user,88);
+
+    var sc=document.createElement('div');sc.className='card';sc.style.marginTop='16px';
+    var curTheme=document.documentElement.getAttribute('data-theme');
+    var curPal=document.documentElement.getAttribute('data-palette')||'orange';
+    sc.innerHTML='<h3 style="margin-bottom:16px">Оформление</h3>'+
+      '<div class="muted" style="font-size:12.5px;margin-bottom:8px;font-weight:700">Тема</div>'+
+      '<div class="theme-picker" id="profThemePicker">'+
+      '<button class="theme-option'+(curTheme==='dark'?' active':'')+'" data-theme-set="dark">Тёмная</button>'+
+      '<button class="theme-option'+(curTheme==='light'?' active':'')+'" data-theme-set="light">Светлая</button></div>'+
+      '<div class="muted" style="font-size:12.5px;margin:20px 0 8px;font-weight:700">Палитра</div>'+
+      '<div class="palette-picker" id="profPalettePicker">'+
+      '<div class="palette-option'+(curPal==='orange'?' active':'')+'" data-pal="orange"></div>'+
+      '<div class="palette-option'+(curPal==='blue'?' active':'')+'" data-pal="blue"></div>'+
+      '<div class="palette-option'+(curPal==='violet'?' active':'')+'" data-pal="violet"></div>'+
+      '<div class="palette-option'+(curPal==='emerald'?' active':'')+'" data-pal="emerald"></div></div>';
+    host.appendChild(sc);
+    $$('#profThemePicker .theme-option').forEach(function(b){b.onclick=function(){applyTheme(b.dataset.themeSet);$$('#profThemePicker .theme-option').forEach(function(x){x.classList.remove('active');});b.classList.add('active');buildUserMenu();};});
+    $$('#profPalettePicker .palette-option').forEach(function(b){b.onclick=function(){applyPalette(b.dataset.pal);$$('#profPalettePicker .palette-option').forEach(function(x){x.classList.remove('active');});b.classList.add('active');};});
+    var tgCard=document.createElement('div');tgCard.className='card';tgCard.style.marginTop='16px';
+    tgCard.innerHTML='<h3 style="margin-bottom:14px">Telegram-уведомления</h3><div id="profTgBox"><div class="muted">Проверка…</div></div>';
+    host.appendChild(tgCard);
+    renderProfileTelegram();
+
+    if(stats){
+      if(user.role==='student'){
+        var statCard=document.createElement('div');statCard.className='card';statCard.style.marginTop='16px';
+        statCard.innerHTML='<h3 style="margin-bottom:16px">Прогресс</h3>';
+        var dash=document.createElement('div');dash.className='dash-summary';dash.style.marginBottom='0';
+        [['Классов',stats.classesCount,'i-book'],['Сдач',stats.submissionsCount,'i-edit'],
+         ['Средний',stats.avgPercent+'%','i-chart'],['Баллы',stats.totalScore+' / '+stats.totalMax,'i-chart'],
+         ['Книг',stats.booksCount,'i-book']].forEach(function(it){
+          var c=document.createElement('div');c.className='dash-item';
+          c.innerHTML='<div class="di-label">'+it[0]+'</div><div class="di-value'+(it[0]==='Средний'?' accent':'')+'">'+it[1]+'</div><div class="di-icon"><svg><use href="#'+it[2]+'"/></svg></div>';
+          dash.appendChild(c);
+        });
+        statCard.appendChild(dash);host.appendChild(statCard);
+        if(stats.recent&&stats.recent.length){
+          var rc=document.createElement('div');rc.className='card';rc.style.marginTop='16px';
+          rc.innerHTML='<h3 style="margin-bottom:14px">Последние сдачи</h3>';
+          stats.recent.forEach(function(s){
+            var pct=s.max?Math.round(s.score/s.max*100):0;
+            var el=document.createElement('div');el.className='stu-row';
+            el.innerHTML='<div class="name"><div style="font-weight:600">'+esc(s.testTitle||'—')+'</div><div class="muted">'+fmt(s.at)+'</div></div><div class="score '+(pct>=60?'ok':'err')+'">'+s.score+' / '+s.max+'</div>';
+            rc.appendChild(el);
+          });
+          host.appendChild(rc);
+        }
+      } else {
+        var ts=document.createElement('div');ts.className='card';ts.style.marginTop='16px';
+        ts.innerHTML='<h3 style="margin-bottom:16px">Статистика</h3>';
+        var dash2=document.createElement('div');dash2.className='dash-summary';dash2.style.marginBottom='0';
+        [['Классов',stats.classesCount,'i-book'],['Учеников',stats.studentsCount,'i-users'],
+         ['Работ',stats.testsCount,'i-edit'],['Сдач',stats.submissionsCount,'i-chart'],
+         ['Средний',stats.avgPercent+'%','i-chart'],['Книг',stats.booksCount,'i-book']].forEach(function(it){
+          var c=document.createElement('div');c.className='dash-item';
+          c.innerHTML='<div class="di-label">'+it[0]+'</div><div class="di-value'+(it[0]==='Средний'?' accent':'')+'">'+it[1]+'</div><div class="di-icon"><svg><use href="#'+it[2]+'"/></svg></div>';
+          dash2.appendChild(c);
+        });
+        ts.appendChild(dash2);host.appendChild(ts);
+      }
+    }
+  }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
+}
+async function renderProfileTelegram(){
+  var box=$('#profTgBox');if(!box)return;
+  box.innerHTML='<div class="muted">Проверка…</div>';
+  try{
+    var me=await api('/auth/me');var user=me.user;
+    if(user.telegram){
+      box.innerHTML='<div class="ok" style="font-weight:700">✅ Подключен'+(user.telegram.username?' как '+esc(user.telegram.username):'')+'</div>';
+      var btn=document.createElement('button');btn.className='ghost small danger';btn.style.marginTop='12px';btn.textContent='Отключить';
+      btn.onclick=async function(){try{await api('/telegram/unlink',{method:'POST'});toast('Отключено','ok');renderProfileTelegram();}catch(e){toast(e.message,'err');}};
+      box.appendChild(btn);
+    } else {
+      try{
+        var link=await api('/telegram/link');
+        box.innerHTML='<div class="muted">Уведомления в Telegram не подключены</div>';
+        var a=document.createElement('a');a.className='tg-link';a.href=link.link;a.target='_blank';a.rel='noopener';a.innerHTML='✈️ Подключить Telegram';
+        box.appendChild(a);
+        var check=document.createElement('button');check.className='ghost small';check.style.marginTop='12px';check.style.display='block';
+        check.textContent='Я подключил — проверить';check.onclick=function(){renderProfileTelegram();};box.appendChild(check);
+      }catch(e){box.innerHTML='<div class="muted">Telegram не настроен на сервере</div>';}
+    }
+  }catch(e){box.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function openEditProfile(){
+  if(!currentUser)return;
+  show('view-editprofile');
+  try{
+    var me=await api('/auth/me');var user=me.user;currentUser=user;
+    renderAvatar($('#editAvatar'),user,148);
+    $('#editName').value=user.name||'';
+    $('#editEmail').value=user.email||'';
+    $('#editPass').value='';
+    $('#editErr').textContent='';
+    var av=$('#editAvatar');
+    if(user.hasAvatar){
+      var bust=null;try{bust=localStorage.getItem('avatar_bust_'+user.id);}catch(e){}
+      av.style.backgroundImage="url('/api/users/"+user.id+"/avatar"+(bust?('?v='+bust):'')+"')";
+      av.textContent='';
+    } else {av.style.backgroundImage='';av.textContent=(user.name?user.name[0]:'?').toUpperCase();}
+  }catch(e){toast(e.message,'err');}
+}
+async function saveProfile(){
+  var err=$('#editErr');if(err)err.textContent='';
+  var name=$('#editName').value.trim();
+  var email=$('#editEmail').value.trim();
+  var pass=$('#editPass').value;
+  if(pass&&pass.length<6){if(err)err.textContent='Пароль от 6 символов';return;}
+  var body={};
+  if(name)body.name=name;
+  if(email)body.email=email;
+  if(pass)body.password=pass;
+  var btn=$('#btnSaveProfile');btn.disabled=true;
+  try{
+    var r=await api('/users/me',{method:'PATCH',body:body});
+    currentUser=r.user;renderTop();toast('Сохранено','ok');openProfileStats();
+  }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
+  finally{btn.disabled=false;}
+}
+async function uploadAvatarFile(file){
+  if(!file)return;
+  if(file.size>5*1024*1024){toast('Файл больше 5 МБ','warn');return;}
+  var fd=new FormData();fd.append('avatar',file);
+  try{
+    await apiForm('/users/me/avatar',fd);
+    try{localStorage.setItem('avatar_bust_'+currentUser.id,String(Date.now()));}catch(e){}
+    var me=await api('/auth/me');currentUser=me.user;renderTop();
+    renderAvatar($('#editAvatar'),me.user,148);
+    toast('Аватар обновлён','ok');
+  }catch(e){toast(e.message,'err');}
+}
+
+/* ENTER APP */
+function enterApp(user){
+  currentUser=user;renderTop();refreshNotifBadge();
+  if(notifTimer)clearInterval(notifTimer);
+  notifTimer=setInterval(refreshNotifBadge,60000);
+  if(user.role==='student') goStudent();
+  else if(user.role==='teacher'||user.role==='admin') goTeacher();
+  else if(user.role==='librarian') openLibrary();
+  else show('view-landing');
+}
+
+/* ============================================================
+   BIND ALL
+   ============================================================ */
+function bindAll(){
+  /* Brand */
+  var br=$('#brandBtn');
+  if(br) br.onclick=function(){
+    if(!currentUser) return show('view-landing');
+    if(currentUser.role==='student') return goStudent();
+    if(currentUser.role==='teacher'||currentUser.role==='admin') return goTeacher();
+    if(currentUser.role==='librarian') return openLibrary();
+    show('view-landing');
+  };
+  /* Notifications */
+  var bn=$('#btnNotif');
+  if(bn) bn.onclick=function(e){e.stopPropagation();if(notifOpen){closeNotifPanel();return;}notifOpen=true;var p=$('#notifPanel');if(p)p.hidden=false;loadNotifications();};
+  document.addEventListener('click',function(e){
+    var p=$('#notifPanel');
+    if(p&&!p.hidden&&!p.contains(e.target)&&e.target.id!=='btnNotif'&&!e.target.closest('#btnNotif'))closeNotifPanel();
+    var chip=$('#userChip'),menu=$('#userMenu');
+    if(menu&&!menu.hidden&&!menu.contains(e.target)&&chip&&!chip.contains(e.target))closeUserMenu();
+  });
+  var uc=$('#userChip');
+  if(uc) uc.onclick=function(e){e.stopPropagation();if(userMenuOpen)closeUserMenu();else openUserMenu();};
+
+  /* Auth tabs */
+  function switchAuthTab(tab){
+    $$('.tab[data-tab]').forEach(function(x){x.classList.toggle('active',x.dataset.tab===tab);});
+    var lf=$('#loginForm'),rf=$('#regForm');
+    if(lf)lf.hidden=(tab!=='login');
+    if(rf)rf.hidden=(tab!=='reg');
+    var ae=$('#authErr');if(ae)ae.textContent='';
+  }
+  var ls1=$('#landingStart'),ls2=$('#landingStart2'),ll=$('#landingLogin');
+  if(ls1)ls1.onclick=function(){show('view-auth');switchAuthTab('reg');};
+  if(ls2)ls2.onclick=function(){show('view-auth');switchAuthTab('reg');};
+  if(ll)ll.onclick=function(){show('view-auth');switchAuthTab('login');};
+  $$('.tab[data-tab]').forEach(function(t){t.onclick=function(){switchAuthTab(t.dataset.tab);};});
+  $$('.pass-toggle').forEach(function(b){b.onclick=function(){var inp=$('#'+b.dataset.target);if(inp)inp.type=inp.type==='password'?'text':'password';};});
+
+  var dl=$('#doLogin');
+  if(dl)dl.onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    var email=$('#loginEmail').value.trim(),pass=$('#loginPass').value;
+    if(!email||!pass){if(ae)ae.textContent='Введите email и пароль';return;}
+    dl.disabled=true;
+    try{var r=await api('/auth/login',{method:'POST',body:{email:email,password:pass}});setToken(r.token);enterApp(r.user);toast('Вы вошли','ok');}
+    catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+    finally{dl.disabled=false;}
+  };
+  var dr=$('#doRegister');
+  if(dr)dr.onclick=async function(){
+    var ae=$('#authErr');if(ae)ae.textContent='';
+    var name=$('#regName').value.trim(),email=$('#regEmail').value.trim(),pass=$('#regPass').value,role=$('#regRole').value;
+    if(!name||!email||!pass){if(ae)ae.textContent='Заполните все поля';return;}
+    if(pass.length<6){if(ae)ae.textContent='Пароль от 6 символов';return;}
+    dr.disabled=true;
+    try{var r=await api('/auth/register',{method:'POST',body:{name:name,email:email,password:pass,role:role}});setToken(r.token);enterApp(r.user);toast('Аккаунт создан','ok');}
+    catch(e){if(ae)ae.textContent=e.message;toast(e.message,'err');}
+    finally{dr.disabled=false;}
+  };
+
+  /* Teacher */
+  var bnc=$('#btnNewClass');
+  if(bnc)bnc.onclick=async function(){
+    var name=prompt('Название класса:');if(!name||!name.trim())return;
+    try{await api('/classes',{method:'POST',body:{name:name.trim()}});toast('Класс создан','ok');goTeacher();}
+    catch(e){toast(e.message,'err');}
+  };
+  var bnt=$('#btnNewTest');if(bnt)bnt.onclick=function(){openEditor(null);};
+
+  /* Tabs */
+  $$('.tab[data-ttab]').forEach(function(t){t.onclick=function(){
+    $$('.tab[data-ttab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
+    var tab=t.dataset.ttab;$('#tt-tests').hidden=(tab!=='tests');$('#tt-classes').hidden=(tab!=='classes');
+  };});
+  $$('.tab[data-stab]').forEach(function(t){t.onclick=function(){
+    $$('.tab[data-stab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
+    var tab=t.dataset.stab;$('#st-tests').hidden=(tab!=='tests');$('#st-classes').hidden=(tab!=='classes');
+  };});
+  $$('.tab[data-admintab]').forEach(function(t){t.onclick=function(){
+    $$('.tab[data-admintab]').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
+    var tab=t.dataset.admintab;
+    $('#admin-users-tab').hidden=(tab!=='users');$('#admin-logs-tab').hidden=(tab!=='logs');$('#admin-backups-tab').hidden=(tab!=='backups');
+    if(tab==='logs')loadAdminLogs();if(tab==='backups')loadBackups();
+  };});
+  $$('.sym-tab').forEach(function(t){t.onclick=function(){
+    $$('.sym-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
+    currentSymTab=t.dataset.symtab;buildSymbolBar($('#symbolBar'));
+  };});
+
+  /* Back buttons */
+  var backMap={
+    'btnBackToTeacher':goTeacher,
+    'btnBackFromClass':function(){if(isTeacherLike())goTeacher();else goStudent();},
+    'btnBackFromAnalytics':function(){if(currentClassId)openClassView(currentClassId);else goTeacher();},
+    'btnBackFromRating':function(){if(currentClassId)openClassView(currentClassId);else goTeacher();},
+    'btnBackFromTake':function(){if(!currentTest)return goStudent();if(confirm('Выйти? Черновик сохранится.')){if(timerInterval){clearInterval(timerInterval);timerInterval=null;}goStudent();}},
+    'btnBackFromSubs':goTeacher,
+    'btnBackFromDashboard':goTeacher,
+    'btnBackFromLibrary':function(){if(!currentUser)return show('view-landing');if(currentUser.role==='student')return goStudent();if(currentUser.role==='teacher'||currentUser.role==='admin')return goTeacher();show('view-landing');},
+    'btnBackFromAdmin':goTeacher,
+    'btnBackFromProfile':function(){if(!currentUser)return show('view-landing');if(currentUser.role==='student')return goStudent();if(currentUser.role==='teacher'||currentUser.role==='admin')return goTeacher();if(currentUser.role==='librarian')return openLibrary();show('view-landing');},
+    'btnBackFromEditProfile':openProfileStats,
+    'btnResultBack':goStudent,
+    'btnReaderBack':function(){if(window.__readerSavePage)window.__readerSavePage();openLibrary();}
+  };
+  Object.keys(backMap).forEach(function(id){var b=$('#'+id);if(b)b.onclick=backMap[id];});
+
+  /* Class */
+  var bca=$('#btnClassAnalytics');if(bca)bca.onclick=openClassAnalytics;
+  var bcr=$('#btnClassRating');if(bcr)bcr.onclick=openClassRating;
+
+  /* Admin */
+  var bcb=$('#btnCreateBackup');if(bcb)bcb.onclick=createBackupNow;
+  var as=$('#adminSearch');if(as)as.oninput=(function(){var t=null;return function(){clearTimeout(t);t=setTimeout(loadAdminUsers,300);};})();
+  var arf=$('#adminRoleFilter');if(arf)arf.onchange=loadAdminUsers;
+
+  /* Library */
+  var bab=$('#btnAddBook');
+  if(bab)bab.onclick=function(){var form=$('#bookUploadForm');form.hidden=!form.hidden;if(!form.hidden){clearBookForm();renderBookClassPicker();}};
+  var bsb=$('#btnSaveBook');if(bsb)bsb.onclick=saveBook;
+  var bcbk=$('#btnCancelBook');if(bcbk)bcbk.onclick=function(){$('#bookUploadForm').hidden=true;clearBookForm();};
+  var bSearch=$('#bookSearch');if(bSearch){var st=null;bSearch.oninput=function(){clearTimeout(st);st=setTimeout(searchBooks,250);};}
+  var bcf2=$('#bookClassFilter');if(bcf2)bcf2.onchange=searchBooks;
+  var bsort=$('#bookSort');if(bsort)bsort.onchange=searchBooks;
+  var bbv=$('#btnBookView');
+  if(bbv)bbv.onclick=function(){bookView=(bookView==='grid')?'list':'grid';bbv.textContent=(bookView==='grid')?'Список':'Сетка';searchBooks();};
+  bindCoverDrop();bindPdfDrop();
+
+  /* Reader buttons */
+  var brToc=$('#btnReaderToc');
+  if(brToc)brToc.onclick=function(){var p=$('#readerTocPanel');p.hidden=!p.hidden;$('#readerBookmarksPanel').hidden=true;};
+  var brTocC=$('#btnReaderTocClose');if(brTocC)brTocC.onclick=function(){$('#readerTocPanel').hidden=true;};
+  var brBm=$('#btnReaderBookmark');if(brBm)brBm.onclick=addBookmarkFromReader;
+  var brBmC=$('#btnReaderBookmarksClose');if(brBmC)brBmC.onclick=function(){$('#readerBookmarksPanel').hidden=true;};
+  var brZo=$('#btnReaderZoomOut');if(brZo)brZo.onclick=function(){readerZoom(-0.15);};
+  var brZi=$('#btnReaderZoomIn');if(brZi)brZi.onclick=function(){readerZoom(0.15);};
+  var brFull=$('#btnReaderFull');
+  if(brFull)brFull.onclick=function(){
+    var el=document.documentElement;
+    if(!document.fullscreenElement){
+      if(el.requestFullscreen) el.requestFullscreen();
+      var icon=brFull.querySelector('use');
+      if(icon) icon.setAttribute('href','#i-minimize');
+    } else {
+      if(document.exitFullscreen) document.exitFullscreen();
+      var ic2=brFull.querySelector('use');
+      if(ic2) ic2.setAttribute('href','#i-maximize');
+    }
+  };
+  document.addEventListener('fullscreenchange',function(){
+    var ic=brFull&&brFull.querySelector('use');
+    if(ic) ic.setAttribute('href', document.fullscreenElement ? '#i-minimize' : '#i-maximize');
+  });
+
+  /* Reader prev/next */
+  var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-1,'prev');};
+  var rn=$('#readerNext');if(rn)rn.onclick=function(){goToPage(reader.currentPage+1,'next');};
+
+  /* Reader keyboard */
+  document.addEventListener('keydown',function(e){
+    var v=$('#view-reader');
+    if(!v||!v.classList.contains('active'))return;
+    if(e.target && /input|textarea|select/i.test(e.target.tagName))return;
+    if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goToPage(reader.currentPage-1,'prev');}
+    else if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();goToPage(reader.currentPage+1,'next');}
+    else if(e.key==='Home'){e.preventDefault();goToPage(1,'prev');}
+    else if(e.key==='End'){e.preventDefault();goToPage(reader.totalPages,'next');}
+    else if(e.key==='f'||e.key==='F'){ if(brFull) brFull.click(); }
+  });
+
+  /* Reader swipe + tap по центру */
+  (function(){
+    var stage=$('#readerStage');
+    if(!stage)return;
+    var sx=0,sy=0,st=0,swiping=false;
+    stage.addEventListener('touchstart',function(e){
+      if(e.touches.length!==1)return;
+      sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();swiping=true;
+    },{passive:true});
+    stage.addEventListener('touchend',function(e){
+      if(!swiping)return;swiping=false;
+      if(!e.changedTouches||!e.changedTouches.length)return;
+      var dx=e.changedTouches[0].clientX-sx;
+      var dy=e.changedTouches[0].clientY-sy;
+      var dt=Date.now()-st;
+      // Свайп
+      if(Math.abs(dx)>50 && Math.abs(dy)<70 && dt<600){
+        if(dx<0) goToPage(reader.currentPage+1,'next');
+        else goToPage(reader.currentPage-1,'prev');
+        return;
+      }
+      // Тап по центру → toggle UI
+      if(Math.abs(dx)<10 && Math.abs(dy)<10 && dt<300){
+        var target=e.changedTouches[0].target;
+        // не переключаем UI, если тап по кнопкам/панелям
+        if(target.closest('.reader-page-nav,.reader-topbar,.reader-toc-panel,.reader-bookmarks-panel')) return;
+        toggleReaderUI();
+      }
+    },{passive:true});
+  })();
+
+  /* Клик по stage — toggle UI (для десктопа) */
+  (function(){
+    var stage=$('#readerStage');
+    if(!stage)return;
+    stage.addEventListener('click',function(e){
+      if(e.target.closest('.reader-page-nav')) return;
+      toggleReaderUI();
+    });
+  })();
+
+  /* Profile edit */
+  var bep=$('#btnEditProfile');if(bep)bep.onclick=openEditProfile;
+  var bsp=$('#btnSaveProfile');if(bsp)bsp.onclick=saveProfile;
+  var bce=$('#btnCancelEdit');if(bce)bce.onclick=openProfileStats;
+  var bua=$('#btnUploadAvatar');if(bua)bua.onclick=function(){$('#avatarInput').click();};
+  var ain=$('#avatarInput');if(ain)ain.onchange=function(){if(this.files[0])uploadAvatarFile(this.files[0]);};
+
+  /* Support */
+  var sb=$('#supportBtn');if(sb)sb.onclick=toggleSupport;
+  var scl=$('#supportClose');if(scl)scl.onclick=toggleSupport;
+  var ss=$('#supportSend');if(ss)ss.onclick=function(){supportSend();};
+  var si=$('#supportInput');if(si)si.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();supportSend();}};
+  $$('#supportQuick button').forEach(function(b){b.onclick=function(){supportSend(b.dataset.q);};});
+
+  /* Mobile nav */
+  $$('#mobile-nav button').forEach(function(b){
+    b.onclick=function(){
+      var k=b.dataset.mnav;
+      if(!currentUser){if(k==='profile')show('view-auth');else show('view-landing');return;}
+      if(k==='home'){if(currentUser.role==='student')goStudent();else if(currentUser.role==='teacher'||currentUser.role==='admin')goTeacher();else openLibrary();}
+      else if(k==='library')openLibrary();
+      else if(k==='dashboard'){if(isTeacherLike())openDashboard();else if(currentClassId)openClassRating();else goStudent();}
+      else if(k==='profile')openProfileStats();
+    };
+  });
+
+  /* ToTop */
+  var tt=$('#toTop');if(tt)tt.onclick=function(){window.scrollTo({top:0,behavior:'smooth'});};
+  window.addEventListener('scroll',function(){var t=$('#toTop');if(!t)return;if(window.scrollY>500)t.classList.add('show');else t.classList.remove('show');});
+
+  initEditorFields();
+}
+
+/* BOOTSTRAP */
+async function bootstrap(){
+  var params=new URLSearchParams(location.search);
+  var joinCode=params.get('join');
+  try{await loadTelegramInfo();}catch(e){}
+  if(getToken()){
+    try{
+      var r=await api('/auth/me');currentUser=r.user;renderTop();refreshNotifBadge();
+      if(notifTimer)clearInterval(notifTimer);
+      notifTimer=setInterval(refreshNotifBadge,60000);
+      if(joinCode&&currentUser.role==='student'){
+        try{var cls=await api('/classes/join',{method:'POST',body:{code:joinCode}});toast('Вы присоединились к классу «'+cls.class.name+'»','ok');}
+        catch(e){if(e.status!==400)toast(e.message,'warn');}
+        history.replaceState(null,'',location.pathname);
+      }
+      if(currentUser.role==='student')goStudent();
+      else if(currentUser.role==='teacher'||currentUser.role==='admin')goTeacher();
+      else if(currentUser.role==='librarian')openLibrary();
+      else show('view-landing');
+    }catch(e){setToken(null);show('view-landing');}
+  } else show('view-landing');
+  initReveal();animateCounters();initGoogleLogin();initTelegramLogin();bindAll();registerSW();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrap);
+else bootstrap();
+
+})();
