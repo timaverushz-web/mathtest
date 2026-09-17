@@ -622,6 +622,16 @@ app.post('/api/users/me/avatar', auth, uploadSmall.single('avatar'), async (req,
   } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
 });
 
+app.delete('/api/users/me/avatar', auth, async (req, res) => {
+  try {
+    const u = await getUserById(req.user.id);
+    if (!u) return res.status(401).json({ error: 'Войдите заново' });
+    if (u.avatar_key) await s3Del(u.avatar_key);
+    await pool.query('UPDATE users SET avatar_key=NULL WHERE id=$1', [u.id]);
+    res.json({ ok: true, hasAvatar: false });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
 app.get('/api/users/:id/avatar', async (req, res) => {
   try {
     const u = await getUserById(req.params.id);
