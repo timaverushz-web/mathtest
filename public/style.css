@@ -2139,3 +2139,108 @@ button.block { width: 100%; }
   .reader-toc-panel, .reader-bookmarks-panel { left: 12px; right: 12px; width: auto; top: 120px; }
   .reader-page-indicator { bottom: 84px; }
 }
+/* ==========================================================
+   Листание PDF (кнопки по бокам + мобильная адаптация)
+   ========================================================== */
+.reader-page-nav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  box-shadow: var(--shadow);
+  transition: var(--trans);
+  opacity: .25;
+  padding: 0;
+}
+.reader-page-nav:hover,
+.reader-page-nav:focus-visible {
+  opacity: 1;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  transform: translateY(-50%) scale(1.06);
+}
+.reader-page-nav svg { width: 22px; height: 22px; }
+.reader-page-nav.prev { left: 20px; }
+.reader-page-nav.next { right: 20px; }
+
+/* Скрываем служебные элементы в режиме чтения */
+body.reading #mobile-nav { display: none !important; }
+body.reading #supportBtn { display: none !important; }
+body.reading #toTop { display: none !important; }
+
+/* Мобильная адаптация ридера */
+@media (max-width: 720px) {
+  .reader-topbar {
+    top: 60px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .reader-topbar .reader-title {
+    font-size: 13px;
+    max-width: 40vw;
+  }
+  .reader-topbar .ghost.small {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+  .reader-actions .icon-btn {
+    width: 34px; height: 34px;
+  }
+  .reader-actions .icon-btn svg { width: 16px; height: 16px; }
+  .reader-zoom-val { display: none; }
+
+  .reader-progress { top: 110px; }
+
+  .reader-pdf-wrap {
+    padding: 14px 4px 100px;
+  }
+  .reader-pdf { gap: 10px; }
+  .reader-pdf .pdf-page { border-radius: 3px; }
+
+  .reader-page-nav {
+    width: 44px; height: 44px;
+    opacity: .7;
+    background: rgba(20,20,22,.85);
+    backdrop-filter: blur(8px);
+  }
+  .reader-page-nav svg { width: 18px; height: 18px; }
+  .reader-page-nav.prev { left: 6px; }
+  .reader-page-nav.next { right: 6px; }
+
+  .reader-page-indicator {
+    bottom: 20px;
+    font-size: 12px;
+    padding: 7px 14px;
+  }
+
+  .reader-toc-panel, .reader-bookmarks-panel {
+    top: 112px; left: 10px; right: 10px;
+    width: auto;
+    max-height: calc(100vh - 140px);
+  }
+  .reader-toc-item {
+    padding: 14px 16px;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  .reader-toc-item.lvl-2 { padding-left: 26px; }
+  .reader-toc-item.lvl-3 { padding-left: 40px; }
+}
+
+@media (max-width: 380px) {
+  .reader-topbar .reader-title { display: none; }
+  .reader-actions { margin-left: auto; }
+}
+
+/* Плавный переход по клику в TOC */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
