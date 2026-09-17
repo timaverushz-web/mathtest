@@ -1801,13 +1801,23 @@ async function saveBook(){
 }
 
 /* ============================================================
-   PDF READER — ГОРИЗОНТАЛЬНОЕ ЛИСТАНИЕ
+   PDF READER — РАЗВОРОТ ПО ДВЕ СТРАНИЦЫ
    ============================================================ */
 function pdfSetupWorker(){
   if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 }
+
+function readerStep(){ return window.innerWidth < 700 ? 1 : 2; }
+
+function normalizeLeftPage(n){
+  if(!n || n < 1) return 1;
+  var step = readerStep();
+  if(step === 1) return n;
+  return (n % 2 === 0) ? n - 1 : n;
+}
+
 function readerClose(){
   if(reader.pdf){try{reader.pdf.destroy();}catch(e){}}
   reader.pdf=null;reader.totalPages=0;reader.currentPage=1;reader.cache={};reader.outline=[];
@@ -1818,14 +1828,11 @@ function readerClose(){
 function activeSlot(){return reader.activeSlot==='A'?$('#readerSlotA'):$('#readerSlotB');}
 function inactiveSlot(){return reader.activeSlot==='A'?$('#readerSlotB'):$('#readerSlotA');}
 
-async function renderPdfToCanvas(pageNum){
+async function renderPdfToCanvas(pageNum, maxW, maxH){
   if(reader.cache[pageNum]) return reader.cache[pageNum];
   var page=await reader.pdf.getPage(pageNum);
   var v1=page.getViewport({scale:1});
-  var stage=$('#readerStage');
-  var availW=stage.clientWidth-40;
-  var availH=stage.clientHeight-40;
-  var fitScale=Math.min(availW/v1.width, availH/v1.height);
+  var fitScale=Math.min(maxW/v1.width, maxH/v1.height);
   var dpr=Math.min(2,window.devicePixelRatio||1);
   var finalScale=fitScale*reader.zoom;
   var viewport=page.getViewport({scale:finalScale*dpr});
@@ -1834,21 +1841,52 @@ async function renderPdfToCanvas(pageNum){
   canvas.height=Math.floor(viewport.height);
   canvas.style.width=Math.floor(viewport.width/dpr)+'px';
   canvas.style.height=Math.floor(viewport.height/dpr)+'px';
-  canvas.style.maxWidth='100%';
-  canvas.style.maxHeight='100%';
   var ctx=canvas.getContext('2d');
   await page.render({canvasContext:ctx, viewport:viewport}).promise;
   reader.cache[pageNum]=canvas;
   return canvas;
 }
 
+async function renderSpreadToSlot(slotEl, leftPage){
+  slotEl.innerHTML='';
+  var stage=$('#readerStage');
+  var step=readerStep();
+  var gap=step===2?16:0;
+  var padH=step===2?24:8;
+  var availH=stage.clientHeight-40;
+  var availW=step===2 ? ((stage.clientWidth - padH - gap) / 2) : (stage.clientWidth - padH);
+
+  var wrap=document.createElement('div');
+  wrap.className='reader-spread'+(step===1?' single':'');
+  wrap.style.gap=gap+'px';
+
+  var leftCanvas = await renderPdfToCanvas(leftPage, availW, availH);
+  wrap.appendChild(leftCanvas);
+
+  if(step===2 && (leftPage + 1) <= reader.totalPages){
+    try{
+      var rightCanvas = await renderPdfToCanvas(leftPage + 1, availW, availH);
+      wrap.appendChild(rightCanvas);
+    }catch(e){ console.warn('right page:', e.message); }
+  }
+
+  slotEl.appendChild(wrap);
+}
+
 function updateReaderIndicator(){
   var ind=$('#readerPageIndicator');
-  if(ind)ind.textContent=reader.currentPage+' / '+(reader.totalPages||1);
+  var step=readerStep();
+  var rightPage = (step===2 && (reader.currentPage+1)<=reader.totalPages) ? reader.currentPage+1 : null;
+  if(ind){
+    ind.textContent = rightPage
+      ? (reader.currentPage + '–' + rightPage + ' / ' + reader.totalPages)
+      : (reader.currentPage + ' / ' + reader.totalPages);
+  }
   var pr=$('#readerProgress');
   if(pr&&reader.totalPages) pr.style.width=((reader.currentPage/reader.totalPages)*100)+'%';
   var prevBtn=$('#readerPrev');if(prevBtn)prevBtn.disabled=(reader.currentPage<=1);
-  var nextBtn=$('#readerNext');if(nextBtn)nextBtn.disabled=(reader.currentPage>=reader.totalPages);
+  var nextBtn=$('#readerNext');
+  if(nextBtn) nextBtn.disabled=(reader.currentPage + step > reader.totalPages);
 }
 
 async function renderCurrentPage(){
@@ -1857,17 +1895,17 @@ async function renderCurrentPage(){
   var loading=$('#readerLoading');
   if(loading)loading.hidden=false;
   try{
-    var canvas=await renderPdfToCanvas(reader.currentPage);
-    slot.innerHTML='';
-    slot.appendChild(canvas.cloneNode(true));
+    await renderSpreadToSlot(slot, reader.currentPage);
     slot.style.transform='translateX(0)';
     slot.classList.remove('hidden');
-  }catch(e){ console.error('render page:',e); }
+  }catch(e){ console.error('render spread:', e); }
   if(loading)loading.hidden=true;
 }
 
 async function goToPage(target, direction){
   if(!reader.pdf || reader.animating) return;
+  var step=readerStep();
+  target=normalizeLeftPage(target);
   target=Math.max(1, Math.min(reader.totalPages, target));
   if(target===reader.currentPage) return;
 
@@ -1880,8 +1918,7 @@ async function goToPage(target, direction){
   var loading=$('#readerLoading');
   if(loading)loading.hidden=false;
   try{
-    var canvasEl=await renderPdfToCanvas(target);
-    nxt.appendChild(canvasEl.cloneNode(true));
+    await renderSpreadToSlot(nxt, target);
   }catch(e){console.error(e);}
   if(loading)loading.hidden=true;
 
@@ -1920,6 +1957,171 @@ function readerZoom(delta){
   updateReaderZoomLabel();
   var slot=activeSlot(); if(slot) slot.innerHTML='';
   renderCurrentPage();
+}
+
+async function resolveOutlineDest(dest){
+  if(!dest || !reader.pdf) return -1;
+  try{
+    var d = dest;
+    if(typeof d === 'string'){
+      d = await reader.pdf.getDestination(d);
+      if(!d) return -1;
+    }
+    if(!d || !d[0]) return -1;
+    var ref = d[0];
+    if(typeof ref === 'number') return ref;
+    var idx = await reader.pdf.getPageIndex(ref);
+    return (typeof idx === 'number' && idx >= 0) ? idx : -1;
+  }catch(e){ console.warn('outline dest:', e.message); return -1; }
+}
+
+async function renderReaderToc(){
+  var host=$('#readerTocList');if(!host)return;
+  host.innerHTML='<div class="muted" style="padding:20px;text-align:center;font-size:13px">Загрузка оглавления…</div>';
+  if(!reader.outline || !reader.outline.length){
+    host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
+    return;
+  }
+
+  var flat = [];
+  async function collect(items, level){
+    for(var i=0;i<items.length;i++){
+      var it = items[i];
+      var pageIdx = await resolveOutlineDest(it.dest);
+      flat.push({ title: it.title || '—', level: Math.min(3, level), pageIndex: pageIdx });
+      if(it.items && it.items.length) await collect(it.items, level+1);
+    }
+  }
+  try { await collect(reader.outline, 1); } catch(e){ console.error(e); }
+
+  host.innerHTML='';
+  if(!flat.length){ host.innerHTML='<div class="empty" style="padding:24px 16px">Пустое оглавление</div>'; return; }
+  flat.forEach(function(item){
+    var btn=document.createElement('button');
+    btn.className='reader-toc-item lvl-'+item.level;
+    btn.textContent=item.title;
+    if(item.pageIndex < 0){
+      btn.style.opacity='.5';
+      btn.title='Страница не определена';
+    }
+    btn.onclick=function(){
+      if(item.pageIndex < 0){ toast('Не удалось определить страницу','warn'); return; }
+      $('#readerTocPanel').hidden=true;
+      var target = item.pageIndex + 1;
+      goToPage(target, target > reader.currentPage ? 'next' : 'prev');
+    };
+    host.appendChild(btn);
+  });
+}
+
+async function openReader(bookId){
+  show('view-reader');
+  readerClose();
+  reader.bookId=bookId;
+  reader.activeSlot='A';
+  reader.zoom=1;
+  updateReaderZoomLabel();
+
+  var slotA=$('#readerSlotA'),slotB=$('#readerSlotB');
+  slotA.innerHTML='';slotB.innerHTML='';
+  slotA.style.transform='translateX(0)';
+  slotB.style.transform='translateX(0)';
+  slotA.classList.remove('hidden');
+  slotB.classList.add('hidden');
+
+  var loading=$('#readerLoading');if(loading)loading.hidden=false;
+
+  try{
+    var r=await api('/books/'+bookId);
+    var b=r.book;
+    reader.book=b;
+    $('#readerTitle').textContent=b.title;
+    if(!b.hasPdf){
+      if(loading)loading.hidden=true;
+      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">К этой книге не загружен PDF-файл.</div>';
+      return;
+    }
+    pdfSetupWorker();
+    if(!window.pdfjsLib){
+      if(loading)loading.hidden=true;
+      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">Не удалось загрузить pdf.js.</div>';
+      return;
+    }
+    var tk=getToken();
+    var loadingTask=pdfjsLib.getDocument({
+      url:'/api/books/'+bookId+'/pdf',
+      httpHeaders: tk ? {'Authorization':'Bearer '+tk} : {},
+      withCredentials:false
+    });
+    reader.pdf=await loadingTask.promise;
+    reader.totalPages=reader.pdf.numPages;
+
+    var saved=1;
+    try{ saved=parseInt(localStorage.getItem('reader_page_'+bookId)||'1')||1; }catch(e){}
+    reader.currentPage=normalizeLeftPage(Math.max(1, Math.min(reader.totalPages, saved)));
+
+    updateReaderIndicator();
+    await renderCurrentPage();
+    if(loading)loading.hidden=true;
+
+    try{
+      var outline=await reader.pdf.getOutline();
+      reader.outline=outline||[];
+    }catch(e){reader.outline=[];}
+    renderReaderToc();
+
+    renderReaderBookmarks(b.bookmarks||[]);
+
+    if(!reader.hintShown && 'ontouchstart' in window){
+      reader.hintShown=true;
+      var hint=$('#readerHint');
+      if(hint){hint.hidden=false;setTimeout(function(){hint.hidden=true;},3500);}
+    }
+    window.__readerSavePage=function(){
+      try{localStorage.setItem('reader_page_'+bookId, String(reader.currentPage));}catch(e){}
+    };
+  }catch(e){
+    console.error(e);
+    if(loading)loading.hidden=true;
+    $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">'+esc(e.message||'Ошибка загрузки PDF')+'</div>';
+  }
+}
+
+function renderReaderBookmarks(bms){
+  var host=$('#readerBookmarksList');if(!host)return;
+  host.innerHTML='';
+  if(!bms.length){host.innerHTML='<div class="empty" style="padding:24px 16px">Закладок нет</div>';return;}
+  bms.forEach(function(bm){
+    var el=document.createElement('div');el.className='bookmark-item';
+    el.innerHTML='<div class="bm-body"><div class="bm-pos">Страница '+bm.position+'</div>'+
+      (bm.note?'<div class="bm-note">'+esc(bm.note)+'</div>':'')+'</div>';
+    var del=document.createElement('button');del.textContent='✕';
+    del.onclick=async function(e){e.stopPropagation();try{await api('/bookmarks/'+bm.id,{method:'DELETE'});openReader(reader.bookId);}catch(e){toast(e.message,'err');}};
+    el.appendChild(del);
+    el.onclick=function(){
+      $('#readerBookmarksPanel').hidden=true;
+      goToPage(bm.position, bm.position>reader.currentPage?'next':'prev');
+    };
+    host.appendChild(el);
+  });
+}
+async function addBookmarkFromReader(){
+  if(!reader.bookId)return;
+  var page=reader.currentPage||1;
+  var note=prompt('Заметка к закладке (страница '+page+', можно оставить пустым):','');
+  if(note===null)return;
+  try{await api('/books/'+reader.bookId+'/bookmarks',{method:'POST',body:{position:page,note:note||null}});toast('Закладка добавлена','ok');openReader(reader.bookId);}
+  catch(e){toast(e.message,'err');}
+}
+
+function toggleReaderUI(){
+  reader.uiHidden=!reader.uiHidden;
+  ['#readerTopbar','#readerProgress'].forEach(function(sel){
+    var el=$(sel);if(!el)return;
+    el.classList.toggle('hidden-ui', reader.uiHidden);
+  });
+  var ind=$('#readerPageIndicator');
+  if(ind)ind.classList.toggle('hidden-ui', reader.uiHidden);
 }
 
 /* -------- Оглавление: резолв ссылок -------- */
@@ -2505,15 +2707,15 @@ function bindAll(){
     if(ic) ic.setAttribute('href', document.fullscreenElement ? '#i-minimize' : '#i-maximize');
   });
 
-  var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-1,'prev');};
-  var rn=$('#readerNext');if(rn)rn.onclick=function(){goToPage(reader.currentPage+1,'next');};
-
+       var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-readerStep(),'prev');};
+  var rn=$('#readerNext');if(rn)rn.onclick=function(){goToPage(reader.currentPage+readerStep(),'next');};
+  
   document.addEventListener('keydown',function(e){
     var v=$('#view-reader');
     if(!v||!v.classList.contains('active'))return;
     if(e.target && /input|textarea|select/i.test(e.target.tagName))return;
-    if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goToPage(reader.currentPage-1,'prev');}
-    else if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();goToPage(reader.currentPage+1,'next');}
+        if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goToPage(reader.currentPage-readerStep(),'prev');}
+    else if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();goToPage(reader.currentPage+readerStep(),'next');}
     else if(e.key==='Home'){e.preventDefault();goToPage(1,'prev');}
     else if(e.key==='End'){e.preventDefault();goToPage(reader.totalPages,'next');}
     else if(e.key==='f'||e.key==='F'){ if(brFull) brFull.click(); }
@@ -2534,8 +2736,8 @@ function bindAll(){
       var dy=e.changedTouches[0].clientY-sy;
       var dt=Date.now()-st;
       if(Math.abs(dx)>50 && Math.abs(dy)<70 && dt<600){
-        if(dx<0) goToPage(reader.currentPage+1,'next');
-        else goToPage(reader.currentPage-1,'prev');
+                if(dx<0) goToPage(reader.currentPage+readerStep(),'next');
+        else goToPage(reader.currentPage-readerStep(),'prev');
         return;
       }
       if(Math.abs(dx)<10 && Math.abs(dy)<10 && dt<300){
