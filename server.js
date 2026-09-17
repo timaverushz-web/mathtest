@@ -566,11 +566,12 @@ app.get('/api/users/:id/avatar', async (req, res) => {
     if (!u || !u.avatar_key) {
       const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
       res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=30');
       return res.send(png);
     }
     const { buffer, contentType } = await s3GetBuffer(u.avatar_key);
     res.setHeader('Content-Type', contentType || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'public, max-age=60');
     res.send(buffer);
   } catch (e) { res.status(404).end(); }
 });
@@ -840,35 +841,95 @@ app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
 app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
-    if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
+    if (!c) return res.status(404).json({ error: 'Класс не найден' });
+    if (req.user.role !== 'admin' && c.teacher_id !== req.user.id)
       return res.status(403).json({ error: 'Нет доступа' });
+
     const students = await getStudentsInClass(c.id);
     const totalStudents = students.length;
-    const tR = await pool.query(
-      `SELECT * FROM tests WHERE class_ids @> $1::jsonb ORDER BY created_at DESC`,
-      [JSON.stringify([c.id])]);
-    const tests = tR.rows;
+
+    let tests = [];
+    try {
+      const tR = await pool.query(
+        `SELECT * FROM tests WHERE class_ids @> $1::jsonb ORDER BY created_at DESC`,
+        [JSON.stringify([c.id])]);
+      tests = tR.rows;
+    } catch (e) {
+      console.error('analytics: tests query', e.message);
+      const tR = await pool.query(`SELECT * FROM tests ORDER BY created_at DESC`);
+      tests = tR.rows.filter(t => Array.isArray(t.class_ids) && t.class_ids.includes(c.id));
+    }
+
     const perTest = [];
     for (const t of tests) {
-      const subs = await pool.query(
-        `SELECT student_id, score, max FROM submissions WHERE test_id=$1 AND class_id=$2`, [t.id, c.id]);
-      const avg = subs.rows.length
-        ? Math.round(subs.rows.reduce((s, x) => s + (x.max ? x.score / x.max : 0), 0) / subs.rows.length * 100) : 0;
-      perTest.push({ id: t.id, title: t.title, submissions: subs.rows.length, total: totalStudents, avgPercent: avg });
+      let subsRows = [];
+      try {
+        const subs = await pool.query(
+          `SELECT student_id, score, max FROM submissions WHERE test_id=$1 AND class_id=$2`,
+          [t.id, c.id]);
+        subsRows = subs.rows;
+      } catch (e) { console.error('analytics: subs', e.message); }
+      const avg = subsRows.length
+        ? Math.round(subsRows.reduce((s, x) => s + (x.max ? x.score / x.max : 0), 0) / subsRows.length * 100)
+        : 0;
+      perTest.push({
+        id: t.id, title: t.title,
+        submissions: subsRows.length, total: totalStudents, avgPercent: avg
+      });
     }
+
     const perStudent = [];
     for (const s of students) {
-      const subs = await pool.query(
-        `SELECT score, max FROM submissions WHERE class_id=$1 AND student_id=$2`, [c.id, s.id]);
-      const avg = subs.rows.length
-        ? Math.round(subs.rows.reduce((x, y) => x + (y.max ? y.score / y.max : 0), 0) / subs.rows.length * 100) : null;
-      perStudent.push({ id: s.id, name: s.name, submissions: subs.rows.length, totalTests: tests.length, avgPercent: avg });
+      let rows = [];
+      try {
+        const subs = await pool.query(
+          `SELECT score, max FROM submissions WHERE class_id=$1 AND student_id=$2`,
+          [c.id, s.id]);
+        rows = subs.rows;
+      } catch (e) { console.error('analytics: perStudent', e.message); }
+      const avg = rows.length
+        ? Math.round(rows.reduce((x, y) => x + (y.max ? y.score / y.max : 0), 0) / rows.length * 100)
+        : null;
+      perStudent.push({
+        id: s.id, name: s.name,
+        submissions: rows.length, totalTests: tests.length, avgPercent: avg
+      });
     }
     perStudent.sort((a, b) => {
       if (a.avgPercent === null) return 1;
       if (b.avgPercent === null) return -1;
       return b.avgPercent - a.avgPercent;
     });
+
+    let hardTasks = [];
+    try {
+      const allSubs = await pool.query(
+        `SELECT s.results, t.tasks
+         FROM submissions s JOIN tests t ON t.id = s.test_id
+         WHERE s.class_id = $1`, [c.id]);
+      const taskStats = {};
+      for (const row of allSubs.rows) {
+        const tasks = row.tasks || [];
+        const results = row.results || [];
+        tasks.forEach((task, i) => {
+          const key = (task.statement || '').slice(0, 120);
+          if (!taskStats[key]) taskStats[key] = { total: 0, correct: 0 };
+          taskStats[key].total++;
+          if (results[i] && results[i].ok) taskStats[key].correct++;
+        });
+      }
+      hardTasks = Object.keys(taskStats).map(k => ({
+        statement: k, total: taskStats[k].total, correct: taskStats[k].correct,
+        pct: taskStats[k].total ? Math.round(taskStats[k].correct / taskStats[k].total * 100) : 0
+      })).filter(x => x.total >= 2).sort((a, b) => a.pct - b.pct).slice(0, 10);
+    } catch (e) { console.error('analytics: hardTasks', e.message); }
+
+    res.json({ totalStudents, totalTests: tests.length, perTest, perStudent, hardTasks });
+  } catch (e) {
+    console.error('analytics fatal:', e.message, e.stack);
+    res.status(500).json({ error: 'Ошибка аналитики: ' + e.message });
+  }
+});
     const allSubs = await pool.query(
       `SELECT s.results, t.tasks FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.class_id = $1`, [c.id]);
     const taskStats = {};
@@ -893,29 +954,43 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
 app.get('/api/classes/:id/rating', auth, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
-    if (!c) return res.status(404).json({ error: 'Не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, c.id))) return res.status(403).json({ error: 'Нет доступа' });
+    if (!c) return res.status(404).json({ error: 'Класс не найден' });
+    if (!(await canSeeClass(req.user.id, req.user.role, c.id)))
+      return res.status(403).json({ error: 'Нет доступа' });
+
     const students = await getStudentsInClass(c.id);
     const out = [];
     for (const s of students) {
-      const r = await pool.query(
-        `SELECT COUNT(*)::int AS n,
-                COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg,
-                COALESCE(SUM(score),0)::int AS total
-         FROM submissions WHERE class_id=$1 AND student_id=$2`, [c.id, s.id]);
-      const row = r.rows[0];
-      if (row.n === 0) continue;
-      out.push({ id: s.id, name: s.name, hasAvatar: !!s.avatar_key,
-                 submissions: row.n, avgPercent: Math.round(row.avg), totalScore: row.total });
+      try {
+        const r = await pool.query(
+          `SELECT COUNT(*)::int AS n,
+                  COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg,
+                  COALESCE(SUM(score),0)::int AS total
+           FROM submissions WHERE class_id=$1 AND student_id=$2`,
+          [c.id, s.id]);
+        const row = r.rows[0];
+        if (!row || row.n === 0) continue;
+        out.push({
+          id: s.id, name: s.name,
+          hasAvatar: !!s.avatar_key,
+          submissions: row.n,
+          avgPercent: Math.round(row.avg),
+          totalScore: row.total
+        });
+      } catch (e) { console.error('rating row:', e.message); }
     }
     out.sort((a, b) => b.avgPercent - a.avgPercent);
+
     let myRank = null;
     if (req.user.role === 'student') {
       myRank = out.findIndex(x => x.id === req.user.id);
       if (myRank >= 0) myRank++;
     }
     res.json({ rating: out, myRank });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+  } catch (e) {
+    console.error('rating fatal:', e.message, e.stack);
+    res.status(500).json({ error: 'Ошибка рейтинга: ' + e.message });
+  }
 });
 
 app.get('/api/student/schedule', auth, async (req, res) => {
@@ -1347,11 +1422,12 @@ app.get('/api/tests', auth, async (req, res) => {
 });
 
 app.post('/api/tests', auth, teacherOnly, async (req, res) => {
+  let id;
   try {
     const { title, tasks, classIds, groupIds, settings, deadline } = req.body || {};
     if (!title || !Array.isArray(tasks) || !tasks.length)
       return res.status(400).json({ error: 'Нужно название и задания' });
-    const id = uid();
+    id = uid();
     const dl = deadline ? Number(deadline) : null;
     await pool.query(
       `INSERT INTO tests (id,owner_id,title,tasks,class_ids,group_ids,settings,deadline,created_at)
@@ -1359,6 +1435,16 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
       [id, req.user.id, title.trim(), JSON.stringify(tasks),
        JSON.stringify(classIds || []), JSON.stringify(groupIds || []),
        JSON.stringify(normSettings(settings)), dl, Date.now()]);
+  } catch (e) {
+    console.error('tests POST insert:', e.message, e.stack);
+    return res.status(500).json({ error: 'Не удалось создать работу: ' + e.message });
+  }
+
+  // Работа уже в БД. Дальше — только уведомления, любые ошибки глотаем.
+  res.json({ id });
+
+  try {
+    const { title, tasks, classIds } = req.body || {};
     const cids = classIds || [];
     const recipients = new Set();
     for (const cid of cids) {
@@ -1366,19 +1452,19 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
       studs.forEach(s => recipients.add(s.id));
       for (const s of studs) {
         if (s.telegram_chat_id) {
-          let text = '📝 Новая работа: *' + title.trim() + '*\n\nЗаданий: ' + tasks.length;
-          if (dl) text += '\nСдать до: ' + new Date(dl).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-          text += '\n' + BASE_URL;
-          tgSend(Number(s.telegram_chat_id), text, { parse_mode: 'Markdown' });
+          let text = '📝 Новая работа: *' + (title || '').trim() + '*\n\nЗаданий: ' + (tasks || []).length;
+          tgSend(Number(s.telegram_chat_id), text, { parse_mode: 'Markdown' }).catch(() => {});
         }
       }
     }
     for (const sid of recipients) {
-      await notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + title.trim() + '»', { testId: id });
+      try { await notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + (title || '').trim() + '»', { testId: id }); }
+      catch (e) { console.error('notify new_test:', e.message); }
     }
-    await logAction(req.user.id, req.user.name, 'Создал работу', title.trim());
-    res.json({ id });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+    try { await logAction(req.user.id, req.user.name, 'Создал работу', (title || '').trim()); } catch (e) {}
+  } catch (e) {
+    console.error('tests POST post-insert:', e.message);
+  }
 });
 
 app.put('/api/tests/:id', auth, teacherOnly, async (req, res) => {
