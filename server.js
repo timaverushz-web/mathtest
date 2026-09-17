@@ -19,19 +19,16 @@ const B2_KEY_ID  = process.env.B2_KEY_ID;
 const B2_APP_KEY = process.env.B2_APP_KEY;
 const B2_BUCKET  = process.env.B2_BUCKET;
 const B2_ENDPOINT = process.env.B2_ENDPOINT;
-const B2_REGION = process.env.B2_REGION || 'eu-central-003';
+const B2_REGION = process.env.B2_REGION || 'us-west-004';
 
 if (!DATABASE_URL) { console.error('❌ Нет DATABASE_URL'); process.exit(1); }
 
-/* ---------- Нормализация endpoint B2 ---------- */
 let s3Endpoint = (B2_ENDPOINT || '').trim();
-if (s3Endpoint && !/^https?:\/\//i.test(s3Endpoint)) {
-  s3Endpoint = 'https://' + s3Endpoint;
-}
+if (s3Endpoint && !/^https?:\/\//i.test(s3Endpoint)) s3Endpoint = 'https://' + s3Endpoint;
 s3Endpoint = s3Endpoint.replace(/\/+$/, '');
 
 if (!B2_KEY_ID || !B2_APP_KEY || !B2_BUCKET || !s3Endpoint) {
-  console.warn('⚠️  B2 не настроен — обложки и файлы не будут загружаться');
+  console.warn('⚠️  B2 не настроен — файлы загружаться не будут');
 }
 
 const pool = new Pool({
@@ -39,7 +36,6 @@ const pool = new Pool({
   ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
-/* ---------- S3 клиент ---------- */
 let s3 = null;
 if (B2_KEY_ID && B2_APP_KEY && s3Endpoint) {
   try {
@@ -49,16 +45,13 @@ if (B2_KEY_ID && B2_APP_KEY && s3Endpoint) {
       credentials: { accessKeyId: B2_KEY_ID, secretAccessKey: B2_APP_KEY },
       forcePathStyle: true
     });
-    console.log('📦 S3 endpoint: ' + s3Endpoint + ' | bucket: ' + B2_BUCKET + ' | region: ' + B2_REGION);
-  } catch (e) {
-    console.error('❌ Не удалось инициализировать S3:', e.message);
-    s3 = null;
-  }
+    console.log('📦 S3: ' + s3Endpoint + ' | bucket: ' + B2_BUCKET);
+  } catch (e) { console.error('❌ S3 init:', e.message); s3 = null; }
 }
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 const uploadSmall = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadBook = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 
 const uid  = () => Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
 const code = () => {
@@ -72,31 +65,26 @@ const genPass = () => {
   return s;
 };
 
-/* ---------- S3 helpers ---------- */
 async function s3Put(key, buffer, contentType) {
-  if (!s3) throw new Error('Хранилище B2 не настроено. Проверьте переменные B2_KEY_ID, B2_APP_KEY, B2_BUCKET, B2_ENDPOINT.');
+  if (!s3) throw new Error('Хранилище B2 не настроено.');
   try {
-    await s3.send(new PutObjectCommand({
-      Bucket: B2_BUCKET, Key: key, Body: buffer, ContentType: contentType
-    }));
+    await s3.send(new PutObjectCommand({ Bucket: B2_BUCKET, Key: key, Body: buffer, ContentType: contentType }));
     return key;
   } catch (e) {
     console.error('❌ s3Put [' + key + ']:', e.name, '—', e.message);
-    if (e.message && e.message.includes('Invalid URL')) {
-      throw new Error('B2_ENDPOINT указан неверно. Нужен полный URL с https://, например https://s3.us-west-004.backblazeb2.com');
-    }
-    if (e.name === 'InvalidAccessKeyId' || e.name === 'SignatureDoesNotMatch') {
-      throw new Error('B2_KEY_ID или B2_APP_KEY неверны. Проверьте Application Key в Backblaze.');
-    }
-    if (e.name === 'NoSuchBucket') {
-      throw new Error('Бакет «' + B2_BUCKET + '» не найден на Backblaze. Проверьте B2_BUCKET.');
-    }
+    if (e.message && e.message.includes('Invalid URL'))
+      throw new Error('B2_ENDPOINT неверен. Нужен полный URL с https://.');
     throw new Error('B2: ' + e.message);
   }
 }
-async function s3Get(key) {
+async function s3Get(key, range) {
   if (!s3) throw new Error('S3 не настроен');
-  const r = await s3.send(new GetObjectCommand({ Bucket: B2_BUCKET, Key: key }));
+  const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: key });
+  if (range) cmd.input.Range = range;
+  return await s3.send(cmd);
+}
+async function s3GetBuffer(key) {
+  const r = await s3Get(key);
   const chunks = [];
   for await (const c of r.Body) chunks.push(c);
   return { buffer: Buffer.concat(chunks), contentType: r.ContentType };
@@ -106,7 +94,6 @@ async function s3Del(key) {
   try { await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key })); } catch (e) {}
 }
 
-/* ---------- БД ---------- */
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -156,7 +143,7 @@ async function initDB() {
       id TEXT PRIMARY KEY, owner_id TEXT NOT NULL,
       title TEXT NOT NULL, author TEXT, subject TEXT, description TEXT,
       class_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
-      content TEXT,
+      pdf_key TEXT, pdf_size BIGINT,
       cover_key TEXT,
       created_at BIGINT NOT NULL
     );
@@ -196,11 +183,11 @@ async function initDB() {
   `);
   try { await pool.query(`ALTER TABLE tests ADD COLUMN IF NOT EXISTS deadline BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE submissions ADD COLUMN IF NOT EXISTS late BOOLEAN DEFAULT FALSE`); } catch (e) {}
-  try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS content TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_key TEXT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_key TEXT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_size BIGINT`); } catch (e) {}
 }
 
-/* ---------- Логи действий ---------- */
 async function logAction(userId, userName, action, details) {
   try {
     await pool.query(
@@ -209,12 +196,10 @@ async function logAction(userId, userName, action, details) {
       [uid(), userId, userName, action, details || null, Date.now()]);
     await pool.query(
       `DELETE FROM action_logs WHERE id IN (
-         SELECT id FROM action_logs ORDER BY at DESC OFFSET 1000
-       )`);
+         SELECT id FROM action_logs ORDER BY at DESC OFFSET 1000)`);
   } catch (e) {}
 }
 
-/* ---------- Бэкап БД ---------- */
 async function createBackup(auto) {
   try {
     if (!s3) throw new Error('S3 не настроен');
@@ -225,7 +210,7 @@ async function createBackup(auto) {
       const r = await pool.query('SELECT * FROM ' + table);
       dump[table] = r.rows;
     }
-    dump._meta = { created: Date.now(), version: '3.0.0' };
+    dump._meta = { created: Date.now(), version: '3.1.0' };
     const json = JSON.stringify(dump, null, 2);
     const buf = Buffer.from(json, 'utf8');
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -233,25 +218,17 @@ async function createBackup(auto) {
     await s3Put(key, buf, 'application/json');
     const id = uid();
     await pool.query(
-      `INSERT INTO backups (id, key, size, auto, created_at)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO backups (id, key, size, auto, created_at) VALUES ($1,$2,$3,$4,$5)`,
       [id, key, buf.length, !!auto, Date.now()]);
     const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM backups');
     if (cnt.rows[0].n > 7) {
       const old = await pool.query(
-        `SELECT id, key FROM backups ORDER BY created_at ASC LIMIT $1`,
-        [cnt.rows[0].n - 7]);
-      for (const b of old.rows) {
-        await s3Del(b.key);
-        await pool.query('DELETE FROM backups WHERE id=$1', [b.id]);
-      }
+        `SELECT id, key FROM backups ORDER BY created_at ASC LIMIT $1`, [cnt.rows[0].n - 7]);
+      for (const b of old.rows) { await s3Del(b.key); await pool.query('DELETE FROM backups WHERE id=$1', [b.id]); }
     }
-    console.log('💾 Бэкап создан: ' + key + ' (' + Math.round(buf.length/1024) + ' КБ)');
+    console.log('💾 Бэкап: ' + key);
     return { key, size: buf.length };
-  } catch (e) {
-    console.error('❌ Бэкап:', e.message);
-    throw e;
-  }
+  } catch (e) { console.error('❌ Бэкап:', e.message); throw e; }
 }
 
 setTimeout(function scheduleBackup(){
@@ -259,7 +236,6 @@ setTimeout(function scheduleBackup(){
   setInterval(function(){ createBackup(true).catch(function(){}); }, 24 * 60 * 60 * 1000);
 }, 60 * 1000);
 
-/* ---------- Хелперы ---------- */
 async function getUserById(id) {
   const r = await pool.query('SELECT * FROM users WHERE id=$1', [id]);
   return r.rows[0] || null;
@@ -313,7 +289,6 @@ async function getStudentsInClass(cid) {
      WHERE cs.class_id=$1`, [cid]);
   return r.rows;
 }
-
 function normSettings(s) {
   s = s || {};
   return {
@@ -350,8 +325,16 @@ async function canSeeClass(userId, role, classId) {
   }
   return false;
 }
+async function canSeeBook(userId, role, b) {
+  if (role === 'admin' || role === 'librarian') return true;
+  if (b.owner_id === userId) return true;
+  if (role === 'teacher') return b.owner_id === userId;
+  const myCids = await getClassIdsForStudent(userId);
+  const cids = b.class_ids || [];
+  if (cids.length === 0) return true;
+  return cids.some(id => myCids.includes(id));
+}
 
-/* ---------- Telegram ---------- */
 let bot = null;
 if (TG_TOKEN) {
   try {
@@ -374,8 +357,7 @@ if (TG_TOKEN) {
             return;
           }
         }
-        bot.sendMessage(chatId,
-          'Привет! Это бот MathTest.\nОткрой приложение → Профиль → «Подключить Telegram».');
+        bot.sendMessage(chatId, 'Привет! Это бот MathTest.\nОткрой приложение → Профиль → «Подключить Telegram».');
       } catch (e) { console.error(e); }
     });
     bot.onText(/\/stop/, async (msg) => {
@@ -393,7 +375,6 @@ function tgSend(chatId, text, opts) {
   return bot.sendMessage(chatId, text, opts || {}).then(() => true).catch(() => false);
 }
 
-/* ---------- Notify ---------- */
 async function notify(userId, type, title, text, link) {
   try {
     await pool.query(
@@ -406,7 +387,6 @@ async function notify(userId, type, title, text, link) {
   } catch (e) { console.error('notify:', e.message); }
 }
 
-/* ---------- Express ---------- */
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -440,33 +420,26 @@ function canUploadBooks(req, res, next) {
   next();
 }
 
-/* =========================================================
-   AUTH
-   ========================================================= */
+/* ========== AUTH ========== */
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, role } = req.body || {};
     const validRoles = ['teacher', 'student', 'librarian'];
     if (!name || !email || !password || !validRoles.includes(role))
       return res.status(400).json({ error: 'Заполните все поля' });
-    if (password.length < 6)
-      return res.status(400).json({ error: 'Пароль от 6 символов' });
+    if (password.length < 6) return res.status(400).json({ error: 'Пароль от 6 символов' });
     const e = email.toLowerCase().trim();
     if (await getUserByEmail(e)) return res.status(409).json({ error: 'Email занят' });
     let finalRole = role;
-    if (process.env.ADMIN_EMAIL && e === process.env.ADMIN_EMAIL.toLowerCase().trim())
-      finalRole = 'admin';
+    if (process.env.ADMIN_EMAIL && e === process.env.ADMIN_EMAIL.toLowerCase().trim()) finalRole = 'admin';
     const id = uid();
     await pool.query(
-      `INSERT INTO users (id,name,email,pass,role,link_code,created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `INSERT INTO users (id,name,email,pass,role,link_code,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [id, name.trim(), e, await bcrypt.hash(password, 10), finalRole, uid() + uid(), Date.now()]);
     await logAction(id, name.trim(), 'Регистрация', e + ' (' + finalRole + ')');
     const token = jwt.sign({ id, role: finalRole, name: name.trim() }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id, name: name.trim(), role: finalRole } });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -484,9 +457,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const token = jwt.sign({ id: u.id, role: role, name: u.name }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: u.id, name: u.name, role: role } });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 app.get('/api/auth/me', auth, async (req, res) => {
@@ -495,9 +466,7 @@ app.get('/api/auth/me', auth, async (req, res) => {
   res.json({ user: userToJSON(u) });
 });
 
-/* =========================================================
-   TELEGRAM LOGIN
-   ========================================================= */
+/* ========== TELEGRAM LOGIN ========== */
 app.get('/api/telegram/bot-info', async (req, res) => {
   if (!bot) return res.json({ username: null });
   try { const me = await bot.getMe(); res.json({ username: me.username }); }
@@ -507,12 +476,10 @@ app.post('/api/auth/telegram', async (req, res) => {
   try {
     if (!TG_TOKEN) return res.status(400).json({ error: 'Telegram не настроен' });
     const data = req.body || {};
-    if (!data.id || !data.hash || !data.auth_date)
-      return res.status(400).json({ error: 'Некорректные данные' });
+    if (!data.id || !data.hash || !data.auth_date) return res.status(400).json({ error: 'Некорректные данные' });
     const age = Math.floor(Date.now() / 1000) - Number(data.auth_date);
     if (age > 86400) return res.status(400).json({ error: 'Ссылка устарела' });
-    const pairs = Object.keys(data).filter(k => k !== 'hash')
-      .map(k => k + '=' + data[k]).sort().join('\n');
+    const pairs = Object.keys(data).filter(k => k !== 'hash').map(k => k + '=' + data[k]).sort().join('\n');
     const secretKey = crypto.createHash('sha256').update(TG_TOKEN).digest();
     const computed = crypto.createHmac('sha256', secretKey).update(pairs).digest('hex');
     if (computed !== data.hash) return res.status(401).json({ error: 'Подпись неверна' });
@@ -523,13 +490,11 @@ app.post('/api/auth/telegram', async (req, res) => {
       user = await getUserByEmail(email);
       if (!user) {
         const id = uid();
-        const name = [data.first_name, data.last_name].filter(Boolean).join(' ')
-                     || data.username || ('tg_' + tgId);
+        const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || data.username || ('tg_' + tgId);
         await pool.query(
           `INSERT INTO users (id,name,email,pass,role,telegram_chat_id,telegram_username,link_code,created_at)
            VALUES ($1,$2,$3,$4,'student',$5,$6,$7,$8)`,
-          [id, name, email, 'tg_no_password', tgId,
-           data.username ? '@' + data.username : null, uid() + uid(), Date.now()]);
+          [id, name, email, 'tg_no_password', tgId, data.username ? '@' + data.username : null, uid() + uid(), Date.now()]);
         user = await getUserById(id);
       }
     }
@@ -538,16 +503,12 @@ app.post('/api/auth/telegram', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   GOOGLE LOGIN
-   ========================================================= */
+/* ========== GOOGLE ========== */
 app.post('/api/auth/google', async (req, res) => {
   try {
     const { credential } = req.body || {};
     if (!credential) return res.status(400).json({ error: 'Нет токена' });
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential, audience: process.env.GOOGLE_CLIENT_ID
-    });
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
     const p = ticket.getPayload();
     let user = await getUserByEmail(p.email);
     if (!user) {
@@ -563,9 +524,7 @@ app.post('/api/auth/google', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   ПРОФИЛЬ
-   ========================================================= */
+/* ========== ПРОФИЛЬ ========== */
 app.patch('/api/users/me', auth, async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
@@ -580,8 +539,7 @@ app.patch('/api/users/me', auth, async (req, res) => {
       }
     }
     if (password && password.length >= 6) {
-      await pool.query('UPDATE users SET pass=$1 WHERE id=$2',
-        [await bcrypt.hash(password, 10), u.id]);
+      await pool.query('UPDATE users SET pass=$1 WHERE id=$2', [await bcrypt.hash(password, 10), u.id]);
     }
     const updated = await getUserById(u.id);
     res.json({ user: userToJSON(updated) });
@@ -610,7 +568,7 @@ app.get('/api/users/:id/avatar', async (req, res) => {
       res.setHeader('Content-Type', 'image/png');
       return res.send(png);
     }
-    const { buffer, contentType } = await s3Get(u.avatar_key);
+    const { buffer, contentType } = await s3GetBuffer(u.avatar_key);
     res.setHeader('Content-Type', contentType || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
@@ -632,21 +590,15 @@ app.post('/api/telegram/unlink', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-/* =========================================================
-   КЛАССЫ
-   ========================================================= */
+/* ========== КЛАССЫ ========== */
 app.get('/api/classes', auth, async (req, res) => {
   try {
     let rows;
-    if (req.user.role === 'admin') {
-      rows = (await pool.query('SELECT * FROM classes ORDER BY created_at DESC')).rows;
-    } else if (req.user.role === 'teacher') {
-      rows = (await pool.query('SELECT * FROM classes WHERE teacher_id=$1', [req.user.id])).rows;
-    } else if (req.user.role === 'student') {
-      rows = (await pool.query(
-        `SELECT c.* FROM classes c JOIN class_students cs ON cs.class_id=c.id
-         WHERE cs.student_id=$1`, [req.user.id])).rows;
-    } else { rows = []; }
+    if (req.user.role === 'admin') rows = (await pool.query('SELECT * FROM classes ORDER BY created_at DESC')).rows;
+    else if (req.user.role === 'teacher') rows = (await pool.query('SELECT * FROM classes WHERE teacher_id=$1', [req.user.id])).rows;
+    else if (req.user.role === 'student') rows = (await pool.query(
+      `SELECT c.* FROM classes c JOIN class_students cs ON cs.class_id=c.id WHERE cs.student_id=$1`, [req.user.id])).rows;
+    else rows = [];
     const out = [];
     for (const c of rows) {
       const teacher = await getUserById(c.teacher_id);
@@ -715,8 +667,7 @@ app.post('/api/classes/join', auth, async (req, res) => {
     const ex = await pool.query('SELECT 1 FROM class_students WHERE class_id=$1 AND student_id=$2',
       [c.id, req.user.id]);
     if (ex.rowCount) return res.status(400).json({ error: 'Вы уже в классе' });
-    await pool.query('INSERT INTO class_students (class_id, student_id) VALUES ($1,$2)',
-      [c.id, req.user.id]);
+    await pool.query('INSERT INTO class_students (class_id, student_id) VALUES ($1,$2)', [c.id, req.user.id]);
     await notify(c.teacher_id, 'join', 'Новый ученик', req.user.name + ' → «' + c.name + '»', null);
     const t = await getUserById(c.teacher_id);
     if (t && t.telegram_chat_id) {
@@ -729,8 +680,7 @@ app.post('/api/classes/join', auth, async (req, res) => {
 
 app.post('/api/classes/:id/leave', auth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM class_students WHERE class_id=$1 AND student_id=$2',
-      [req.params.id, req.user.id]);
+    await pool.query('DELETE FROM class_students WHERE class_id=$1 AND student_id=$2', [req.params.id, req.user.id]);
     await pool.query(
       `DELETE FROM group_students WHERE student_id=$1 AND group_id IN
        (SELECT id FROM groups WHERE class_id=$2)`, [req.user.id, req.params.id]);
@@ -742,8 +692,7 @@ app.get('/api/classes/:id', auth, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
     if (!c) return res.status(404).json({ error: 'Не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, c.id)))
-      return res.status(403).json({ error: 'Нет доступа' });
+    if (!(await canSeeClass(req.user.id, req.user.role, c.id))) return res.status(403).json({ error: 'Нет доступа' });
     const students = await getStudentsInClass(c.id);
     const groups = await getGroupsForClass(c.id);
     const stuGroupMap = {};
@@ -777,8 +726,7 @@ app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, async (req, res)
     const c = await getClassById(req.params.id);
     if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
       return res.status(403).json({ error: 'Нет доступа' });
-    await pool.query('DELETE FROM class_students WHERE class_id=$1 AND student_id=$2',
-      [c.id, req.params.sid]);
+    await pool.query('DELETE FROM class_students WHERE class_id=$1 AND student_id=$2', [c.id, req.params.sid]);
     await pool.query(
       `DELETE FROM group_students WHERE student_id=$1 AND group_id IN
        (SELECT id FROM groups WHERE class_id=$2)`, [req.params.sid, c.id]);
@@ -786,8 +734,7 @@ app.delete('/api/classes/:id/students/:sid', auth, teacherOnly, async (req, res)
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* ---------- CSV ИМПОРТ ---------- */
-app.post('/api/classes/:id/import-csv', auth, teacherOnly, upload.single('file'), async (req, res) => {
+app.post('/api/classes/:id/import-csv', auth, teacherOnly, uploadSmall.single('file'), async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
     if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
@@ -803,9 +750,7 @@ app.post('/api/classes/:id/import-csv', auth, teacherOnly, upload.single('file')
       const parts = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
       if (parts.length < 2) { result.failed.push({ line, reason: 'мало полей' }); continue; }
       const name = parts[0], email = parts[1].toLowerCase();
-      if (!name || !email || !email.includes('@')) {
-        result.failed.push({ line, reason: 'некорректные данные' }); continue;
-      }
+      if (!name || !email || !email.includes('@')) { result.failed.push({ line, reason: 'некорректные данные' }); continue; }
       let user = await getUserByEmail(email);
       let password = null, isNew = false;
       if (!user) {
@@ -818,8 +763,7 @@ app.post('/api/classes/:id/import-csv', auth, teacherOnly, upload.single('file')
         user = await getUserById(id);
         isNew = true;
       }
-      const inClass = await pool.query(
-        'SELECT 1 FROM class_students WHERE class_id=$1 AND student_id=$2', [c.id, user.id]);
+      const inClass = await pool.query('SELECT 1 FROM class_students WHERE class_id=$1 AND student_id=$2', [c.id, user.id]);
       if (!inClass.rowCount) {
         await pool.query('INSERT INTO class_students (class_id, student_id) VALUES ($1, $2)', [c.id, user.id]);
         if (isNew) result.added.push({ name, email, password });
@@ -830,15 +774,11 @@ app.post('/api/classes/:id/import-csv', auth, teacherOnly, upload.single('file')
       }
     }
     await logAction(req.user.id, req.user.name, 'Импорт CSV',
-      'в класс «' + c.name + '»: ' + result.added.length + ' новых, ' +
-      result.existing.length + ' существующих, ' + result.failed.length + ' ошибок');
+      'в класс «' + c.name + '»: ' + result.added.length + ' новых');
     res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: 'Ошибка импорта: ' + e.message });
-  }
+  } catch (e) { res.status(500).json({ error: 'Ошибка импорта: ' + e.message }); }
 });
 
-/* ---------- Группы ---------- */
 app.post('/api/classes/:id/groups', auth, teacherOnly, async (req, res) => {
   const c = await getClassById(req.params.id);
   if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
@@ -861,8 +801,7 @@ app.post('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, async 
   const c = await getClassById(req.params.id);
   if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
     return res.status(403).json({ error: 'Нет доступа' });
-  await pool.query(
-    'INSERT INTO group_students (group_id,student_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
+  await pool.query('INSERT INTO group_students (group_id,student_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
     [req.params.gid, req.params.sid]);
   res.json({ ok: true });
 });
@@ -875,7 +814,6 @@ app.delete('/api/classes/:id/groups/:gid/students/:sid', auth, teacherOnly, asyn
   res.json({ ok: true });
 });
 
-/* ---------- Рассылка ---------- */
 app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
@@ -899,66 +837,40 @@ app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   АНАЛИТИКА ПО КЛАССУ
-   ========================================================= */
 app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
     if (!c || (req.user.role !== 'admin' && c.teacher_id !== req.user.id))
       return res.status(403).json({ error: 'Нет доступа' });
-
     const students = await getStudentsInClass(c.id);
     const totalStudents = students.length;
-
     const tR = await pool.query(
       `SELECT * FROM tests WHERE class_ids @> $1::jsonb ORDER BY created_at DESC`,
       [JSON.stringify([c.id])]);
     const tests = tR.rows;
-
     const perTest = [];
     for (const t of tests) {
       const subs = await pool.query(
-        `SELECT student_id, score, max FROM submissions WHERE test_id=$1 AND class_id=$2`,
-        [t.id, c.id]);
+        `SELECT student_id, score, max FROM submissions WHERE test_id=$1 AND class_id=$2`, [t.id, c.id]);
       const avg = subs.rows.length
-        ? Math.round(subs.rows.reduce((s, x) => s + (x.max ? x.score / x.max : 0), 0) / subs.rows.length * 100)
-        : 0;
-      perTest.push({
-        id: t.id,
-        title: t.title,
-        submissions: subs.rows.length,
-        total: totalStudents,
-        avgPercent: avg
-      });
+        ? Math.round(subs.rows.reduce((s, x) => s + (x.max ? x.score / x.max : 0), 0) / subs.rows.length * 100) : 0;
+      perTest.push({ id: t.id, title: t.title, submissions: subs.rows.length, total: totalStudents, avgPercent: avg });
     }
-
     const perStudent = [];
     for (const s of students) {
       const subs = await pool.query(
-        `SELECT score, max FROM submissions WHERE class_id=$1 AND student_id=$2`,
-        [c.id, s.id]);
+        `SELECT score, max FROM submissions WHERE class_id=$1 AND student_id=$2`, [c.id, s.id]);
       const avg = subs.rows.length
-        ? Math.round(subs.rows.reduce((x, y) => x + (y.max ? y.score / y.max : 0), 0) / subs.rows.length * 100)
-        : null;
-      perStudent.push({
-        id: s.id,
-        name: s.name,
-        submissions: subs.rows.length,
-        totalTests: tests.length,
-        avgPercent: avg
-      });
+        ? Math.round(subs.rows.reduce((x, y) => x + (y.max ? y.score / y.max : 0), 0) / subs.rows.length * 100) : null;
+      perStudent.push({ id: s.id, name: s.name, submissions: subs.rows.length, totalTests: tests.length, avgPercent: avg });
     }
     perStudent.sort((a, b) => {
       if (a.avgPercent === null) return 1;
       if (b.avgPercent === null) return -1;
       return b.avgPercent - a.avgPercent;
     });
-
     const allSubs = await pool.query(
-      `SELECT s.results, t.tasks
-       FROM submissions s JOIN tests t ON t.id = s.test_id
-       WHERE s.class_id = $1`, [c.id]);
+      `SELECT s.results, t.tasks FROM submissions s JOIN tests t ON t.id = s.test_id WHERE s.class_id = $1`, [c.id]);
     const taskStats = {};
     for (const row of allSubs.rows) {
       const tasks = row.tasks || [];
@@ -970,40 +882,19 @@ app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
         if (results[i] && results[i].ok) taskStats[key].correct++;
       });
     }
-    const hardTasks = Object.keys(taskStats)
-      .map(k => ({
-        statement: k,
-        total: taskStats[k].total,
-        correct: taskStats[k].correct,
-        pct: taskStats[k].total ? Math.round(taskStats[k].correct / taskStats[k].total * 100) : 0
-      }))
-      .filter(x => x.total >= 2)
-      .sort((a, b) => a.pct - b.pct)
-      .slice(0, 10);
-
-    res.json({
-      totalStudents,
-      totalTests: tests.length,
-      perTest,
-      perStudent,
-      hardTasks
-    });
-  } catch (e) {
-    console.error('analytics:', e.message);
-    res.status(500).json({ error: 'Ошибка' });
-  }
+    const hardTasks = Object.keys(taskStats).map(k => ({
+      statement: k, total: taskStats[k].total, correct: taskStats[k].correct,
+      pct: taskStats[k].total ? Math.round(taskStats[k].correct / taskStats[k].total * 100) : 0
+    })).filter(x => x.total >= 2).sort((a, b) => a.pct - b.pct).slice(0, 10);
+    res.json({ totalStudents, totalTests: tests.length, perTest, perStudent, hardTasks });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   РЕЙТИНГ КЛАССА
-   ========================================================= */
 app.get('/api/classes/:id/rating', auth, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
     if (!c) return res.status(404).json({ error: 'Не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, c.id)))
-      return res.status(403).json({ error: 'Нет доступа' });
-
+    if (!(await canSeeClass(req.user.id, req.user.role, c.id))) return res.status(403).json({ error: 'Нет доступа' });
     const students = await getStudentsInClass(c.id);
     const out = [];
     for (const s of students) {
@@ -1011,75 +902,46 @@ app.get('/api/classes/:id/rating', auth, async (req, res) => {
         `SELECT COUNT(*)::int AS n,
                 COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg,
                 COALESCE(SUM(score),0)::int AS total
-         FROM submissions WHERE class_id=$1 AND student_id=$2`,
-        [c.id, s.id]);
+         FROM submissions WHERE class_id=$1 AND student_id=$2`, [c.id, s.id]);
       const row = r.rows[0];
       if (row.n === 0) continue;
-      out.push({
-        id: s.id,
-        name: s.name,
-        hasAvatar: !!s.avatar_key,
-        submissions: row.n,
-        avgPercent: Math.round(row.avg),
-        totalScore: row.total
-      });
+      out.push({ id: s.id, name: s.name, hasAvatar: !!s.avatar_key,
+                 submissions: row.n, avgPercent: Math.round(row.avg), totalScore: row.total });
     }
     out.sort((a, b) => b.avgPercent - a.avgPercent);
-
     let myRank = null;
     if (req.user.role === 'student') {
       myRank = out.findIndex(x => x.id === req.user.id);
       if (myRank >= 0) myRank++;
     }
     res.json({ rating: out, myRank });
-  } catch (e) {
-    console.error('rating:', e.message);
-    res.status(500).json({ error: 'Ошибка' });
-  }
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   РАСПИСАНИЕ УЧЕНИКА
-   ========================================================= */
 app.get('/api/student/schedule', auth, async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.json({ schedule: [] });
     const myCids = await getClassIdsForStudent(req.user.id);
     if (!myCids.length) return res.json({ schedule: [] });
-
     const tR = await pool.query(
       `SELECT t.*, c.name AS class_name
-       FROM tests t
-       JOIN classes c ON c.id = ANY($1::text[])
-       WHERE t.class_ids ?| $1::text[]
-       ORDER BY t.created_at DESC`,
-      [myCids]);
+       FROM tests t JOIN classes c ON c.id = ANY($1::text[])
+       WHERE t.class_ids ?| $1::text[] ORDER BY t.created_at DESC`, [myCids]);
     const out = [];
     const now = Date.now();
-
     for (const t of tR.rows) {
       const visible = await studentSeesTest(req.user.id, t);
       if (!visible) continue;
       const mySubs = await pool.query(
-        `SELECT COUNT(*)::int AS n FROM submissions WHERE test_id=$1 AND student_id=$2`,
-        [t.id, req.user.id]);
+        `SELECT COUNT(*)::int AS n FROM submissions WHERE test_id=$1 AND student_id=$2`, [t.id, req.user.id]);
       const attemptsUsed = mySubs.rows[0].n;
       const settings = normSettings(t.settings);
       const canTry = !(settings.attempts > 0 && attemptsUsed >= settings.attempts);
-
       const deadline = t.deadline ? Number(t.deadline) : null;
       const isOverdue = deadline && now > deadline;
-
       if (canTry) {
-        out.push({
-          testId: t.id,
-          title: t.title,
-          className: t.class_name,
-          deadline,
-          isOverdue,
-          tasksCount: (t.tasks || []).length,
-          settings
-        });
+        out.push({ testId: t.id, title: t.title, className: t.class_name,
+                   deadline, isOverdue, tasksCount: (t.tasks || []).length, settings });
       }
     }
     out.sort((a, b) => {
@@ -1089,29 +951,18 @@ app.get('/api/student/schedule', auth, async (req, res) => {
       return 0;
     });
     res.json({ schedule: out.slice(0, 20) });
-  } catch (e) {
-    console.error('schedule:', e.message);
-    res.status(500).json({ error: 'Ошибка' });
-  }
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   ЧАТ КЛАССА
-   ========================================================= */
 app.get('/api/classes/:id/messages', auth, async (req, res) => {
   try {
     const c = await getClassById(req.params.id);
     if (!c) return res.status(404).json({ error: 'Класс не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, c.id)))
-      return res.status(403).json({ error: 'Нет доступа' });
+    if (!(await canSeeClass(req.user.id, req.user.role, c.id))) return res.status(403).json({ error: 'Нет доступа' });
     const before = Number(req.query.before) || Date.now() + 1;
-    const limit = 50;
     const r = await pool.query(
-      `SELECT m.*, u.avatar_key
-       FROM messages m JOIN users u ON u.id=m.user_id
-       WHERE m.class_id=$1 AND m.created_at < $2
-       ORDER BY m.created_at DESC LIMIT $3`,
-      [c.id, before, limit]);
+      `SELECT m.*, u.avatar_key FROM messages m JOIN users u ON u.id=m.user_id
+       WHERE m.class_id=$1 AND m.created_at < $2 ORDER BY m.created_at DESC LIMIT 50`, [c.id, before]);
     const msgs = r.rows.reverse().map(m => ({
       id: m.id, userId: m.user_id, userName: m.user_name,
       hasAvatar: !!m.avatar_key, text: m.text,
@@ -1127,8 +978,7 @@ app.post('/api/classes/:id/messages', auth, uploadSmall.single('file'), async (r
   try {
     const c = await getClassById(req.params.id);
     if (!c) return res.status(404).json({ error: 'Класс не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, c.id)))
-      return res.status(403).json({ error: 'Нет доступа' });
+    if (!(await canSeeClass(req.user.id, req.user.role, c.id))) return res.status(403).json({ error: 'Нет доступа' });
     const text = (req.body.text || '').trim();
     let fileKey = null, fileName = null, fileType = null, fileSize = 0;
     if (req.file) {
@@ -1143,18 +993,13 @@ app.post('/api/classes/:id/messages', auth, uploadSmall.single('file'), async (r
     await pool.query(
       `INSERT INTO messages (id,class_id,user_id,user_name,text,file_key,file_name,file_type,file_size,created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, c.id, req.user.id, req.user.name, text || null,
-       fileKey, fileName, fileType, fileSize, Date.now()]);
-    const cnt = await pool.query(
-      'SELECT COUNT(*)::int AS n FROM messages WHERE class_id=$1 AND file_key IS NOT NULL', [c.id]);
+      [id, c.id, req.user.id, req.user.name, text || null, fileKey, fileName, fileType, fileSize, Date.now()]);
+    const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM messages WHERE class_id=$1 AND file_key IS NOT NULL', [c.id]);
     if (cnt.rows[0].n > 50) {
       const old = await pool.query(
         `SELECT id,file_key FROM messages WHERE class_id=$1 AND file_key IS NOT NULL
          ORDER BY created_at ASC LIMIT $2`, [c.id, cnt.rows[0].n - 50]);
-      for (const m of old.rows) {
-        await s3Del(m.file_key);
-        await pool.query('UPDATE messages SET file_key=NULL WHERE id=$1', [m.id]);
-      }
+      for (const m of old.rows) { await s3Del(m.file_key); await pool.query('UPDATE messages SET file_key=NULL WHERE id=$1', [m.id]); }
     }
     res.json({ id });
   } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
@@ -1165,9 +1010,8 @@ app.get('/api/messages/:id/file', auth, async (req, res) => {
     const r = await pool.query('SELECT * FROM messages WHERE id=$1', [req.params.id]);
     const m = r.rows[0];
     if (!m || !m.file_key) return res.status(404).json({ error: 'Файл не найден' });
-    if (!(await canSeeClass(req.user.id, req.user.role, m.class_id)))
-      return res.status(403).json({ error: 'Нет доступа' });
-    const { buffer, contentType } = await s3Get(m.file_key);
+    if (!(await canSeeClass(req.user.id, req.user.role, m.class_id))) return res.status(403).json({ error: 'Нет доступа' });
+    const { buffer, contentType } = await s3GetBuffer(m.file_key);
     res.setHeader('Content-Type', contentType || 'application/octet-stream');
     res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(m.file_name || 'file') + '"');
     res.send(buffer);
@@ -1179,17 +1023,14 @@ app.delete('/api/messages/:id', auth, async (req, res) => {
     const r = await pool.query('SELECT * FROM messages WHERE id=$1', [req.params.id]);
     const m = r.rows[0];
     if (!m) return res.status(404).json({ error: 'Сообщение не найдено' });
-    if (m.user_id !== req.user.id)
-      return res.status(403).json({ error: 'Можно удалять только свои сообщения' });
+    if (m.user_id !== req.user.id) return res.status(403).json({ error: 'Можно удалять только свои сообщения' });
     if (m.file_key) await s3Del(m.file_key);
     await pool.query('DELETE FROM messages WHERE id=$1', [m.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   КНИГИ (текст + обложка, без PDF)
-   ========================================================= */
+/* ========== КНИГИ (PDF + обложка) ========== */
 app.get('/api/books', auth, async (req, res) => {
   try {
     const search = (req.query.q || '').toString().trim().toLowerCase();
@@ -1201,39 +1042,33 @@ app.get('/api/books', auth, async (req, res) => {
     let rows;
     if (req.user.role === 'admin' || req.user.role === 'librarian') {
       rows = (await pool.query(
-        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key,
-                LENGTH(COALESCE(content,'')) AS content_len, created_at
+        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key, pdf_size, created_at
          FROM books ORDER BY ${order}`)).rows;
     } else if (req.user.role === 'teacher') {
       rows = (await pool.query(
-        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key,
-                LENGTH(COALESCE(content,'')) AS content_len, created_at
+        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key, pdf_size, created_at
          FROM books WHERE owner_id=$1 ORDER BY ${order}`, [req.user.id])).rows;
     } else {
       const myCids = await getClassIdsForStudent(req.user.id);
       rows = (await pool.query(
-        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key,
-                LENGTH(COALESCE(content,'')) AS content_len, created_at
-         FROM books WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]
-         ORDER BY ${order}`, [myCids])).rows;
+        `SELECT id, owner_id, title, author, subject, description, class_ids, cover_key, pdf_size, created_at
+         FROM books WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[] ORDER BY ${order}`, [myCids])).rows;
     }
 
     let books = rows.map(b => ({
       id: b.id, title: b.title, author: b.author, subject: b.subject,
       description: b.description, classIds: b.class_ids || [],
       hasCover: !!b.cover_key,
-      contentLength: Number(b.content_len) || 0,
+      pdfSize: Number(b.pdf_size) || 0,
       ownerId: b.owner_id,
       createdAt: Number(b.created_at)
     }));
 
-    if (search) {
-      books = books.filter(b =>
-        (b.title || '').toLowerCase().includes(search) ||
-        (b.author || '').toLowerCase().includes(search) ||
-        (b.subject || '').toLowerCase().includes(search) ||
-        (b.description || '').toLowerCase().includes(search));
-    }
+    if (search) books = books.filter(b =>
+      (b.title || '').toLowerCase().includes(search) ||
+      (b.author || '').toLowerCase().includes(search) ||
+      (b.subject || '').toLowerCase().includes(search) ||
+      (b.description || '').toLowerCase().includes(search));
     if (filterClass) books = books.filter(b => b.classIds.includes(filterClass));
 
     for (const b of books) {
@@ -1248,24 +1083,18 @@ app.get('/api/books/:id', auth, async (req, res) => {
   try {
     const b = (await pool.query('SELECT * FROM books WHERE id=$1', [req.params.id])).rows[0];
     if (!b) return res.status(404).json({ error: 'Книга не найдена' });
-    const isOwner = b.owner_id === req.user.id;
-    const isPriv = ['admin', 'librarian'].includes(req.user.role);
-    if (!isOwner && !isPriv) {
-      const myCids = await getClassIdsForStudent(req.user.id);
-      const cids = b.class_ids || [];
-      if (cids.length > 0 && !cids.some(id => myCids.includes(id)))
-        return res.status(403).json({ error: 'Нет доступа' });
-    }
+    if (!(await canSeeBook(req.user.id, req.user.role, b)))
+      return res.status(403).json({ error: 'Нет доступа' });
     const bm = await pool.query(
       'SELECT id, position, note, created_at FROM bookmarks WHERE user_id=$1 AND book_id=$2 ORDER BY position',
       [req.user.id, b.id]);
-
     res.json({
       book: {
         id: b.id, title: b.title, author: b.author, subject: b.subject,
         description: b.description, classIds: b.class_ids || [],
-        content: b.content || '',
         hasCover: !!b.cover_key,
+        hasPdf: !!b.pdf_key,
+        pdfSize: Number(b.pdf_size) || 0,
         ownerId: b.owner_id,
         createdAt: Number(b.created_at),
         bookmarks: bm.rows.map(x => ({
@@ -1277,91 +1106,151 @@ app.get('/api/books/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-app.post('/api/books', auth, canUploadBooks, upload.single('cover'), async (req, res) => {
+app.post('/api/books', auth, canUploadBooks, uploadBook.fields([
+  { name: 'cover', maxCount: 1 },
+  { name: 'pdf', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { title, author, subject, description, content, classIds } = req.body || {};
+    const { title, author, subject, description, classIds } = req.body || {};
     if (!title || !title.trim()) return res.status(400).json({ error: 'Введите название' });
-    if (!content || !content.trim()) return res.status(400).json({ error: 'Введите текст книги' });
+    const pdfFile = req.files && req.files.pdf && req.files.pdf[0];
+    if (!pdfFile) return res.status(400).json({ error: 'Загрузите PDF-файл книги' });
+    if (!/\.pdf$/i.test(pdfFile.originalname) && pdfFile.mimetype !== 'application/pdf')
+      return res.status(400).json({ error: 'Нужен файл PDF' });
+    if (!s3) return res.status(400).json({ error: 'Хранилище B2 не настроено' });
 
     let parsedCids = [];
     try { parsedCids = classIds ? JSON.parse(classIds) : []; } catch (e) {}
 
+    const bookId = uid();
+
     let coverKey = null;
-    if (req.file) {
-      if (!s3) return res.status(400).json({ error: 'Хранилище B2 не настроено. Обложка не может быть загружена.' });
-      const buf = await sharp(req.file.buffer)
-        .resize(600, 900, { fit: 'cover' })
-        .jpeg({ quality: 82 })
-        .toBuffer();
-      const key = 'covers/books/' + uid() + '.jpg';
-      await s3Put(key, buf, 'image/jpeg');
-      coverKey = key;
+    const coverFile = req.files && req.files.cover && req.files.cover[0];
+    if (coverFile) {
+      const buf = await sharp(coverFile.buffer).resize(600, 900, { fit: 'cover' }).jpeg({ quality: 82 }).toBuffer();
+      coverKey = 'covers/books/' + bookId + '.jpg';
+      await s3Put(coverKey, buf, 'image/jpeg');
     }
 
-    const id = uid();
+    const pdfKey = 'books/pdf/' + bookId + '.pdf';
+    await s3Put(pdfKey, pdfFile.buffer, 'application/pdf');
+
     await pool.query(
-      `INSERT INTO books (id, owner_id, title, author, subject, description, class_ids, content, cover_key, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, req.user.id, title.trim(),
+      `INSERT INTO books (id, owner_id, title, author, subject, description, class_ids, pdf_key, pdf_size, cover_key, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [bookId, req.user.id, title.trim(),
        author ? author.trim() : null,
        subject ? subject.trim() : null,
        description ? description.trim() : null,
        JSON.stringify(parsedCids),
-       content.trim(),
-       coverKey,
-       Date.now()]);
+       pdfKey, pdfFile.size, coverKey, Date.now()]);
     await logAction(req.user.id, req.user.name, 'Загрузил книгу',
-      title.trim() + ' (' + Math.round(content.length / 1024) + ' КБ)');
+      title.trim() + ' (' + Math.round(pdfFile.size / 1024 / 1024 * 10) / 10 + ' МБ)');
 
     for (const cid of parsedCids) {
       const studs = await getStudentsInClass(cid);
       for (const s of studs) {
         await notify(s.id, 'new_book', 'Новая книга в библиотеке',
-          '«' + title.trim() + '» — доступна для чтения', { bookId: id });
+          '«' + title.trim() + '» — доступна для чтения', { bookId });
       }
     }
-    res.json({ id });
+    res.json({ id: bookId });
   } catch (e) {
+    console.error('books POST:', e.message);
     res.status(500).json({ error: e.message || 'Ошибка' });
   }
 });
 
-app.put('/api/books/:id', auth, canUploadBooks, upload.single('cover'), async (req, res) => {
+app.put('/api/books/:id', auth, canUploadBooks, uploadBook.fields([
+  { name: 'cover', maxCount: 1 },
+  { name: 'pdf', maxCount: 1 }
+]), async (req, res) => {
   try {
     const b = (await pool.query('SELECT * FROM books WHERE id=$1', [req.params.id])).rows[0];
     if (!b) return res.status(404).json({ error: 'Книга не найдена' });
     if (req.user.role !== 'admin' && b.owner_id !== req.user.id)
       return res.status(403).json({ error: 'Нет доступа' });
-    const { title, author, subject, description, content, classIds } = req.body || {};
+    const { title, author, subject, description, classIds } = req.body || {};
     let parsedCids = b.class_ids || [];
     try { if (classIds) parsedCids = JSON.parse(classIds); } catch (e) {}
+
     let coverKey = b.cover_key;
-    if (req.file && s3) {
-      const buf = await sharp(req.file.buffer).resize(600,900,{fit:'cover'}).jpeg({quality:82}).toBuffer();
-      const key = 'covers/books/' + uid() + '.jpg';
+    const coverFile = req.files && req.files.cover && req.files.cover[0];
+    if (coverFile && s3) {
+      const buf = await sharp(coverFile.buffer).resize(600,900,{fit:'cover'}).jpeg({quality:82}).toBuffer();
+      const key = 'covers/books/' + b.id + '_' + Date.now() + '.jpg';
       await s3Put(key, buf, 'image/jpeg');
       if (b.cover_key) await s3Del(b.cover_key);
       coverKey = key;
     }
+
+    let pdfKey = b.pdf_key, pdfSize = b.pdf_size;
+    const pdfFile = req.files && req.files.pdf && req.files.pdf[0];
+    if (pdfFile && s3) {
+      const key = 'books/pdf/' + b.id + '_' + Date.now() + '.pdf';
+      await s3Put(key, pdfFile.buffer, 'application/pdf');
+      if (b.pdf_key) await s3Del(b.pdf_key);
+      pdfKey = key; pdfSize = pdfFile.size;
+    }
+
     await pool.query(
       `UPDATE books SET title=$1, author=$2, subject=$3, description=$4,
-                        class_ids=$5, content=$6, cover_key=$7 WHERE id=$8`,
+                        class_ids=$5, pdf_key=$6, pdf_size=$7, cover_key=$8 WHERE id=$9`,
       [title || b.title,
        author != null ? author : b.author,
        subject != null ? subject : b.subject,
        description != null ? description : b.description,
        JSON.stringify(parsedCids),
-       content != null ? content : b.content,
-       coverKey, b.id]);
+       pdfKey, pdfSize, coverKey, b.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message || 'Ошибка' }); }
+});
+
+/* PDF-поток с поддержкой Range (для pdf.js) */
+app.get('/api/books/:id/pdf', auth, async (req, res) => {
+  try {
+    const b = (await pool.query('SELECT * FROM books WHERE id=$1', [req.params.id])).rows[0];
+    if (!b || !b.pdf_key) return res.status(404).json({ error: 'PDF не найден' });
+    if (!(await canSeeBook(req.user.id, req.user.role, b)))
+      return res.status(403).json({ error: 'Нет доступа' });
+
+    const range = req.headers.range;
+    let r;
+    try {
+      r = await s3Get(b.pdf_key, range);
+    } catch (e) {
+      console.error('s3 range get:', e.message);
+      return res.status(500).json({ error: 'Ошибка чтения PDF' });
+    }
+
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+
+    if (range && r.ContentRange) {
+      res.status(206);
+      res.setHeader('Content-Range', r.ContentRange);
+    }
+    if (r.ContentLength != null) res.setHeader('Content-Length', String(r.ContentLength));
+    res.setHeader('Content-Disposition', 'inline; filename="book.pdf"');
+
+    if (r.Body && r.Body.pipe) r.Body.pipe(res);
+    else {
+      const chunks = [];
+      for await (const c of r.Body) chunks.push(c);
+      res.send(Buffer.concat(chunks));
+    }
+  } catch (e) {
+    console.error('pdf:', e.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Ошибка' });
+  }
 });
 
 app.get('/api/books/:id/cover', async (req, res) => {
   try {
     const b = (await pool.query('SELECT cover_key FROM books WHERE id=$1', [req.params.id])).rows[0];
     if (!b || !b.cover_key) return res.status(404).end();
-    const { buffer, contentType } = await s3Get(b.cover_key);
+    const { buffer, contentType } = await s3GetBuffer(b.cover_key);
     res.setHeader('Content-Type', contentType || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
@@ -1375,6 +1264,7 @@ app.delete('/api/books/:id', auth, async (req, res) => {
     if (req.user.role !== 'admin' && b.owner_id !== req.user.id)
       return res.status(403).json({ error: 'Нет доступа' });
     if (b.cover_key) await s3Del(b.cover_key);
+    if (b.pdf_key) await s3Del(b.pdf_key);
     await pool.query('DELETE FROM books WHERE id=$1', [b.id]);
     await pool.query('DELETE FROM bookmarks WHERE book_id=$1', [b.id]);
     await logAction(req.user.id, req.user.name, 'Удалил книгу', b.title);
@@ -1382,18 +1272,17 @@ app.delete('/api/books/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* ---------- Закладки ---------- */
 app.post('/api/books/:id/bookmarks', auth, async (req, res) => {
   try {
     const b = (await pool.query('SELECT id FROM books WHERE id=$1', [req.params.id])).rows[0];
     if (!b) return res.status(404).json({ error: 'Книга не найдена' });
     const { position, note } = req.body || {};
-    if (position == null) return res.status(400).json({ error: 'Не указана позиция' });
+    if (position == null) return res.status(400).json({ error: 'Не указана страница' });
     const id = uid();
     await pool.query(
       `INSERT INTO bookmarks (id, user_id, book_id, position, note, created_at)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [id, req.user.id, b.id, Math.max(0, parseInt(position) || 0),
+      [id, req.user.id, b.id, Math.max(1, parseInt(position) || 1),
        note ? String(note).slice(0, 500) : null, Date.now()]);
     res.json({ id });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
@@ -1409,9 +1298,7 @@ app.delete('/api/bookmarks/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   РАБОТЫ
-   ========================================================= */
+/* ========== РАБОТЫ ========== */
 app.get('/api/tests', auth, async (req, res) => {
   try {
     if (req.user.role === 'admin' || req.user.role === 'teacher') {
@@ -1439,8 +1326,7 @@ app.get('/api/tests', auth, async (req, res) => {
     for (const t of r.rows) {
       if (!(await studentSeesTest(req.user.id, t))) continue;
       const subsR = await pool.query(
-        'SELECT * FROM submissions WHERE test_id=$1 AND student_id=$2 ORDER BY at DESC',
-        [t.id, req.user.id]);
+        'SELECT * FROM submissions WHERE test_id=$1 AND student_id=$2 ORDER BY at DESC', [t.id, req.user.id]);
       const last = subsR.rows[0];
       out.push({
         id: t.id, title: t.title,
@@ -1481,20 +1367,14 @@ app.post('/api/tests', auth, teacherOnly, async (req, res) => {
       for (const s of studs) {
         if (s.telegram_chat_id) {
           let text = '📝 Новая работа: *' + title.trim() + '*\n\nЗаданий: ' + tasks.length;
-          if (dl) {
-            const dlStr = new Date(dl).toLocaleString('ru-RU', {
-              day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-            });
-            text += '\nСдать до: ' + dlStr;
-          }
+          if (dl) text += '\nСдать до: ' + new Date(dl).toLocaleString('ru-RU', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
           text += '\n' + BASE_URL;
           tgSend(Number(s.telegram_chat_id), text, { parse_mode: 'Markdown' });
         }
       }
     }
     for (const sid of recipients) {
-      await notify(sid, 'new_test', 'Новая работа',
-        'Учитель назначил «' + title.trim() + '»', { testId: id });
+      await notify(sid, 'new_test', 'Новая работа', 'Учитель назначил «' + title.trim() + '»', { testId: id });
     }
     await logAction(req.user.id, req.user.name, 'Создал работу', title.trim());
     res.json({ id });
@@ -1525,8 +1405,7 @@ app.post('/api/tests/:id/duplicate', auth, teacherOnly, async (req, res) => {
     await pool.query(
       `INSERT INTO tests (id,owner_id,title,tasks,class_ids,group_ids,settings,deadline,created_at)
        VALUES ($1,$2,$3,$4,'[]','[]',$5,NULL,$6)`,
-      [id, req.user.id, t.title + ' (копия)', JSON.stringify(t.tasks),
-       JSON.stringify(normSettings(t.settings)), Date.now()]);
+      [id, req.user.id, t.title + ' (копия)', JSON.stringify(t.tasks), JSON.stringify(normSettings(t.settings)), Date.now()]);
     res.json({ id });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1543,9 +1422,7 @@ app.delete('/api/tests/:id', auth, teacherOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   АВТОПРОВЕРКА
-   ========================================================= */
+/* ========== АВТОПРОВЕРКА ========== */
 let nerdamer = null;
 try { nerdamer = require('nerdamer/all'); } catch (e) { try { nerdamer = require('nerdamer'); } catch (e2) {} }
 
@@ -1571,31 +1448,24 @@ function isCorrect(student, correct, tol = 1e-6) {
   return false;
 }
 
-/* =========================================================
-   СДАЧА РАБОТЫ
-   ========================================================= */
 app.post('/api/tests/:id/submit', auth, async (req, res) => {
   try {
     if (req.user.role !== 'student') return res.status(403).json({ error: 'Только для учеников' });
     const t = (await pool.query('SELECT * FROM tests WHERE id=$1', [req.params.id])).rows[0];
     if (!t) return res.status(404).json({ error: 'Работа не найдена' });
-    if (!(await studentSeesTest(req.user.id, t)))
-      return res.status(403).json({ error: 'Работа не для вас' });
+    if (!(await studentSeesTest(req.user.id, t))) return res.status(403).json({ error: 'Работа не для вас' });
     const myCids = await getClassIdsForStudent(req.user.id);
     const classId = (t.class_ids || []).find(id => myCids.includes(id));
     if (!classId) return res.status(403).json({ error: 'Класс не найден' });
 
     const settings = normSettings(t.settings);
     const cnt = (await pool.query(
-      'SELECT COUNT(*)::int AS n FROM submissions WHERE test_id=$1 AND student_id=$2',
-      [t.id, req.user.id])).rows[0].n;
-    if (settings.attempts > 0 && cnt >= settings.attempts)
-      return res.status(400).json({ error: 'Лимит попыток' });
+      'SELECT COUNT(*)::int AS n FROM submissions WHERE test_id=$1 AND student_id=$2', [t.id, req.user.id])).rows[0].n;
+    if (settings.attempts > 0 && cnt >= settings.attempts) return res.status(400).json({ error: 'Лимит попыток' });
 
     const now = Date.now();
     const deadline = t.deadline ? Number(t.deadline) : null;
     const isLate = deadline ? now > deadline : false;
-
     const startedAt = Number(req.body.startedAt) || now;
     const durationMs = now - startedAt;
     const expired = settings.timeLimit > 0 && durationMs > (settings.timeLimit * 60000) + 30000;
@@ -1612,7 +1482,6 @@ app.post('/api/tests/:id/submit', auth, async (req, res) => {
     });
     const score = results.reduce((s, r, i) => s + (r.ok ? (tasks[i].points || 1) : 0), 0);
     const max = tasks.reduce((s, x) => s + (x.points || 1), 0);
-
     const subId = uid();
     await pool.query(
       `INSERT INTO submissions (id,test_id,student_id,student_name,class_id,score,max,results,
@@ -1624,16 +1493,13 @@ app.post('/api/tests/:id/submit', auth, async (req, res) => {
     const pct = max ? Math.round(score / max * 100) : 0;
     let notifText = '«' + t.title + '» — ' + score + '/' + max + ' (' + pct + '%)';
     if (isLate) notifText += ' · сдано с опозданием';
-    await notify(t.owner_id, 'submission', 'Новая сдача: ' + req.user.name, notifText,
-      { testId: t.id, submissionId: subId });
+    await notify(t.owner_id, 'submission', 'Новая сдача: ' + req.user.name, notifText, { testId: t.id, submissionId: subId });
     const teacher = await getUserById(t.owner_id);
     if (teacher && teacher.telegram_chat_id) {
       tgSend(Number(teacher.telegram_chat_id),
         '📥 *' + req.user.name + '* сдал «' + t.title + '»\n' + score + '/' + max + ' (' + pct + '%)' +
-        (isLate ? '\n⚠ с опозданием' : ''),
-        { parse_mode: 'Markdown' });
+        (isLate ? '\n⚠ с опозданием' : ''), { parse_mode: 'Markdown' });
     }
-
     const resultsFull = results.map((r, i) => {
       const task = tasks[i];
       const out = { ok: r.ok, studentText: r.studentText };
@@ -1648,9 +1514,6 @@ app.post('/api/tests/:id/submit', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   РЕЗУЛЬТАТЫ
-   ========================================================= */
 app.get('/api/tests/:id/submissions', auth, teacherOnly, async (req, res) => {
   try {
     const t = (await pool.query('SELECT * FROM tests WHERE id=$1', [req.params.id])).rows[0];
@@ -1676,8 +1539,7 @@ app.get('/api/tests/:id/submissions', auth, teacherOnly, async (req, res) => {
         gg.forEach(g => { if (groupIds.includes(g.id)) g.studentIds.forEach(id => inG.add(id)); });
         all = all.filter(s => inG.has(s.id));
       }
-      const notSubmitted = all.filter(s => !submittedIds.has(s.id))
-        .map(s => ({ id: s.id, name: s.name }));
+      const notSubmitted = all.filter(s => !submittedIds.has(s.id)).map(s => ({ id: s.id, name: s.name }));
       groups.push({ classId: cid, className: cls.name, submitted: subs, notSubmitted });
     }
     const relR = await pool.query(
@@ -1713,8 +1575,7 @@ app.get('/api/tests/:id/export.csv', auth, teacherOnly, async (req, res) => {
       const dur = s.duration_ms ? Math.round(Number(s.duration_ms) / 1000) + ' с' : '';
       const row = [s.student_name, cn[s.class_id] || '—',
                    new Date(Number(s.at)).toLocaleString('ru-RU'),
-                   s.attempt || 1, s.score, s.max, pct + '%', dur,
-                   s.late ? 'Да' : 'Нет'];
+                   s.attempt || 1, s.score, s.max, pct + '%', dur, s.late ? 'Да' : 'Нет'];
       for (let i = 0; i < n; i++) {
         const r = s.results[i];
         row.push(r ? (r.ok ? '✓' : '✗') : '');
@@ -1753,13 +1614,10 @@ app.get('/api/submissions/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   УВЕДОМЛЕНИЯ
-   ========================================================= */
 app.get('/api/notifications', auth, async (req, res) => {
   const r = await pool.query(
-    `SELECT id,type,title,text,link,read,at FROM notifications
-     WHERE user_id=$1 ORDER BY at DESC LIMIT 50`, [req.user.id]);
+    `SELECT id,type,title,text,link,read,at FROM notifications WHERE user_id=$1 ORDER BY at DESC LIMIT 50`,
+    [req.user.id]);
   const list = r.rows.map(n => ({ id: n.id, type: n.type, title: n.title, text: n.text,
     link: n.link, read: n.read, at: Number(n.at) }));
   res.json({ notifications: list, unread: list.filter(n => !n.read).length });
@@ -1769,14 +1627,10 @@ app.post('/api/notifications/read-all', auth, async (req, res) => {
   res.json({ ok: true });
 });
 app.post('/api/notifications/:id/read', auth, async (req, res) => {
-  await pool.query('UPDATE notifications SET read=true WHERE id=$1 AND user_id=$2',
-    [req.params.id, req.user.id]);
+  await pool.query('UPDATE notifications SET read=true WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
   res.json({ ok: true });
 });
 
-/* =========================================================
-   ДАШБОРД УЧИТЕЛЯ
-   ========================================================= */
 app.get('/api/teacher/dashboard', auth, teacherOnly, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin';
@@ -1786,8 +1640,7 @@ app.get('/api/teacher/dashboard', auth, teacherOnly, async (req, res) => {
     const perClass = [];
     for (const c of classes) {
       const sub = (await pool.query(
-        `SELECT COUNT(*)::int AS n,
-                COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
+        `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
          FROM submissions WHERE class_id=$1`, [c.id])).rows[0];
       perClass.push({ id: c.id, name: c.name, submissions: sub.n, avgPercent: Math.round(sub.avg) });
     }
@@ -1801,15 +1654,12 @@ app.get('/api/teacher/dashboard', auth, teacherOnly, async (req, res) => {
         ? `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
            FROM submissions s JOIN tests t ON t.id=s.test_id WHERE s.at >= $1 AND s.at < $2`
         : `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg
-           FROM submissions s JOIN tests t ON t.id=s.test_id
-           WHERE t.owner_id=$1 AND s.at >= $2 AND s.at < $3`;
+           FROM submissions s JOIN tests t ON t.id=s.test_id WHERE t.owner_id=$1 AND s.at >= $2 AND s.at < $3`;
       const params = isAdmin ? [start, end] : [req.user.id, start, end];
       const r = (await pool.query(sql, params)).rows[0];
-      weeks.push({
-        start, end,
+      weeks.push({ start, end,
         label: new Date(start).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
-        count: r.n, avgPercent: Math.round(r.avg)
-      });
+        count: r.n, avgPercent: Math.round(r.avg) });
     }
     const topSql = isAdmin
       ? `SELECT s.student_id, s.student_name, COUNT(*)::int AS cnt,
@@ -1845,9 +1695,6 @@ app.get('/api/teacher/dashboard', auth, teacherOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   ПРОФИЛЬ/СТАТИСТИКА
-   ========================================================= */
 app.get('/api/profile/teacher', auth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin';
@@ -1856,18 +1703,15 @@ app.get('/api/profile/teacher', auth, async (req, res) => {
     const classesCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM classes ${where}`, args)).rows[0].n;
     const studentsCount = (await pool.query(
       `SELECT COUNT(DISTINCT cs.student_id)::int AS n
-       FROM class_students cs JOIN classes c ON c.id=cs.class_id
-       ${isAdmin ? '' : 'WHERE c.teacher_id=$1'}`, args)).rows[0].n;
+       FROM class_students cs JOIN classes c ON c.id=cs.class_id ${isAdmin ? '' : 'WHERE c.teacher_id=$1'}`, args)).rows[0].n;
     const testsCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM tests ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
     const booksCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM books ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
     const subR = (await pool.query(
       `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
-       FROM submissions s JOIN tests t ON t.id=s.test_id
-       ${isAdmin ? '' : 'WHERE t.owner_id=$1'}`, args)).rows[0];
+       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}`, args)).rows[0];
     const recent = (await pool.query(
       `SELECT s.id,s.student_name,s.score,s.max,s.at,t.title AS test_title
-       FROM submissions s JOIN tests t ON t.id=s.test_id
-       ${isAdmin ? '' : 'WHERE t.owner_id=$1'}
+       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}
        ORDER BY s.at DESC LIMIT 5`, args)).rows
       .map(r => ({ id: r.id, studentName: r.student_name, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
     res.json({ classesCount, studentsCount, testsCount, booksCount,
@@ -1885,20 +1729,19 @@ app.get('/api/profile/student', auth, async (req, res) => {
        FROM submissions WHERE student_id=$1`, [req.user.id])).rows[0];
     const recent = (await pool.query(
       `SELECT s.id,s.score,s.max,s.at,t.title AS test_title
-       FROM submissions s JOIN tests t ON t.id=s.test_id
-       WHERE s.student_id=$1 ORDER BY s.at DESC LIMIT 5`, [req.user.id])).rows
+       FROM submissions s JOIN tests t ON t.id=s.test_id WHERE s.student_id=$1 ORDER BY s.at DESC LIMIT 5`,
+      [req.user.id])).rows
       .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
     const myCids = await getClassIdsForStudent(req.user.id);
     const booksCount = (await pool.query(
-      `SELECT COUNT(*)::int AS n FROM books
-       WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]`, [myCids])).rows[0].n;
+      `SELECT COUNT(*)::int AS n FROM books WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]`, [myCids])).rows[0].n;
     const all = (await pool.query(
       `SELECT s.id,s.score,s.max,s.at,s.attempt,t.title AS test_title,c.name AS class_name,s.class_id
        FROM submissions s JOIN tests t ON t.id=s.test_id JOIN classes c ON c.id=s.class_id
        WHERE s.student_id=$1 ORDER BY s.at DESC`, [req.user.id])).rows
-      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at),
-                   attempt: r.attempt, testTitle: r.test_title, className: r.class_name,
-                   classId: r.class_id, pct: r.max ? Math.round(r.score / r.max * 100) : 0 }));
+      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), attempt: r.attempt,
+                   testTitle: r.test_title, className: r.class_name, classId: r.class_id,
+                   pct: r.max ? Math.round(r.score / r.max * 100) : 0 }));
     const byClass = {};
     all.forEach(s => {
       if (!byClass[s.classId]) byClass[s.classId] = { name: s.className, count: 0, sumPct: 0, best: 0, worst: 100 };
@@ -1915,17 +1758,12 @@ app.get('/api/profile/student', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   АДМИН
-   ========================================================= */
 app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
   try{
     const limit = Math.min(500, parseInt(req.query.limit) || 200);
     const r = await pool.query('SELECT * FROM action_logs ORDER BY at DESC LIMIT $1', [limit]);
-    res.json({ logs: r.rows.map(l => ({
-      id: l.id, userId: l.user_id, userName: l.user_name,
-      action: l.action, details: l.details, at: Number(l.at)
-    })) });
+    res.json({ logs: r.rows.map(l => ({ id: l.id, userId: l.user_id, userName: l.user_name,
+      action: l.action, details: l.details, at: Number(l.at) })) });
   }catch(e){ res.status(500).json({ error: 'Ошибка' }); }
 });
 
@@ -1951,12 +1789,9 @@ app.get('/api/admin/users', auth, adminOnly, async (req, res) => {
           (SELECT COUNT(*)::int FROM classes WHERE teacher_id=$1) AS classes_created,
           (SELECT COUNT(*)::int FROM class_students WHERE student_id=$1) AS classes_joined,
           (SELECT COUNT(*)::int FROM submissions WHERE student_id=$1) AS submissions,
-          (SELECT COUNT(*)::int FROM books WHERE owner_id=$1) AS books`,
-        [u.id])).rows[0];
-      users.push({
-        id: u.id, name: u.name, email: u.email, role: u.role,
-        hasAvatar: !!u.avatar_key, createdAt: Number(u.created_at), stats
-      });
+          (SELECT COUNT(*)::int FROM books WHERE owner_id=$1) AS books`, [u.id])).rows[0];
+      users.push({ id: u.id, name: u.name, email: u.email, role: u.role,
+                   hasAvatar: !!u.avatar_key, createdAt: Number(u.created_at), stats });
     }
     const stats = {
       total: (await pool.query('SELECT COUNT(*)::int AS n FROM users')).rows[0].n,
@@ -1976,12 +1811,10 @@ app.post('/api/admin/users/:id/role', auth, adminOnly, async (req, res) => {
     const { role } = req.body || {};
     if (!['admin', 'teacher', 'student', 'librarian'].includes(role))
       return res.status(400).json({ error: 'Неверная роль' });
-    if (req.params.id === req.user.id)
-      return res.status(400).json({ error: 'Нельзя менять свою роль' });
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя менять свою роль' });
     await pool.query('UPDATE users SET role=$1 WHERE id=$2', [role, req.params.id]);
     const target = await getUserById(req.params.id);
-    await logAction(req.user.id, req.user.name, 'Сменил роль',
-      (target ? target.name : req.params.id) + ' → ' + role);
+    await logAction(req.user.id, req.user.name, 'Сменил роль', (target ? target.name : req.params.id) + ' → ' + role);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
@@ -1989,19 +1822,16 @@ app.post('/api/admin/users/:id/role', auth, adminOnly, async (req, res) => {
 app.post('/api/admin/users/:id/reset-password', auth, adminOnly, async (req, res) => {
   try {
     const newPass = crypto.randomBytes(4).toString('hex');
-    await pool.query('UPDATE users SET pass=$1 WHERE id=$2',
-      [await bcrypt.hash(newPass, 10), req.params.id]);
+    await pool.query('UPDATE users SET pass=$1 WHERE id=$2', [await bcrypt.hash(newPass, 10), req.params.id]);
     const target = await getUserById(req.params.id);
-    await logAction(req.user.id, req.user.name, 'Сбросил пароль',
-      target ? target.name + ' (' + target.email + ')' : req.params.id);
+    await logAction(req.user.id, req.user.name, 'Сбросил пароль', target ? target.name + ' (' + target.email + ')' : req.params.id);
     res.json({ password: newPass });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
   try {
-    if (req.params.id === req.user.id)
-      return res.status(400).json({ error: 'Нельзя удалить себя' });
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя удалить себя' });
     const u = await getUserById(req.params.id);
     if (!u) return res.status(404).json({ error: 'Не найден' });
     if (u.avatar_key) await s3Del(u.avatar_key);
@@ -2015,16 +1845,11 @@ app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   БЭКАПЫ
-   ========================================================= */
 app.get('/api/admin/backups', auth, adminOnly, async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM backups ORDER BY created_at DESC LIMIT 20');
-    res.json({ backups: r.rows.map(b => ({
-      id: b.id, key: b.key, size: Number(b.size) || 0,
-      auto: b.auto, createdAt: Number(b.created_at)
-    })) });
+    res.json({ backups: r.rows.map(b => ({ id: b.id, key: b.key, size: Number(b.size) || 0,
+      auto: b.auto, createdAt: Number(b.created_at) })) });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
@@ -2040,7 +1865,7 @@ app.get('/api/admin/backups/:id/download', auth, adminOnly, async (req, res) => 
   try {
     const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
     if (!b) return res.status(404).json({ error: 'Бэкап не найден' });
-    const { buffer, contentType } = await s3Get(b.key);
+    const { buffer, contentType } = await s3GetBuffer(b.key);
     res.setHeader('Content-Type', contentType || 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="' + path.basename(b.key) + '"');
     res.send(buffer);
@@ -2058,9 +1883,6 @@ app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-/* =========================================================
-   FALLBACK + LISTEN
-   ========================================================= */
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (req.path.includes('.')) return next();
@@ -2076,30 +1898,24 @@ app.use((err, req, res, next) => {
   try { await initDB(); console.log('✅ Схема БД готова'); }
   catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
 
-  /* --- Самотест B2 --- */
   if (s3) {
     try {
       const probeKey = 'healthcheck/probe_' + Date.now() + '.txt';
       await s3Put(probeKey, Buffer.from('ok'), 'text/plain');
       await s3Del(probeKey);
-      console.log('✅ B2 проверен — загрузка работает');
+      console.log('✅ B2 проверен');
     } catch (e) {
       console.error('❌ B2 self-test:', e.message);
-      console.error('   endpoint=' + s3Endpoint + ' | bucket=' + B2_BUCKET + ' | region=' + B2_REGION);
+      console.error('   endpoint=' + s3Endpoint + ' | bucket=' + B2_BUCKET);
     }
-  } else {
-    console.warn('⚠️  B2 self-test пропущен — S3 клиент не инициализирован');
   }
 
   app.listen(PORT, () => {
     console.log('═══════════════════════════════════');
-    console.log('✅ MathTest v3.0 запущен');
+    console.log('✅ MathTest v3.1 (PDF-библиотека)');
     console.log('🌐 Порт: ' + PORT);
-    console.log('🗄️  БД: PostgreSQL');
-    console.log('📦 Хранилище: ' + (s3 ? ('Backblaze B2 (' + s3Endpoint + ')') : '❌ не настроено'));
-    console.log('📚 Библиотека: текст + обложка (без PDF)');
-    console.log('⏰ Дедлайны: включены');
-    console.log('📊 Аналитика: включена');
+    console.log('📦 B2: ' + (s3 ? s3Endpoint : '❌'));
+    console.log('📚 Библиотека: PDF + обложка');
     console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
     console.log('═══════════════════════════════════');
   });
