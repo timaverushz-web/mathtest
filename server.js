@@ -74,9 +74,10 @@ setInterval(function(){
   }
 }, 60 * 60 * 1000);
 
+const DB_SSL = process.env.DATABASE_SSL === 'true' || process.env.DATABASE_SSL === '1';
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+  ssl: DB_SSL ? { rejectUnauthorized: false } : false
 });
 
 let s3 = null;
