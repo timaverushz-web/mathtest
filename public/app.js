@@ -147,10 +147,24 @@ function createMathInput(initial,readonly,onChange){
   ta.value=initial||'';if(readonly)ta.readOnly=true;
   var prev=document.createElement('div');prev.className='mi-preview';
   wrap.appendChild(ta);wrap.appendChild(prev);
-  function render(){
-    var tex=textToLatex(ta.value);
-    if(window.katex&&tex){try{katex.render(tex,prev,{throwOnError:false});}catch(e){prev.textContent=ta.value;}}
-    else prev.textContent=ta.value;
+    function render(){
+    var raw = ta.value;
+    /* Если в тексте есть русские слова — рендерим как обычный текст,
+       KaTeX не умеет сохранять пробелы в смешанном тексте */
+    var hasCyr = /[А-Яа-яЁё]/.test(raw);
+    if (hasCyr) {
+      prev.textContent = raw;
+      prev.classList.add('mi-preview-plain');
+      return;
+    }
+    prev.classList.remove('mi-preview-plain');
+    var tex = textToLatex(raw);
+    if (window.katex && tex) {
+      try { katex.render(tex, prev, { throwOnError: false }); }
+      catch(e) { prev.textContent = raw; }
+    } else {
+      prev.textContent = raw;
+    }
   }
   ta.addEventListener('input',function(){render();if(onChange)onChange(ta.value);});
   ta.addEventListener('focus',function(){lastFocused=api;});
@@ -357,11 +371,25 @@ function renderExamWidgets(counts){
         '<span class="exam-widget-pts">макс ' + pts + 'б</span>' +
       '</div>';
 
-    w.onclick = (function(n){
+      w.onclick = (function(n){
       return function(){
         var sel = $('#bankFilterNum');
         if (!sel) return;
-        var newVal = (parseInt(sel.value) === n) ? '0' : String(n);
+
+        /* Проверяем: если опции с номером нет — добавляем */
+        var targetVal = String(n);
+        var hasOpt = false;
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === targetVal) { hasOpt = true; break; }
+        }
+        if (!hasOpt) {
+          var opt = document.createElement('option');
+          opt.value = targetVal;
+          opt.textContent = '№' + n;
+          sel.appendChild(opt);
+        }
+
+        var newVal = (parseInt(sel.value) === n) ? '0' : targetVal;
         sel.value = newVal;
         if (newVal !== '0') {
           var ex = $('#bankFilterExam');
@@ -371,7 +399,6 @@ function renderExamWidgets(counts){
         loadBankList();
       };
     })(num);
-
     host.appendChild(w);
   }
 }
@@ -821,9 +848,18 @@ async function openTaskBank(){
   show('view-taskbank');
   var host=$('#bankList');
   skeleton(host, 4);
-  /* Кнопка "Новая задача" только для репетитора/админа */
+
+  /* ВАЖНО: заполняем селект номерами 1–20 перед рендером виджетов */
+  var numSel = $('#bankFilterNum');
+  if(numSel){
+    var curVal = parseInt(numSel.value) || 0;
+    fillBankNumSelect(numSel, 'profile', curVal);
+  }
+
+  /* Скрываем кнопку "Новая задача" у учеников */
   var bAdd=$('#btnAddBankTask');
   if(bAdd) bAdd.hidden = !canEditBank();
+
   await refreshExamWidgets();
   try{
     if(!bankState.meta.topics.length){
