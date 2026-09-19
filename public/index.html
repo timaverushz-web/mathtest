@@ -409,12 +409,11 @@
     <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
       <label>Профиль экзамена
         <select id="bankExamType">
-          <option value="profile">ЕГЭ профиль (1–19)</option>
-          <option value="base">ЕГЭ база (1–21)</option>
+          <option value="profile">ЕГЭ профиль (1–20)</option>
         </select>
       </label>
       <label>Номер задания
-        <input id="bankExamTaskNumber" type="number" min="1" max="19" placeholder="1–19">
+        <input id="bankExamTaskNumber" type="number" min="1" max="20" placeholder="1–20">
       </label>
     </div>
     <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -475,10 +474,9 @@
       <option value="my">Только мои</option>
       <option value="public">Только публичные</option>
     </select>
-    <select id="bankFilterExam" style="width:auto;margin:0">
+       <select id="bankFilterExam" style="width:auto;margin:0">
       <option value="">Все экзамены</option>
       <option value="profile">ЕГЭ профиль</option>
-      <option value="base">ЕГЭ база</option>
     </select>
     <select id="bankFilterNum" style="width:auto;margin:0">
       <option value="0">Все номера</option>
@@ -778,10 +776,9 @@
     <div style="padding:20px 24px 24px">
       <div class="bank-picker-filters">
         <input id="bpSearch" placeholder="Поиск по тексту..." style="flex:1;min-width:180px;margin:0">
-        <select id="bpExam" style="width:auto;margin:0">
+               <select id="bpExam" style="width:auto;margin:0">
           <option value="">Все экзамены</option>
           <option value="profile">ЕГЭ профиль</option>
-          <option value="base">ЕГЭ база</option>
         </select>
         <select id="bpNum" style="width:auto;margin:0">
           <option value="0">Все номера</option>
