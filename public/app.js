@@ -140,6 +140,38 @@ function textToLatex(t){
   t=t.replace(/\^(-?\d+)/g,'^{$1}').replace(/\*/g,'\\cdot ');
   return t;
 }
+  /* Рендерит текст со встроенными $...$ формулами:
+   обычный текст — как есть, формулы — через KaTeX */
+function renderMixedText(el, raw){
+  if(!el) return;
+  el.innerHTML = '';
+  if(!raw){ return; }
+  var str = String(raw);
+  var parts = [];
+  var re = /\$([^$]+)\$/g;
+  var last = 0, m;
+  while((m = re.exec(str))){
+    if(m.index > last) parts.push({ text: str.slice(last, m.index) });
+    parts.push({ tex: m[1] });
+    last = m.index + m[0].length;
+  }
+  if(last < str.length) parts.push({ text: str.slice(last) });
+
+  parts.forEach(function(p){
+    if(p.text){
+      el.appendChild(document.createTextNode(p.text));
+    } else if(p.tex){
+      var span = document.createElement('span');
+      el.appendChild(span);
+      if(window.katex){
+        try { katex.render(p.tex, span, { throwOnError: false }); }
+        catch(e){ span.textContent = '$' + p.tex + '$'; }
+      } else {
+        span.textContent = '$' + p.tex + '$';
+      }
+    }
+  });
+}
 function createMathInput(initial,readonly,onChange){
   var wrap=document.createElement('div');wrap.className='mi-wrap';
   var ta=document.createElement('textarea');ta.className='mi-input';
@@ -147,33 +179,34 @@ function createMathInput(initial,readonly,onChange){
   ta.value=initial||'';if(readonly)ta.readOnly=true;
   var prev=document.createElement('div');prev.className='mi-preview';
   wrap.appendChild(ta);wrap.appendChild(prev);
-      function render(){
+       function render(){
     var raw = ta.value;
 
-    /* Для readonly-полей (задача/правильный ответ) показываем
-       содержимое как обычный текст, без textarea, чтобы не было дубля */
-    if (readonly) {
-      wrap.classList.add('mi-readonly');
-      prev.textContent = raw;
-      prev.classList.remove('mi-preview-plain');
+    /* Readonly — рендерим как текст с $...$ формулами */
+    if(readonly){
+      renderMixedText(prev, raw);
       return;
     }
-    wrap.classList.remove('mi-readonly');
 
+    /* Ввод: если есть $...$ — тоже смешанный рендер */
+    if(/\$[^$]+\$/.test(raw)){
+      renderMixedText(prev, raw);
+      return;
+    }
+
+    /* Ввод без $...$: кириллица → простой текст, иначе → KaTeX */
     var hasCyr = /[А-Яа-яЁё]/.test(raw);
-    if (hasCyr) {
+    if(hasCyr){
       prev.textContent = raw;
       prev.classList.add('mi-preview-plain');
       return;
     }
     prev.classList.remove('mi-preview-plain');
     var tex = textToLatex(raw);
-    if (window.katex && tex) {
+    if(window.katex && tex){
       try { katex.render(tex, prev, { throwOnError: false }); }
-      catch(e) { prev.textContent = raw; }
-    } else {
-      prev.textContent = raw;
-    }
+      catch(e){ prev.textContent = raw; }
+    } else prev.textContent = raw;
   }
   ta.addEventListener('input',function(){render();if(onChange)onChange(ta.value);});
   ta.addEventListener('focus',function(){lastFocused=api;});
