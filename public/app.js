@@ -634,7 +634,7 @@ function difficultyColor(d){
 }
 function fillBankNumSelect(sel, examType, selected){
   if(!sel) return;
-  var max = examType === 'base' ? 21 : 19;
+  var max = 20;
   var html = (sel.id === 'bankFilterNum' || sel.id === 'bpNum') ? '<option value="0">Все номера</option>' : '';
   for(var i=1;i<=max;i++){
     html += '<option value="'+i+'"'+(i===parseInt(selected)?' selected':'')+'>№'+i+'</option>';
