@@ -147,10 +147,19 @@ function createMathInput(initial,readonly,onChange){
   ta.value=initial||'';if(readonly)ta.readOnly=true;
   var prev=document.createElement('div');prev.className='mi-preview';
   wrap.appendChild(ta);wrap.appendChild(prev);
-    function render(){
+      function render(){
     var raw = ta.value;
-    /* Если в тексте есть русские слова — рендерим как обычный текст,
-       KaTeX не умеет сохранять пробелы в смешанном тексте */
+
+    /* Для readonly-полей (задача/правильный ответ) показываем
+       содержимое как обычный текст, без textarea, чтобы не было дубля */
+    if (readonly) {
+      wrap.classList.add('mi-readonly');
+      prev.textContent = raw;
+      prev.classList.remove('mi-preview-plain');
+      return;
+    }
+    wrap.classList.remove('mi-readonly');
+
     var hasCyr = /[А-Яа-яЁё]/.test(raw);
     if (hasCyr) {
       prev.textContent = raw;
