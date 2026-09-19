@@ -1486,3 +1486,27 @@ body.reader-mode main { padding: 0 !important; }
   white-space: pre-wrap;
   padding: 14px 18px;
 }
+/* Readonly math input — задача отображается один раз, аккуратно */
+.mi-wrap.mi-readonly .mi-input {
+  display: none;
+}
+.mi-wrap.mi-readonly {
+  margin: 0;
+}
+.mi-wrap.mi-readonly .mi-preview {
+  margin-top: 0;
+  padding: 16px 20px;
+  border: 1px solid var(--border-soft);
+  border-style: solid;
+  background: var(--bg-soft);
+  font-family: inherit;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  min-height: 0;
+  border-radius: var(--radius);
+}
+.mi-wrap.mi-readonly .mi-preview:empty {
+  display: none;
+}
