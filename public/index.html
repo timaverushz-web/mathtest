@@ -131,7 +131,7 @@
     <span class="brand-tag">онлайн-школа</span>
   </div>
 
-  <nav class="topbar-tabs" id="topbarTabs">
+   <nav class="topbar-tabs" id="topbarTabs" hidden>
     <button class="tt-btn" data-tab="home">
       <svg><use href="#i-home"/></svg>
       <span>Главная</span>
@@ -298,7 +298,7 @@
       </div>
     </div>
     <div id="regForm" hidden>
-      <label>Имя<input id="regName" placeholder="Иван Петров"></label>
+            <label>Имя<input id="regName" type="text" autocomplete="name" placeholder="Иван Петров"></label>
       <label>Email<input id="regEmail" type="email" placeholder="you@example.com"></label>
       <label>Пароль (от 6 символов)
         <div class="pass-wrap">
@@ -687,15 +687,19 @@
     </div>
     <p class="err" id="bookErr"></p>
   </div>
-  <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
-    <input id="bookSearch" placeholder="Поиск по названию, автору, предмету..." style="flex:1;min-width:240px;margin:0">
-    <select id="bookClassFilter" style="width:auto;margin:0"><option value="">Все группы</option></select>
-    <select id="bookSort" style="width:auto;margin:0">
+   <div class="card library-filters">
+    <input id="bookSearch" type="text" placeholder="Поиск по названию, автору, предмету..." class="lf-search">
+    <select id="bookClassFilter" class="lf-select">
+      <option value="">Все группы</option>
+    </select>
+    <select id="bookSort" class="lf-select">
       <option value="new">Сначала новые</option>
       <option value="title">По названию</option>
       <option value="author">По автору</option>
     </select>
-    <button class="ghost small" id="btnBookView">Список</button>
+    <button class="ghost small lf-btn" id="btnBookView">
+      <svg><use href="#i-list"/></svg> Список
+    </button>
   </div>
   <div id="bookList"></div>
 </section>
