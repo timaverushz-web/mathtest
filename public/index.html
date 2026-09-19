@@ -3,19 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MathTest — конструктор контрольных по математике</title>
 
-<meta name="description" content="Создавайте контрольные по математике с формулами, проверяйте автоматически, ведите классы и библиотеку. Бесплатный сервис для учителей и учеников.">
-<meta name="keywords" content="mathtest, матконст, математика, контрольные, тесты, автопроверка, учитель, ученик, ЕГЭ, олимпиады">
-<meta name="author" content="MathTest">
+<title>МаТхконст — онлайн-школа математики | Подготовка к ЕГЭ и ОГЭ</title>
+
+<meta name="description" content="МаТхконст — онлайн-школа математики. Подготовка к ЕГЭ и ОГЭ с автоматической проверкой, банком задач по кодификатору ФИПИ и личным кабинетом ученика.">
+<meta name="keywords" content="ма тх конст, матхконст, matconst, mathconst, матконст, мэтконст, мэтхконст, онлайн-школа математики, репетитор по математике, подготовка к ЕГЭ, ЕГЭ профиль, ЕГЭ база, ОГЭ математика, автопроверка, банк заданий, кодификатор ФИПИ, математика онлайн">
+<meta name="author" content="МаТхконст">
 <meta name="robots" content="index, follow">
+<meta name="language" content="Russian">
+<meta name="geo.region" content="RU">
 
 <link rel="canonical" href="https://mathconst.ru">
+<meta name="alternate" hreflang="ru" href="https://mathconst.ru">
+<meta name="application-name" content="МаТхконст">
+<meta name="apple-mobile-web-app-title" content="МаТхконст">
 
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MathTest"> 
-<meta property="og:title" content="MathTest — конструктор контрольных по математике">
-<meta property="og:description" content="Создавайте контрольные с формулами, проверяйте автоматически, ведите классы и библиотеку.">
+<meta property="og:site_name" content="МаТхконст">
+<meta property="og:title" content="МаТхконст — онлайн-школа математики">
+<meta property="og:description" content="Подготовка к ЕГЭ и ОГЭ с автоматической проверкой. Банк задач, личный кабинет, мгновенные результаты.">
 <meta property="og:url" content="https://mathconst.ru">
 <meta property="og:image" content="https://mathconst.ru/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -23,8 +29,8 @@
 <meta property="og:locale" content="ru_RU">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="MathTest — конструктор контрольных по математике">
-<meta name="twitter:description" content="Создавайте контрольные с формулами, проверяйте автоматически.">
+<meta name="twitter:title" content="МаТхконст — онлайн-школа математики">
+<meta name="twitter:description" content="Подготовка к ЕГЭ и ОГЭ с автоматической проверкой.">
 <meta name="twitter:image" content="https://mathconst.ru/og-image.png">
 
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -35,11 +41,11 @@
 
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MathTest">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">  
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -50,16 +56,18 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "MathTest",
-  "alternateName": "Матконст",
+  "@type": "EducationalOrganization",
+  "name": "МаТхконст",
+  "alternateName": ["MathConst", "Матхконст", "Матконст", "Мэтхконст", "Онлайн-школа МаТхконст"],
   "url": "https://mathconst.ru",
-  "description": "Конструктор контрольных работ по высшей математике с автоматической проверкой формул.",
+  "description": "Онлайн-школа математики. Подготовка к ЕГЭ и ОГЭ с автоматической проверкой и банком задач по кодификатору ФИПИ.",
   "applicationCategory": "EducationalApplication",
   "operatingSystem": "Web",
   "inLanguage": "ru-RU",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" },
-  "creator": { "@type": "Organization", "name": "MathTest", "url": "https://mathconst.ru" }
+  "creator": { "@type": "Organization", "name": "МаТхконст", "url": "https://mathconst.ru" },
+  "address": { "@type": "PostalAddress", "addressCountry": "RU" },
+  "areaServed": { "@type": "Country", "name": "Россия" }
 }
 </script>
 </head>
@@ -115,20 +123,40 @@
 
 <div id="toasts"></div>
 
+<!-- ============ TOPBAR ============ -->
 <header id="topbar">
   <div class="brand" id="brandBtn">
     <span class="sigma">∑</span>
-    <span>MathTest</span>
+    <span class="brand-text">МаТхконст</span>
+    <span class="brand-tag">онлайн-школа</span>
   </div>
+
+  <nav class="topbar-tabs" id="topbarTabs">
+    <button class="tt-btn" data-tab="home">
+      <svg><use href="#i-home"/></svg>
+      <span>Главная</span>
+    </button>
+    <button class="tt-btn" data-tab="bank">
+      <svg><use href="#i-layers"/></svg>
+      <span>Банк</span>
+    </button>
+    <button class="tt-btn" data-tab="library">
+      <svg><use href="#i-book"/></svg>
+      <span>Книги</span>
+    </button>
+  </nav>
+
   <div class="spacer"></div>
-  <button class="icon-btn" id="btnNotif" title="Уведомления" style="position:relative">
+
+  <button class="icon-btn" id="btnNotif" title="Уведомления">
     <svg><use href="#i-bell"/></svg>
     <span class="notif-badge" id="notifBadge" hidden>0</span>
   </button>
+
   <div class="user-chip-wrap" id="userChipWrap" hidden>
     <div class="user-chip" id="userChip">
       <div class="avatar" id="chipAvatar"></div>
-      <div>
+      <div class="chip-meta">
         <div class="chip-name" id="chipName"></div>
         <div class="chip-role" id="chipRole"></div>
       </div>
@@ -150,231 +178,98 @@
 
 <main>
 
+<!-- ============ LANDING ============ -->
 <section id="view-landing" class="view">
   <div class="landing">
+    <span class="math-deco d1">∑</span>
+    <span class="math-deco d2">∫</span>
+    <span class="math-deco d3">π</span>
+    <span class="math-deco d4">√</span>
 
-    <!-- ============ HERO ============ -->
-    <div class="ld-hero">
-      <div class="ld-hero-text">
-        <div class="ld-badge">
-          <span class="ld-badge-dot"></span>
-          Обновлено под ЕГЭ 2027
-        </div>
-        <h1 class="ld-h1">
-          Конструктор<br>
-          контрольных<br>
-          по <span class="ld-accent">математике</span>
-        </h1>
-        <p class="ld-sub">Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку — всё в одном месте.</p>
-        <div class="ld-cta">
-          <button class="primary" id="landingStart">Начать бесплатно</button>
+    <div class="hero-2col">
+      <div class="hero-text">
+        <div class="landing-badge"><span class="dot"></span>ЕГЭ 2027 · кодификатор ФИПИ</div>
+        <h1 class="landing-h1">Онлайн-школа<br><span class="accent">МаТхконст</span><br>по математике</h1>
+        <p class="landing-sub">Готовим к ЕГЭ и ОГЭ. Автоматическая проверка, банк задач по кодификатору, разбор ошибок. Всё в одном кабинете.</p>
+        <div class="landing-cta">
+          <button class="primary" id="landingStart">Записаться</button>
           <button class="ghost" id="landingLogin">Войти</button>
         </div>
-        <div class="ld-hero-meta">
-          <div><span class="ld-meta-dot"></span>Без карты</div>
-          <div><span class="ld-meta-dot"></span>Готово за 2 минуты</div>
-          <div><span class="ld-meta-dot"></span>20 заданий ЕГЭ</div>
-        </div>
       </div>
-
-      <div class="ld-hero-visual">
-        <div class="ld-mock">
-          <div class="ld-mock-side">
-            <div class="ld-mock-logo">∑</div>
-            <div class="ld-mock-nav"></div>
-            <div class="ld-mock-nav"></div>
-            <div class="ld-mock-nav ld-mock-nav-active"></div>
-            <div class="ld-mock-nav"></div>
-            <div class="ld-mock-nav"></div>
-          </div>
-          <div class="ld-mock-main">
-            <div class="ld-mock-top">
-              <div class="ld-mock-title">Кабинет</div>
-              <div class="ld-mock-btn">+ Работа</div>
-            </div>
-            <div class="ld-mock-cards">
-              <div class="ld-mock-card">
-                <div class="ld-mock-label">Классов</div>
-                <div class="ld-mock-value">4</div>
-              </div>
-              <div class="ld-mock-card">
-                <div class="ld-mock-label">Учеников</div>
-                <div class="ld-mock-value">86</div>
-              </div>
-              <div class="ld-mock-card ld-mock-card-accent">
-                <div class="ld-mock-label">Средний</div>
-                <div class="ld-mock-value">78%</div>
-              </div>
-            </div>
-            <div class="ld-mock-chart">
-              <div class="ld-mock-bar" style="height:40%"></div>
-              <div class="ld-mock-bar" style="height:65%"></div>
-              <div class="ld-mock-bar" style="height:80%"></div>
-              <div class="ld-mock-bar" style="height:55%"></div>
-              <div class="ld-mock-bar" style="height:92%"></div>
-              <div class="ld-mock-bar" style="height:70%"></div>
-              <div class="ld-mock-bar" style="height:85%"></div>
-            </div>
-          </div>
-        </div>
-        <div class="ld-float ld-float-1">✓ Верно</div>
-        <div class="ld-float ld-float-2">+12 XP</div>
-        <div class="ld-float ld-float-3">📐 №1</div>
+      <div class="hero-visual">
+        <div class="stat-badge"><span class="big">100%</span>Автопроверка</div>
+        <span class="big-symbol">∫</span>
+        <div class="formula-card card-1"><div class="fc-label">Формула</div><div>√16 = 4</div></div>
+        <div class="formula-card card-2"><div class="fc-label">Интеграл</div><div>∫₀¹ x² dx</div></div>
+        <div class="formula-card card-3"><div class="fc-label">Проверено</div><div style="color:var(--ok);font-weight:800">✓ 8 / 10</div></div>
       </div>
     </div>
 
-    <!-- ============ ЦИФРЫ ============ -->
-    <div class="ld-numbers reveal">
-      <div class="ld-number">
-        <div class="ld-number-value" data-count="1200">0</div>
-        <div class="ld-number-label">Учителей</div>
+    <!-- Полоса честных фич -->
+    <div class="ld-strip reveal">
+      <div class="ld-strip-item">
+        <div class="ld-strip-icon">🚀</div>
+        <div class="ld-strip-text"><b>Готово за 2 минуты</b><span>От регистрации до первой работы</span></div>
       </div>
-      <div class="ld-number">
-        <div class="ld-number-value" data-count="85000">0</div>
-        <div class="ld-number-label">Сдач работ</div>
+      <div class="ld-strip-item">
+        <div class="ld-strip-icon">💳</div>
+        <div class="ld-strip-text"><b>Без карты</b><span>Регистрация только email и пароль</span></div>
       </div>
-      <div class="ld-number">
-        <div class="ld-number-value" data-count="20">0</div>
-        <div class="ld-number-label">Номеров ЕГЭ</div>
+      <div class="ld-strip-item">
+        <div class="ld-strip-icon">⚡</div>
+        <div class="ld-strip-text"><b>Мгновенная проверка</b><span>Результат виден сразу после сдачи</span></div>
       </div>
-      <div class="ld-number">
-        <div class="ld-number-value">100%</div>
-        <div class="ld-number-label">Автопроверка</div>
-      </div>
-    </div>
-
-    <!-- ============ КАК ЭТО РАБОТАЕТ ============ -->
-    <div class="ld-section reveal">
-      <div class="ld-section-head">
-        <div class="ld-section-tag">Как это работает</div>
-        <h2 class="ld-section-title">От идеи до оценки <span class="ld-accent">за 3 шага</span></h2>
-      </div>
-      <div class="ld-steps">
-        <div class="ld-step">
-          <div class="ld-step-num">01</div>
-          <div class="ld-step-icon">📚</div>
-          <div class="ld-step-title">Создайте класс</div>
-          <div class="ld-step-text">Получите код и отправьте ученикам. Они присоединятся за 10 секунд.</div>
-        </div>
-        <div class="ld-step">
-          <div class="ld-step-num">02</div>
-          <div class="ld-step-icon">✏️</div>
-          <div class="ld-step-title">Соберите работу</div>
-          <div class="ld-step-text">Из банка ЕГЭ или с нуля. Формулы, тесты, баллы, дедлайн.</div>
-        </div>
-        <div class="ld-step">
-          <div class="ld-step-num">03</div>
-          <div class="ld-step-icon">📊</div>
-          <div class="ld-step-title">Получите результат</div>
-          <div class="ld-step-text">Автопроверка мгновенно. Аналитика по классу и каждому ученику.</div>
-        </div>
+      <div class="ld-strip-item">
+        <div class="ld-strip-icon">📚</div>
+        <div class="ld-strip-text"><b>Банк ЕГЭ 2027</b><span>20 заданий по кодификатору ФИПИ</span></div>
       </div>
     </div>
 
-    <!-- ============ ВОЗМОЖНОСТИ ============ -->
-    <div class="ld-section reveal">
-      <div class="ld-section-head">
-        <div class="ld-section-tag">Возможности</div>
-        <h2 class="ld-section-title">Всё для работы <span class="ld-accent">преподавателя</span></h2>
+    <h2 class="landing-section-title reveal">Всё для подготовки <span class="muted">к экзамену</span></h2>
+    <div class="landing-features">
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-edit"/></svg></div>
+        <h3>Живой ввод формул</h3>
+        <p>Пишете как в тетради — видите как в учебнике. Корни, степени, тригонометрия без боли.</p>
       </div>
-      <div class="ld-features-grid">
-        <div class="ld-feat ld-feat-lg">
-          <div class="ld-feat-icon">∑</div>
-          <h3>Умный конструктор формул</h3>
-          <p>Пишете как в тетради — получаете красиво свёрстанный вариант. Панель символов и живой предпросмотр.</p>
-        </div>
-        <div class="ld-feat ld-feat-lg">
-          <div class="ld-feat-icon">✓</div>
-          <h3>Мгновенная автопроверка</h3>
-          <p>√16 = 4 = 2² — всё это зачтётся. Числовое и символьное сравнение через Nerdamer.</p>
-        </div>
-        <div class="ld-feat">
-          <div class="ld-feat-icon">🗂️</div>
-          <h3>Банк ЕГЭ 2027</h3>
-          <p>20 номеров по кодификатору ФИПИ. Свои задачи и переиспользование.</p>
-        </div>
-        <div class="ld-feat">
-          <div class="ld-feat-icon">👥</div>
-          <h3>Классы и группы</h3>
-          <p>Делите класс на подгруппы, давайте разные работы разным ученикам.</p>
-        </div>
-        <div class="ld-feat">
-          <div class="ld-feat-icon">📖</div>
-          <h3>Библиотека PDF</h3>
-          <p>Учебники читаются прямо в браузере — как в Яндекс.Книгах.</p>
-        </div>
-        <div class="ld-feat">
-          <div class="ld-feat-icon">📈</div>
-          <h3>Аналитика класса</h3>
-          <p>Топ учеников, сложные задания, динамика по неделям.</p>
-        </div>
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-chart"/></svg></div>
+        <h3>Мгновенная автопроверка</h3>
+        <p>√16 = 4 = 2² — всё это зачтётся. Числовое и символьное сравнение через Nerdamer.</p>
+      </div>
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-users"/></svg></div>
+        <h3>Группы учеников</h3>
+        <p>Разбивайте учеников по уровню и выдавайте разные работы каждому.</p>
+      </div>
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-layers"/></svg></div>
+        <h3>Банк ЕГЭ 2027</h3>
+        <p>20 заданий по актуальному кодификатору ФИПИ. Плюс своя коллекция задач.</p>
+      </div>
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-book"/></svg></div>
+        <h3>Библиотека учебников</h3>
+        <p>Учебники и сборники в PDF. Ученики читают прямо в браузере с закладками.</p>
+      </div>
+      <div class="landing-feature reveal">
+        <div class="lf-icon"><svg><use href="#i-trending"/></svg></div>
+        <h3>Прогресс и аналитика</h3>
+        <p>Топ учеников, сложные задания, динамика по неделям — всё на одном экране.</p>
       </div>
     </div>
 
-    <!-- ============ БАНК ЕГЭ ============ -->
-    <div class="ld-bank reveal">
-      <div class="ld-bank-text">
-        <div class="ld-section-tag">Банк заданий</div>
-        <h2 class="ld-section-title">Все 20 номеров<br>ЕГЭ профиль <span class="ld-accent">2027</span></h2>
-        <p>Актуальный кодификатор ФИПИ: планиметрия, стереометрия, вероятность, финансовые задачи, параметры, теория чисел. Фильтры по номеру, теме, сложности.</p>
-        <button class="primary" id="landingBankBtn">Попробовать банк</button>
-      </div>
-      <div class="ld-bank-visual">
-        <div class="ld-bank-widget"><b>№1</b><span>Планиметрия</span></div>
-        <div class="ld-bank-widget"><b>№4</b><span>Вероятность</span></div>
-        <div class="ld-bank-widget"><b>№6</b><span>Случайные вел.</span></div>
-        <div class="ld-bank-widget"><b>№13</b><span>Финансы</span></div>
-        <div class="ld-bank-widget"><b>№18</b><span>Параметры</span></div>
-        <div class="ld-bank-widget"><b>№20</b><span>Теория чисел</span></div>
-      </div>
+    <div class="landing-final reveal">
+      <h2>Готовы начать подготовку?</h2>
+      <p>Регистрация — email и пароль. Первая работа через 2 минуты.</p>
+      <button class="primary" id="landingStart2">Записаться</button>
     </div>
 
-    <!-- ============ FAQ ============ -->
-    <div class="ld-section reveal">
-      <div class="ld-section-head">
-        <div class="ld-section-tag">FAQ</div>
-        <h2 class="ld-section-title">Частые вопросы</h2>
-      </div>
-      <div class="ld-faq">
-        <details class="ld-faq-item">
-          <summary>Это правда бесплатно?</summary>
-          <div class="ld-faq-body">Да, полностью. Никаких лимитов, карт и пробных периодов. Сервис сделан для преподавателей и учеников.</div>
-        </details>
-        <details class="ld-faq-item">
-          <summary>Как ученики присоединятся к классу?</summary>
-          <div class="ld-faq-body">Вы создаёте класс и получаете код из 6 символов. Ученики вводят его на странице «Мои классы» — готово. Или отправьте им прямую ссылку.</div>
-        </details>
-        <details class="ld-faq-item">
-          <summary>Автопроверка точно работает?</summary>
-          <div class="ld-faq-body">Да. Система сравнивает ответы тремя способами: точное совпадение, численное сравнение с допуском и символьное упрощение через Nerdamer. «√16», «4», «2²» — всё зачтётся.</div>
-        </details>
-        <details class="ld-faq-item">
-          <summary>Можно загрузить свои задачи?</summary>
-          <div class="ld-faq-body">Конечно. В конструкторе есть кнопка «В банк» — созданная задача сохранится в вашей личной коллекции и её можно будет переиспользовать.</div>
-        </details>
-        <details class="ld-faq-item">
-          <summary>Работает ли на телефоне?</summary>
-          <div class="ld-faq-body">Да, сайт полностью адаптивный. Ученикам удобно сдавать работы с телефона, вам — проверять результаты.</div>
-        </details>
-        <details class="ld-faq-item">
-          <summary>Что с персональными данными?</summary>
-          <div class="ld-faq-body">Мы храним только email, имя и результаты работ. Никакой передачи третьим лицам. Данные защищены паролем (bcrypt) и токеном (JWT).</div>
-        </details>
-      </div>
-    </div>
-
-    <!-- ============ ФИНАЛЬНЫЙ CTA ============ -->
-    <div class="ld-final reveal">
-      <div class="ld-final-glow"></div>
-      <h2>Готовы создать первую работу?</h2>
-      <p>Это займёт 2 минуты. Регистрация — email и пароль.</p>
-      <button class="primary" id="landingStart2">Начать бесплатно</button>
-    </div>
-
-    <div class="landing-footer">MathTest · сделано для преподавателей и студентов</div>
+    <div class="landing-footer">МаТхконст · онлайн-школа математики</div>
   </div>
 </section>
 
+<!-- ============ AUTH ============ -->
 <section id="view-auth" class="view">
   <div class="auth-card">
     <div class="auth-title">Добро пожаловать</div>
@@ -411,35 +306,30 @@
           <button type="button" class="pass-toggle" data-target="regPass"><svg><use href="#i-lock"/></svg></button>
         </div>
       </label>
-      <label>Роль
-        <select id="regRole">
-          <option value="student">Ученик</option>
-          <option value="teacher">Учитель</option>
-          <option value="librarian">Библиотекарь</option>
-        </select>
-      </label>
       <button class="primary block" id="doRegister" style="margin-top:14px">Создать аккаунт</button>
     </div>
     <p class="err" id="authErr" style="text-align:center"></p>
   </div>
 </section>
 
+<!-- ============ TEACHER ============ -->
 <section id="view-teacher" class="view">
   <div class="row" style="margin-bottom:24px">
     <h1 class="page-title" style="flex:1">Кабинет</h1>
-        <button class="ghost" id="btnNewClass" style="border-color:var(--border);background:var(--panel)"><svg><use href="#i-plus"/></svg> Класс</button>
+    <button class="primary" id="btnNewClass"><svg><use href="#i-plus"/></svg> Группа</button>
     <button class="primary" id="btnNewTest"><svg><use href="#i-plus"/></svg> Работа</button>
   </div>
   <div class="dash-summary" id="teacherSummary"></div>
   <div class="quick-actions" id="teacherQuickActions"></div>
   <div class="tabs">
     <button class="tab active" data-ttab="tests">Работы</button>
-    <button class="tab" data-ttab="classes">Классы</button>
+    <button class="tab" data-ttab="classes">Группы</button>
   </div>
   <div id="tt-tests"><div id="testList"></div></div>
   <div id="tt-classes" hidden><div id="classList"></div></div>
 </section>
 
+<!-- ============ EDITOR ============ -->
 <section id="view-editor" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackToTeacher"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -448,7 +338,7 @@
   </div>
   <div class="card">
     <h3>Кому назначить работу</h3>
-    <div class="muted" style="margin-bottom:14px">Отметьте классы. Если у класса есть группы — можно ограничить работу группой.</div>
+    <div class="muted" style="margin-bottom:14px">Отметьте группы. Если у группы есть подгруппы — можно ограничить работу подгруппой.</div>
     <div id="classPicker"></div>
   </div>
   <div class="card">
@@ -510,6 +400,7 @@
   </div>
 </section>
 
+<!-- ============ CLASS VIEW ============ -->
 <section id="view-class" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromClass"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -538,14 +429,14 @@
       <div id="classStudents"></div>
     </div>
     <div class="card">
-      <h3>Группы</h3>
-      <div class="muted" style="margin-bottom:14px">Разбейте класс на подгруппы, чтобы давать работы не всем.</div>
-      <button class="primary small" id="btnNewGroup"><svg><use href="#i-plus"/></svg> Создать группу</button>
+      <h3>Подгруппы</h3>
+      <div class="muted" style="margin-bottom:14px">Разбейте учеников на подгруппы, чтобы давать работы не всем.</div>
+      <button class="primary small" id="btnNewGroup"><svg><use href="#i-plus"/></svg> Создать подгруппу</button>
       <div id="classGroups" style="margin-top:16px"></div>
     </div>
   </div>
   <div class="card">
-    <h3>Чат класса</h3>
+    <h3>Чат группы</h3>
     <div id="chatBox" class="chat-box">
       <div id="chatMessages" class="chat-messages"></div>
       <div class="chat-input-row">
@@ -557,25 +448,28 @@
       <div class="muted" id="chatFileName" style="margin-top:8px"></div>
     </div>
   </div>
-  <div class="card"><h3>Работы класса</h3><div id="classTests"></div></div>
+  <div class="card"><h3>Работы группы</h3><div id="classTests"></div></div>
 </section>
 
+<!-- ============ ANALYTICS ============ -->
 <section id="view-analytics" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAnalytics"><svg><use href="#i-arrow-left"/></svg> Назад</button>
-    <h1 class="page-title" style="margin:0;flex:1">Аналитика класса</h1>
+    <h1 class="page-title" style="margin:0;flex:1">Аналитика группы</h1>
   </div>
   <div id="analyticsBody"></div>
 </section>
 
+<!-- ============ RATING ============ -->
 <section id="view-rating" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromRating"><svg><use href="#i-arrow-left"/></svg> Назад</button>
-    <h1 class="page-title" style="margin:0;flex:1">Рейтинг класса</h1>
+    <h1 class="page-title" style="margin:0;flex:1">Рейтинг группы</h1>
   </div>
   <div id="ratingBody"></div>
 </section>
 
+<!-- ============ TASK BANK ============ -->
 <section id="view-taskbank" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromBank"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -636,7 +530,7 @@
       <label>Баллы<input id="bankPoints" type="number" value="1" min="0.5" step="0.5"></label>
       <label class="class-pick" style="margin-top:22px">
         <input type="checkbox" id="bankIsPublic">
-        <span>Сделать публичной (увидят другие учителя)</span>
+        <span>Публичная (видна всем)</span>
       </label>
     </div>
     <div class="row" style="margin-top:20px">
@@ -676,28 +570,30 @@
   <div id="bankList"></div>
 </section>
 
+<!-- ============ STUDENT ============ -->
 <section id="view-student" class="view">
   <h1 class="page-title" style="margin-bottom:24px">Мой кабинет</h1>
   <div class="dash-summary" id="studentSummary"></div>
   <div id="scheduleBlock"></div>
   <div class="tabs">
     <button class="tab active" data-stab="tests">Мои работы</button>
-    <button class="tab" data-stab="classes">Мои классы</button>
+    <button class="tab" data-stab="classes">Мои группы</button>
   </div>
   <div id="st-tests"><div id="studentList" class="grid"></div></div>
   <div id="st-classes" hidden>
     <div class="card">
-      <h3>Присоединиться к классу</h3>
+      <h3>Присоединиться к группе</h3>
       <div class="row" style="margin-bottom:0">
-        <input id="joinCode" placeholder="Введите код класса" style="flex:1;min-width:220px;margin:0;text-transform:uppercase;letter-spacing:3px;font-weight:900;font-size:18px" maxlength="10">
+        <input id="joinCode" placeholder="Введите код группы" style="flex:1;min-width:220px;margin:0;text-transform:uppercase;letter-spacing:3px;font-weight:900;font-size:18px" maxlength="10">
         <button class="primary" id="btnJoinClass">Присоединиться</button>
       </div>
       <p class="err" id="joinErr" style="margin-top:12px"></p>
     </div>
-    <div class="card"><h3>Мои классы</h3><div id="myClasses"></div></div>
+    <div class="card"><h3>Мои группы</h3><div id="myClasses"></div></div>
   </div>
 </section>
 
+<!-- ============ TAKE TEST ============ -->
 <section id="view-take" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromTake"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -714,11 +610,13 @@
   <div id="takeBody"></div>
 </section>
 
+<!-- ============ RESULT ============ -->
 <section id="view-result" class="view">
   <div class="card" id="resultCard"></div>
   <button class="primary" id="btnResultBack"><svg><use href="#i-arrow-left"/></svg> К списку работ</button>
 </section>
 
+<!-- ============ SUBMISSIONS ============ -->
 <section id="view-submissions" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromSubs"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -729,6 +627,7 @@
   <div id="subsBody"></div>
 </section>
 
+<!-- ============ DASHBOARD ============ -->
 <section id="view-dashboard" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromDashboard"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -737,6 +636,7 @@
   <div id="dashboardBody"></div>
 </section>
 
+<!-- ============ LIBRARY ============ -->
 <section id="view-library" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromLibrary"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -778,9 +678,9 @@
       <div class="bpd-meta" id="bookPdfMeta" hidden></div>
       <button type="button" class="bcu-clear" id="bookPdfClear" hidden>✕</button>
     </div>
-    <label style="margin-top:18px">Доступно классам</label>
+    <label style="margin-top:18px">Доступно группам</label>
     <div id="bookClassPicker"></div>
-    <p class="muted" style="font-size:12.5px;margin-top:8px">Если ни один класс не отмечен — книга видна всем.</p>
+    <p class="muted" style="font-size:12.5px;margin-top:8px">Если ни одна группа не отмечена — книга видна всем.</p>
     <div class="row" style="margin-top:22px">
       <button class="primary" id="btnSaveBook"><svg><use href="#i-save"/></svg> Сохранить</button>
       <button class="ghost" id="btnCancelBook">Отмена</button>
@@ -789,7 +689,7 @@
   </div>
   <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
     <input id="bookSearch" placeholder="Поиск по названию, автору, предмету..." style="flex:1;min-width:240px;margin:0">
-    <select id="bookClassFilter" style="width:auto;margin:0"><option value="">Все классы</option></select>
+    <select id="bookClassFilter" style="width:auto;margin:0"><option value="">Все группы</option></select>
     <select id="bookSort" style="width:auto;margin:0">
       <option value="new">Сначала новые</option>
       <option value="title">По названию</option>
@@ -800,6 +700,7 @@
   <div id="bookList"></div>
 </section>
 
+<!-- ============ READER ============ -->
 <section id="view-reader" class="view">
   <div class="reader-topbar" id="readerTopbar">
     <button class="ghost small" id="btnReaderBack"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -848,6 +749,7 @@
   <div class="reader-hint" id="readerHint" hidden>Свайп влево/вправо или ← → для листания</div>
 </section>
 
+<!-- ============ ADMIN ============ -->
 <section id="view-admin" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromAdmin"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -866,7 +768,7 @@
         <select id="adminRoleFilter" style="width:auto;margin:0">
           <option value="">Все роли</option>
           <option value="admin">Администратор</option>
-          <option value="teacher">Учитель</option>
+          <option value="teacher">Репетитор</option>
           <option value="librarian">Библиотекарь</option>
           <option value="student">Ученик</option>
         </select>
@@ -893,6 +795,7 @@
   </div>
 </section>
 
+<!-- ============ PROFILE ============ -->
 <section id="view-profile" class="view">
   <div class="row" style="margin-bottom:36px">
     <button class="ghost" id="btnBackFromProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -902,6 +805,7 @@
   <div id="profileStats"></div>
 </section>
 
+<!-- ============ EDIT PROFILE ============ -->
 <section id="view-editprofile" class="view">
   <div class="row" style="margin-bottom:20px">
     <button class="ghost" id="btnBackFromEditProfile"><svg><use href="#i-arrow-left"/></svg> Назад</button>
@@ -947,10 +851,11 @@
 
 </main>
 
+<!-- ============ BANK PICKER MODAL ============ -->
 <div class="modal-overlay" id="bankPickerModal" hidden>
   <div class="modal-card" style="max-width:900px;width:calc(100vw - 32px)">
-    <div class="modal-head">
-      <h3>Выбрать задачи из банка</h3>
+    <div class="modal-head" style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border-soft)">
+      <h3 style="margin:0;font-size:18px;font-weight:800">Выбрать задачи из банка</h3>
       <button class="ghost small" id="btnCloseBankPicker"><svg><use href="#i-x"/></svg></button>
     </div>
     <div style="padding:20px 24px 24px">
@@ -990,6 +895,7 @@
   </div>
 </div>
 
+<!-- ============ SUPPORT ============ -->
 <button id="supportBtn" title="Чат поддержки">
   <svg><use href="#i-chat"/></svg>
   <span class="support-badge"></span>
@@ -998,14 +904,14 @@
   <div class="support-head">
     <div class="support-avatar"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></div>
     <div class="support-info">
-      <b>Поддержка MathTest</b>
+      <b>Поддержка МаТхконст</b>
       <span class="muted">онлайн · отвечаем в течение часа</span>
     </div>
     <button class="support-close" id="supportClose"><svg><use href="#i-x"/></svg></button>
   </div>
   <div class="support-messages" id="supportMessages"></div>
   <div class="support-quick" id="supportQuick">
-    <button data-q="Как создать класс?">Как создать класс?</button>
+    <button data-q="Как создать группу?">Как создать группу?</button>
     <button data-q="Как добавить книгу?">Добавить книгу</button>
     <button data-q="Как поставить дедлайн?">Дедлайн</button>
     <button data-q="Как работает автопроверка?">Автопроверка</button>
@@ -1016,6 +922,7 @@
   </div>
 </div>
 
+<!-- ============ MOBILE NAV ============ -->
 <nav id="mobile-nav">
   <div class="mn-inner">
     <button data-mnav="home"><svg><use href="#i-home"/></svg> Главная</button>
