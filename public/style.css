@@ -1510,3 +1510,11 @@ body.reader-mode main { padding: 0 !important; }
 .mi-wrap.mi-readonly .mi-preview:empty {
   display: none;
 }
+ /* Смешанный рендер — формула встроена в текст аккуратно */
+.mi-wrap.mi-readonly .mi-preview .katex {
+  font-size: 1.05em;
+  vertical-align: -0.05em;
+}
+.mi-wrap .mi-preview .katex {
+  font-size: 1.05em;
+}
