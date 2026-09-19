@@ -837,7 +837,37 @@ app.get('/api/task-bank/meta', auth, canUseBank, async (req, res) => {
     res.json({ topics: topics, presetTopics: EXAM_TOPICS_PROFILE });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
-
+app.get('/api/task-bank/stats', auth, canUseBank, async (req, res) => {
+  try {
+    // Статистика по номерам для текущего учителя/админа
+    const rows = await pool.query(
+      `SELECT
+         exam_task_number AS num,
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE is_public = true)::int AS public_count,
+         COUNT(*) FILTER (WHERE owner_id = $1)::int AS own_count
+       FROM task_bank
+       WHERE exam_task_number IS NOT NULL
+       GROUP BY exam_task_number
+       ORDER BY exam_task_number`,
+      [req.user.id]
+    );
+    const byNumber = {};
+    rows.rows.forEach(r => {
+      byNumber[r.num] = {
+        total: r.total,
+        public: r.public_count,
+        own: r.own_count,
+        correct: r.own_count,   // пока нет истории решений — показываем свои задачи
+        total: r.total
+      };
+    });
+    res.json({ byNumber });
+  } catch (e) {
+    console.error('task-bank/stats:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
 app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
   try {
     const examType = (req.query.examType || '').toString();
