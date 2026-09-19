@@ -317,7 +317,6 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_size BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS class_ids JSONB DEFAULT '[]'::jsonb`); } catch (e) {}
 
-  /* Сидер банка — только если банк пуст */
   try {
     const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM task_bank');
     if (cnt.rows[0].n === 0) {
@@ -822,11 +821,39 @@ app.post('/api/telegram/unlink', auth, async (req, res) => {
 
 /* ========== БАНК ЗАДАНИЙ ========== */
 const EXAM_TOPICS_PROFILE = [
-  'Планиметрия', 'Стереометрия', 'Теория вероятностей', 'Уравнения', 'Неравенства',
-  'Производная и её применение', 'Функции и графики', 'Логарифмы', 'Тригонометрия',
-  'Показательные и степенные', 'Иррациональные', 'Параметры', 'Теория чисел',
-  'Экономические задачи', 'Текстовые задачи', 'Вычисления и преобразования'
+  'Планиметрия', 'Векторы', 'Стереометрия', 'Теория вероятностей', 'Уравнения',
+  'Производная и её применение', 'Функции и графики', 'Вычисления и преобразования',
+  'Текстовые задачи', 'Экономические задачи', 'Неравенства', 'Тригонометрия',
+  'Параметры', 'Теория чисел', 'Нестандартные задачи'
 ];
+
+app.get('/api/task-bank/counts', auth, canUseBank, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+    const sql = isAdmin
+      ? `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
+         FROM task_bank
+         WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
+         GROUP BY exam_task_number`
+      : `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
+         FROM task_bank
+         WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
+           AND (owner_id = $1 OR is_public = true)
+         GROUP BY exam_task_number`;
+    const args = isAdmin ? [] : [req.user.id];
+    const rows = (await pool.query(sql, args)).rows;
+    const counts = {};
+    for (let i = 1; i <= 20; i++) counts[i] = 0;
+    rows.forEach(r => {
+      const n = parseInt(r.num);
+      if (n >= 1 && n <= 20) counts[n] = r.cnt;
+    });
+    res.json({ counts });
+  } catch (e) {
+    console.error('task-bank/counts:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
 
 app.get('/api/task-bank/meta', auth, canUseBank, async (req, res) => {
   try {
@@ -837,37 +864,7 @@ app.get('/api/task-bank/meta', auth, canUseBank, async (req, res) => {
     res.json({ topics: topics, presetTopics: EXAM_TOPICS_PROFILE });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
-app.get('/api/task-bank/stats', auth, canUseBank, async (req, res) => {
-  try {
-    // Статистика по номерам для текущего учителя/админа
-    const rows = await pool.query(
-      `SELECT
-         exam_task_number AS num,
-         COUNT(*)::int AS total,
-         COUNT(*) FILTER (WHERE is_public = true)::int AS public_count,
-         COUNT(*) FILTER (WHERE owner_id = $1)::int AS own_count
-       FROM task_bank
-       WHERE exam_task_number IS NOT NULL
-       GROUP BY exam_task_number
-       ORDER BY exam_task_number`,
-      [req.user.id]
-    );
-    const byNumber = {};
-    rows.rows.forEach(r => {
-      byNumber[r.num] = {
-        total: r.total,
-        public: r.public_count,
-        own: r.own_count,
-        correct: r.own_count,   // пока нет истории решений — показываем свои задачи
-        total: r.total
-      };
-    });
-    res.json({ byNumber });
-  } catch (e) {
-    console.error('task-bank/stats:', e.message);
-    res.status(500).json({ error: 'Ошибка' });
-  }
-});
+
 app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
   try {
     const examType = (req.query.examType || '').toString();
@@ -890,7 +887,7 @@ app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
         conds.push('(owner_id=$' + (args.length + 1) + ' OR is_public=true)'); args.push(req.user.id);
       }
     }
-        if (examType === 'profile') {
+    if (examType === 'profile') {
       conds.push('exam_type=$' + (args.length + 1)); args.push(examType);
     }
     if (examTask > 0) {
@@ -936,7 +933,7 @@ app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
         return res.status(400).json({ error: 'Отметьте правильный вариант' });
     }
 
-        const eType = 'profile';
+    const eType = 'profile';
     const maxNum = 20;
     let eNum = parseInt(examTaskNumber) || null;
     if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
@@ -997,7 +994,7 @@ app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
       finalAnswer = null; finalTol = null;
     }
 
-        const eType = 'profile';
+    const eType = 'profile';
     const maxNum = 20;
     let eNum = examTaskNumber != null ? (parseInt(examTaskNumber) || null) : t.exam_task_number;
     if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
@@ -2436,7 +2433,7 @@ app.use((err, req, res, next) => {
     console.log('🌐 Порт: ' + PORT);
     console.log('📦 B2: ' + (s3 ? s3Endpoint : '❌'));
     console.log('📚 Библиотека: PDF + обложка');
-    console.log('🗂️  Банк заданий: включён');
+    console.log('🗂️  Банк заданий: только профиль 1–20');
     console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
     console.log('═══════════════════════════════════');
   });
