@@ -86,6 +86,7 @@ async function apiForm(path,fd,method){
 function isTeacherLike(){return currentUser&&(currentUser.role==='teacher'||currentUser.role==='admin');}
 function isAdmin(){return currentUser&&currentUser.role==='admin';}
 function canUploadBooks(){return currentUser&&['teacher','admin','librarian'].includes(currentUser.role);}
+function canUseBank(){return currentUser&&['teacher','admin'].includes(currentUser.role);}
 function roleLabel(){
   if(!currentUser)return '';
   return {'admin':'администратор','teacher':'учитель','librarian':'библиотекарь','student':'ученик'}[currentUser.role]||currentUser.role;
@@ -187,9 +188,25 @@ var SYMBOLS_ADVANCED=[
   {label:'min',wrap:['min(',',',')']},{label:'max',wrap:['max(',',',')']}
 ];
 var currentSymTab='basic';
+var currentBankSymTab='basic';
 function buildSymbolBar(c){
   if(!c)return;c.innerHTML='';
   var list=currentSymTab==='basic'?SYMBOLS_BASIC:SYMBOLS_ADVANCED;
+  list.forEach(function(s){
+    var b=document.createElement('button');b.type='button';
+    b.textContent=s.label;b.title=s.label;
+    b.addEventListener('mousedown',function(e){e.preventDefault();});
+    b.onclick=function(){
+      if(!lastFocused)return;
+      if(s.wrap)lastFocused.insertAroundCursor(s.wrap[0],s.wrap[1]);
+      else lastFocused.insertAtCursor(s.insert);
+    };
+    c.appendChild(b);
+  });
+}
+function buildBankSymbolBar(c){
+  if(!c)return;c.innerHTML='';
+  var list=currentBankSymTab==='basic'?SYMBOLS_BASIC:SYMBOLS_ADVANCED;
   list.forEach(function(s){
     var b=document.createElement('button');b.type='button';
     b.textContent=s.label;b.title=s.label;
@@ -219,6 +236,17 @@ var userMenuOpen=false;
 var __draftAnswers=null;
 var editingBookId=null;
 
+/* BANK STATE */
+var bankState={
+  list: [],
+  meta: { topics: [], presetTopics: [] },
+  editingId: null,
+  statementInput: null,
+  answerInput: null,
+  pickerSelected: {},
+  pickerList: []
+};
+
 /* READER STATE */
 var reader = {
   bookId:null, book:null, pdf:null, totalPages:0,
@@ -242,8 +270,9 @@ function show(id){
   var mn=$$('#mobile-nav button');
   mn.forEach(function(b){b.classList.remove('active');});
   if(id==='view-teacher'||id==='view-student'){var h=$('[data-mnav="home"]');if(h)h.classList.add('active');}
+  else if(id==='view-taskbank'){var bk=$('[data-mnav="bank"]');if(bk)bk.classList.add('active');}
   else if(id==='view-library'||id==='view-reader'){var l=$('[data-mnav="library"]');if(l)l.classList.add('active');}
-  else if(id==='view-dashboard'||id==='view-analytics'||id==='view-rating'){var d=$('[data-mnav="dashboard"]');if(d)d.classList.add('active');}
+  else if(id==='view-dashboard'||id==='view-analytics'||id==='view-rating'){var d=$('[data-mnav="home"]');if(d)d.classList.add('active');}
   else if(id==='view-profile'||id==='view-editprofile'){var p=$('[data-mnav="profile"]');if(p)p.classList.add('active');}
 }
 function skeleton(host,lines){
@@ -288,6 +317,7 @@ function buildUserMenu(){
   function sep(){var d=document.createElement('div');d.className='user-menu-sep';return d;}
   menu.appendChild(item('i-settings','Личный кабинет','Профиль и настройки',openProfileStats));
   if(isTeacherLike()) menu.appendChild(item('i-chart','Дашборд','Успеваемость, топ учеников',openDashboard));
+  if(canUseBank()) menu.appendChild(item('i-layers','Банк заданий','Задачи по номерам ЕГЭ',openTaskBank));
   menu.appendChild(item('i-book','Библиотека','Учебники и пособия',openLibrary));
   if(isTeacherLike()) menu.appendChild(item('i-edit','Мои работы','Работы и классы',goTeacher));
   else if(currentUser&&currentUser.role==='student') menu.appendChild(item('i-edit','Мои работы','Доступные работы',goStudent));
@@ -406,7 +436,8 @@ var SUPPORT_KB={
   'как пригласить ученика':'Откройте класс и нажмите «Ссылка» — ученик перейдёт по ней и сразу присоединится.',
   'как добавить книгу':'Библиотека → «Загрузить». Заполните поля, загрузите PDF (до 60 МБ) и, при желании, обложку.',
   'как поставить дедлайн':'В редакторе работы в блоке «Настройки» укажите дату в поле «Сдать до».',
-  'как работает автопроверка':'Система сравнивает ответ ученика с правильным: точное совпадение, числовое сравнение с допуском, символьное упрощение через Nerdamer.'
+  'как работает автопроверка':'Система сравнивает ответ ученика с правильным: точное совпадение, числовое сравнение с допуском, символьное упрощение через Nerdamer.',
+  'банк заданий':'Банк заданий — это ваша коллекция. В конструкторе работы нажмите «Из банка», чтобы добавить готовые задачи. «В банк» — сохранить созданное задание на будущее.'
 };
 function supportAnswer(text){
   var t=text.toLowerCase().trim();
@@ -415,6 +446,7 @@ function supportAnswer(text){
   if(/ученик|приглас|join/i.test(t)) return SUPPORT_KB['как пригласить ученика'];
   if(/книг|библиотек|чита|pdf/i.test(t)) return SUPPORT_KB['как добавить книгу'];
   if(/дедлайн|срок/i.test(t)) return SUPPORT_KB['как поставить дедлайн'];
+  if(/банк|задани/i.test(t)) return SUPPORT_KB['банк заданий'];
   if(/проверк|оценк|балл/i.test(t)) return SUPPORT_KB['как работает автопроверка'];
   return 'Спасибо! Сообщение получено. Напишите на support@mathtest.app, если срочно.';
 }
@@ -457,7 +489,7 @@ async function renderTeacherSummary(){
     var items=[
       ['Классов', r.classesCount, 'i-book', false],['Учеников', r.studentsCount, 'i-users', false],
       ['Работ', r.testsCount, 'i-edit', false],['Сдач', r.submissionsCount, 'i-chart', false],
-      ['Средний', r.avgPercent+'%', 'i-chart', true],['Книг', r.booksCount, 'i-book', false]
+      ['Средний', r.avgPercent+'%', 'i-chart', true],['Банк', r.bankCount||0, 'i-layers', false]
     ];
     items.forEach(function(it){
       var c=document.createElement('div');c.className='dash-item';
@@ -471,7 +503,8 @@ async function renderTeacherSummary(){
       qa.innerHTML='';
       [['Создать класс','i-plus',function(){var b=$('#btnNewClass');if(b)b.click();}],
        ['Создать работу','i-edit',function(){var b=$('#btnNewTest');if(b)b.click();}],
-       ['Библиотека','i-book',openLibrary],['Дашборд','i-chart',openDashboard]].forEach(function(b){
+       ['Банк заданий','i-layers',openTaskBank],
+       ['Библиотека','i-book',openLibrary]].forEach(function(b){
         var btn=document.createElement('button');
         btn.className='qa-btn';
         btn.innerHTML='<div class="qa-icon"><svg><use href="#'+b[1]+'"/></svg></div>'+b[0];
@@ -587,7 +620,464 @@ function copyToClipboard(text){
   });
 }
 
-/* CLASS VIEW */
+/* =========================================================
+   БАНК ЗАДАНИЙ
+   ========================================================= */
+function examTypeLabel(t){
+  return t==='base' ? 'ЕГЭ база' : 'ЕГЭ профиль';
+}
+function difficultyLabel(d){
+  return {'easy':'Легко','medium':'Средне','hard':'Сложно'}[d] || 'Средне';
+}
+function difficultyColor(d){
+  return {'easy':'var(--ok)','medium':'var(--warn)','hard':'var(--err)'}[d] || 'var(--warn)';
+}
+function fillBankNumSelect(sel, examType, selected){
+  if(!sel) return;
+  var max = examType === 'base' ? 21 : 19;
+  var html = (sel.id === 'bankFilterNum' || sel.id === 'bpNum') ? '<option value="0">Все номера</option>' : '';
+  for(var i=1;i<=max;i++){
+    html += '<option value="'+i+'"'+(i===parseInt(selected)?' selected':'')+'>№'+i+'</option>';
+  }
+  sel.innerHTML = html;
+}
+
+async function openTaskBank(){
+  if(!canUseBank()) return;
+  show('view-taskbank');
+  var host=$('#bankList');
+  skeleton(host, 4);
+  try{
+    if(!bankState.meta.topics.length){
+      var m = await api('/task-bank/meta');
+      bankState.meta.topics = m.topics || [];
+      bankState.meta.presetTopics = m.presetTopics || [];
+      fillTopicSelects();
+    }
+  }catch(e){}
+  await loadBankList();
+}
+
+function fillTopicSelects(){
+  var sel = $('#bankFilterTopic');
+  if(sel){
+    var cur = sel.value;
+    var html = '<option value="">Все темы</option>';
+    bankState.meta.presetTopics.forEach(function(t){
+      html += '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';
+    });
+    // Добавляем темы из банка, которых нет в preset
+    bankState.meta.topics.forEach(function(t){
+      if(bankState.meta.presetTopics.indexOf(t)<0){
+        html += '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';
+      }
+    });
+    sel.innerHTML = html;
+  }
+  var bp = $('#bpTopic');
+  if(bp){
+    var cur2 = bp.value;
+    var html2 = '<option value="">Все темы</option>';
+    bankState.meta.presetTopics.forEach(function(t){
+      html2 += '<option value="'+esc(t)+'"'+(t===cur2?' selected':'')+'>'+esc(t)+'</option>';
+    });
+    bankState.meta.topics.forEach(function(t){
+      if(bankState.meta.presetTopics.indexOf(t)<0){
+        html2 += '<option value="'+esc(t)+'"'+(t===cur2?' selected':'')+'>'+esc(t)+'</option>';
+      }
+    });
+    bp.innerHTML = html2;
+  }
+  var dl = $('#bankTopicsList');
+  if(dl){
+    var html3 = '';
+    bankState.meta.presetTopics.forEach(function(t){ html3 += '<option value="'+esc(t)+'"></option>'; });
+    dl.innerHTML = html3;
+  }
+}
+
+async function loadBankList(){
+  var host=$('#bankList');if(!host)return;
+  skeleton(host,4);
+  try{
+    var exam = $('#bankFilterExam') ? $('#bankFilterExam').value : '';
+    var num = $('#bankFilterNum') ? $('#bankFilterNum').value : '0';
+    var topic = $('#bankFilterTopic') ? $('#bankFilterTopic').value : '';
+    var diff = $('#bankFilterDifficulty') ? $('#bankFilterDifficulty').value : '';
+    var scope = $('#bankFilterScope') ? $('#bankFilterScope').value : 'all';
+    var q = $('#bankSearch') ? $('#bankSearch').value.trim() : '';
+    var params = '?examType='+encodeURIComponent(exam)+
+                 '&examTask='+encodeURIComponent(num)+
+                 '&topic='+encodeURIComponent(topic)+
+                 '&difficulty='+encodeURIComponent(diff)+
+                 '&scope='+encodeURIComponent(scope)+
+                 '&q='+encodeURIComponent(q);
+    var r = await api('/task-bank'+params);
+    bankState.list = r.tasks || [];
+    renderBankList();
+  }catch(e){
+    host.innerHTML = '<div class="card err">'+esc(e.message)+'</div>';
+  }
+}
+
+function renderBankList(){
+  var host=$('#bankList');if(!host)return;
+  host.innerHTML='';
+  if(!bankState.list.length){
+    host.innerHTML='<div class="card"><div class="empty"><div class="icon">🗂️</div>Задач по фильтру не найдено.<br>Измените фильтры или добавьте новую задачу.</div></div>';
+    return;
+  }
+  var byNum = {};
+  bankState.list.forEach(function(t){
+    var k = (t.examType||'profile') + '_' + (t.examTaskNumber || 0);
+    (byNum[k] = byNum[k] || []).push(t);
+  });
+  var keys = Object.keys(byNum).sort(function(a,b){
+    var [ea, na] = a.split('_');
+    var [eb, nb] = b.split('_');
+    if(ea !== eb) return ea === 'profile' ? -1 : 1;
+    return parseInt(na) - parseInt(nb);
+  });
+  keys.forEach(function(k){
+    var parts = k.split('_');
+    var examType = parts[0];
+    var num = parseInt(parts[1]);
+    var group = byNum[k];
+    var groupCard = document.createElement('div');
+    groupCard.className = 'bank-group';
+    var head = document.createElement('div');
+    head.className = 'bank-group-head';
+    head.innerHTML = '<span class="pill blue">'+examTypeLabel(examType)+(num?' · №'+num:'')+'</span>'+
+                     '<span class="muted">'+group.length+' задач</span>';
+    groupCard.appendChild(head);
+    group.forEach(function(t){
+      groupCard.appendChild(renderBankTaskCard(t));
+    });
+    host.appendChild(groupCard);
+  });
+}
+
+function renderBankTaskCard(t){
+  var card=document.createElement('div');
+  card.className='bank-task';
+  var meta = [];
+  if(t.topic) meta.push('<span class="pill">'+esc(t.topic)+'</span>');
+  meta.push('<span class="pill" style="color:'+difficultyColor(t.difficulty)+';border-color:'+difficultyColor(t.difficulty)+'">'+difficultyLabel(t.difficulty)+'</span>');
+  meta.push('<span class="pill">'+(t.type==='choice'?'выбор':'ввод')+'</span>');
+  meta.push('<span class="pill">'+(t.points||1)+' б.</span>');
+  if(t.isPublic) meta.push('<span class="pill green"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-globe"/></svg> публичная</span>');
+
+  var canEdit = isAdmin() || (currentUser && t.ownerId === currentUser.id);
+
+  card.innerHTML = '<div class="bank-task-meta">'+meta.join(' ')+'</div>'+
+    '<div class="bank-task-body"></div>'+
+    '<div class="bank-task-actions"></div>';
+  var body = card.querySelector('.bank-task-body');
+  var stmt = createMathInput(t.statement, true);
+  body.appendChild(stmt.el);
+  var ans = document.createElement('div');
+  ans.style.cssText='font-size:13.5px;color:var(--text-2);margin-top:8px';
+  if(t.type==='input'){
+    ans.innerHTML='<b style="color:var(--text)">Ответ:</b> <span style="font-family:ui-monospace,monospace;color:var(--accent)">'+esc(t.answer||'')+'</span>';
+  } else {
+    ans.innerHTML='<b style="color:var(--text)">Правильный вариант:</b> №'+((t.correctIndex||0)+1);
+  }
+  body.appendChild(ans);
+
+  var actions = card.querySelector('.bank-task-actions');
+  if(canEdit){
+    var bEdit=document.createElement('button');bEdit.className='ghost small';bEdit.innerHTML='<svg><use href="#i-edit"/></svg> Изменить';
+    bEdit.onclick=function(){openBankForm(t);};
+    var bDel=document.createElement('button');bDel.className='ghost small danger';bDel.innerHTML='<svg><use href="#i-trash"/></svg> Удалить';
+    bDel.onclick=async function(){
+      if(!confirm('Удалить задачу из банка?')) return;
+      try{ await api('/task-bank/'+t.id,{method:'DELETE'}); toast('Удалено','ok'); loadBankList(); }
+      catch(e){ toast(e.message,'err'); }
+    };
+    actions.appendChild(bEdit); actions.appendChild(bDel);
+  }
+  return card;
+}
+
+function initBankFormFields(){
+  if(bankState.statementInput) return;
+  var sh=$('#bankStatementHost'), ah=$('#bankAnswerHost');
+  if(!sh||!ah) return;
+  bankState.statementInput = createMathInput('', false);
+  bankState.answerInput = createMathInput('', false);
+  sh.appendChild(bankState.statementInput.el);
+  ah.appendChild(bankState.answerInput.el);
+  buildBankSymbolBar($('#bankSymbolBar'));
+  bankAddOption(); bankAddOption();
+  var tt = $('#bankTaskType');
+  if(tt) tt.onchange = function(){
+    var isInput = tt.value==='input';
+    $('#bankInputBlock').hidden = !isInput;
+    $('#bankChoiceBlock').hidden = isInput;
+  };
+  var bao = $('#btnBankAddOption'); if(bao) bao.onclick = bankAddOption;
+}
+
+function bankAddOption(){
+  var ol=$('#bankOptionsList'); if(!ol) return;
+  var row=document.createElement('div'); row.className='option-row';
+  var r=document.createElement('input'); r.type='radio'; r.name='bankCorrectOpt';
+  var mi=createMathInput('', false);
+  var d=document.createElement('button'); d.type='button'; d.className='ghost small'; d.textContent='✕';
+  d.onclick=function(){ row.remove(); };
+  row.appendChild(r); row.appendChild(mi.el); row.appendChild(d);
+  ol.appendChild(row);
+}
+
+function openBankForm(task){
+  if(!canUseBank()) return;
+  initBankFormFields();
+  bankState.editingId = task ? task.id : null;
+  $('#bankForm').hidden = false;
+  $('#bankFormTitle').textContent = task ? 'Редактирование задачи' : 'Новая задача';
+  $('#bankErr').textContent = '';
+  var et = (task && task.examType) || 'profile';
+  $('#bankExamType').value = et;
+  fillBankNumSelect($('#bankExamTaskNumber'), et, task ? task.examTaskNumber : '');
+  if(!task) fillBankNumSelect($('#bankExamTaskNumber'), et, '');
+  $('#bankExamTaskNumber').outerHTML = '<select id="bankExamTaskNumber"></select>';
+  fillBankNumSelect($('#bankExamTaskNumber'), et, task ? task.examTaskNumber : 0);
+  // Убираем дубликат — сделаем просто select
+  $('#bankTopic').value = (task && task.topic) || '';
+  $('#bankDifficulty').value = (task && task.difficulty) || 'medium';
+  $('#bankTaskType').value = (task && task.type) || 'input';
+  bankState.statementInput.setValue(task ? task.statement : '');
+  bankState.answerInput.setValue(task && task.type==='input' ? (task.answer||'') : '');
+  $('#bankTol').value = (task && task.tolerance) || '1e-6';
+  $('#bankPoints').value = (task && task.points) || 1;
+  $('#bankIsPublic').checked = !!(task && task.isPublic);
+
+  // Опции для choice
+  var ol = $('#bankOptionsList');
+  ol.innerHTML = '';
+  if(task && task.type==='choice' && Array.isArray(task.options)){
+    task.options.forEach(function(o, i){
+      var row=document.createElement('div'); row.className='option-row';
+      var r=document.createElement('input'); r.type='radio'; r.name='bankCorrectOpt';
+      r.checked = (i === task.correctIndex);
+      var mi=createMathInput(o.text || '', false);
+      var d=document.createElement('button'); d.type='button'; d.className='ghost small'; d.textContent='✕';
+      d.onclick=function(){ row.remove(); };
+      row.appendChild(r); row.appendChild(mi.el); row.appendChild(d);
+      ol.appendChild(row);
+    });
+  } else {
+    bankAddOption(); bankAddOption();
+  }
+  $('#bankTaskType').onchange();
+  $('#bankForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function closeBankForm(){
+  $('#bankForm').hidden = true;
+  bankState.editingId = null;
+  $('#bankErr').textContent = '';
+}
+
+async function saveBankTask(){
+  var err=$('#bankErr'); if(err) err.textContent='';
+  var statement = bankState.statementInput ? bankState.statementInput.getValue().trim() : '';
+  if(!statement){ err.textContent='Введите условие задачи'; return; }
+  var type = $('#bankTaskType').value;
+  var body = {
+    examType: $('#bankExamType').value,
+    examTaskNumber: parseInt($('#bankExamTaskNumber').value) || null,
+    topic: $('#bankTopic').value.trim() || null,
+    difficulty: $('#bankDifficulty').value,
+    statement: statement,
+    type: type,
+    points: Math.max(0.5, Number($('#bankPoints').value) || 1),
+    isPublic: $('#bankIsPublic').checked
+  };
+  if(type === 'input'){
+    var ans = bankState.answerInput ? bankState.answerInput.getValue().trim() : '';
+    if(!ans){ err.textContent='Введите правильный ответ'; return; }
+    body.answer = ans;
+    body.tolerance = parseFloat($('#bankTol').value) || 1e-6;
+  } else {
+    var rows = $$('#bankOptionsList .option-row');
+    if(rows.length < 2){ err.textContent='Нужно минимум 2 варианта'; return; }
+    var opts = rows.map(function(r){ return { text: r.querySelector('.mi-input').value }; });
+    var ci = rows.findIndex(function(r){ return r.querySelector('input[type=radio]').checked; });
+    if(ci < 0){ err.textContent='Отметьте правильный вариант'; return; }
+    body.options = opts;
+    body.correctIndex = ci;
+  }
+  var btn = $('#btnBankSave'); btn.disabled = true;
+  try{
+    if(bankState.editingId){
+      await api('/task-bank/'+bankState.editingId, { method:'PUT', body: body });
+      toast('Задача обновлена','ok');
+    } else {
+      await api('/task-bank', { method:'POST', body: body });
+      toast('Задача добавлена','ok');
+    }
+    closeBankForm();
+    // Обновить темы
+    try{
+      var m = await api('/task-bank/meta');
+      bankState.meta.topics = m.topics || [];
+      fillTopicSelects();
+    }catch(e){}
+    loadBankList();
+  }catch(e){ err.textContent = e.message; toast(e.message,'err'); }
+  finally{ btn.disabled = false; }
+}
+
+/* Модалка выбора из банка */
+async function openBankPicker(){
+  if(!canUseBank()) return;
+  bankState.pickerSelected = {};
+  var modal = $('#bankPickerModal');
+  if(!modal) return;
+  modal.hidden = false;
+  // Заполняем номер-селект
+  fillBankNumSelect($('#bpNum'), $('#bpExam') ? $('#bpExam').value || 'profile' : 'profile', 0);
+  try{
+    if(!bankState.meta.topics.length){
+      var m = await api('/task-bank/meta');
+      bankState.meta.topics = m.topics || [];
+      bankState.meta.presetTopics = m.presetTopics || [];
+      fillTopicSelects();
+    }
+  }catch(e){}
+  await loadBankPickerList();
+}
+function closeBankPicker(){
+  var modal = $('#bankPickerModal');
+  if(modal) modal.hidden = true;
+}
+async function loadBankPickerList(){
+  var host=$('#bpList'); if(!host) return;
+  skeleton(host, 4);
+  try{
+    var exam = $('#bpExam') ? $('#bpExam').value : '';
+    var num = $('#bpNum') ? $('#bpNum').value : '0';
+    var topic = $('#bpTopic') ? $('#bpTopic').value : '';
+    var diff = $('#bpDifficulty') ? $('#bpDifficulty').value : '';
+    var scope = $('#bpScope') ? $('#bpScope').value : 'all';
+    var q = $('#bpSearch') ? $('#bpSearch').value.trim() : '';
+    var params = '?examType='+encodeURIComponent(exam)+
+                 '&examTask='+encodeURIComponent(num)+
+                 '&topic='+encodeURIComponent(topic)+
+                 '&difficulty='+encodeURIComponent(diff)+
+                 '&scope='+encodeURIComponent(scope)+
+                 '&q='+encodeURIComponent(q);
+    var r = await api('/task-bank'+params);
+    bankState.pickerList = r.tasks || [];
+    renderBankPickerList();
+  }catch(e){
+    host.innerHTML='<div class="err" style="padding:20px">'+esc(e.message)+'</div>';
+  }
+}
+function renderBankPickerList(){
+  var host=$('#bpList'); if(!host) return;
+  host.innerHTML='';
+  if(!bankState.pickerList.length){
+    host.innerHTML='<div class="empty" style="padding:32px">Ничего не найдено</div>';
+    updateBankPickerCount();
+    return;
+  }
+  bankState.pickerList.forEach(function(t){
+    var el=document.createElement('label');
+    el.className='bank-pick-item';
+    var cb=document.createElement('input');
+    cb.type='checkbox';
+    cb.checked = !!bankState.pickerSelected[t.id];
+    cb.onchange=function(){
+      if(cb.checked) bankState.pickerSelected[t.id] = true;
+      else delete bankState.pickerSelected[t.id];
+      updateBankPickerCount();
+    };
+    el.appendChild(cb);
+    var body=document.createElement('div');
+    body.className='bank-pick-body';
+    var meta=[];
+    meta.push('<span class="pill blue">'+(t.examTaskNumber?'№'+t.examTaskNumber:'—')+'</span>');
+    if(t.topic) meta.push('<span class="pill">'+esc(t.topic)+'</span>');
+    meta.push('<span class="pill" style="color:'+difficultyColor(t.difficulty)+'">'+difficultyLabel(t.difficulty)+'</span>');
+    meta.push('<span class="pill">'+(t.points||1)+' б.</span>');
+    body.innerHTML = '<div class="bank-pick-meta">'+meta.join(' ')+'</div>'+
+                     '<div class="bank-pick-stmt">'+esc((t.statement||'').slice(0,180))+'</div>';
+    el.appendChild(body);
+    host.appendChild(el);
+  });
+  updateBankPickerCount();
+}
+function updateBankPickerCount(){
+  var n = Object.keys(bankState.pickerSelected).length;
+  var el = $('#bpCount');
+  if(el) el.textContent = 'Выбрано: ' + n;
+}
+function addSelectedToDraft(){
+  var ids = Object.keys(bankState.pickerSelected);
+  if(!ids.length){ toast('Ничего не выбрано','warn'); return; }
+  var added = 0;
+  ids.forEach(function(id){
+    var t = bankState.pickerList.find(function(x){ return x.id===id; });
+    if(!t) return;
+    var task = {
+      id: uid(),
+      type: t.type,
+      statement: t.statement,
+      points: t.points || 1
+    };
+    if(t.type === 'input'){
+      task.answer = t.answer || '';
+      task.tolerance = t.tolerance || 1e-6;
+    } else {
+      task.options = (t.options||[]).map(function(o){ return { text: o.text }; });
+      task.correctIndex = t.correctIndex || 0;
+    }
+    draftTasks.push(task);
+    added++;
+  });
+  renderDraft();
+  closeBankPicker();
+  toast('Добавлено задач: '+added, 'ok');
+}
+
+/* Кнопка "В банк" из конструктора */
+async function saveCurrentToBank(){
+  var statement = stmtInput ? stmtInput.getValue().trim() : '';
+  if(!statement){ toast('Сначала введите условие задания','warn'); return; }
+  var type = $('#taskType').value;
+  var body = {
+    examType: 'profile',
+    examTaskNumber: null,
+    topic: null,
+    difficulty: 'medium',
+    statement: statement,
+    type: type,
+    points: Math.max(0.5, Number($('#taskPoints').value) || 1),
+    isPublic: false
+  };
+  if(type==='input'){
+    var a = ansInput ? ansInput.getValue().trim() : '';
+    if(!a){ toast('Введите правильный ответ','warn'); return; }
+    body.answer = a;
+    body.tolerance = parseFloat($('#taskTol').value) || 1e-6;
+  } else {
+    var rows = $$('#optionsList .option-row');
+    if(rows.length<2){ toast('Нужно 2+ варианта','warn'); return; }
+    body.options = rows.map(function(r){ return { text: r.querySelector('.mi-input').value }; });
+    body.correctIndex = rows.findIndex(function(r){ return r.querySelector('input[type=radio]').checked; });
+    if(body.correctIndex < 0){ toast('Отметьте правильный','warn'); return; }
+  }
+  try{
+    await api('/task-bank',{ method:'POST', body: body });
+    toast('Сохранено в банк. Можно уточнить номер ЕГЭ в разделе «Банк заданий».','ok');
+  }catch(e){ toast(e.message,'err'); }
+}
+
+/* =========================================================
+   CLASS VIEW
+   ========================================================= */
 async function openClassView(id){
   currentClassId=id;show('view-class');
   skeleton($('#classStudents'),2);skeleton($('#classGroups'),2);skeleton($('#classTests'),2);
@@ -958,6 +1448,59 @@ function initEditorFields(){
   var chfi=$('#chatFileInput');if(chfi)chfi.onchange=function(){$('#chatFileName').textContent=this.files[0]?('📎 '+this.files[0].name):'';};
   var bcs=$('#btnChatSend');if(bcs)bcs.onclick=sendChatMessage;
   var cht=$('#chatText');if(cht)cht.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}};
+
+  /* Кнопки банка в конструкторе */
+  var bpf=$('#btnPickFromBank'); if(bpf) bpf.onclick = openBankPicker;
+  var bstb=$('#btnSaveToBank'); if(bstb) bstb.onclick = saveCurrentToBank;
+
+  /* Форма банка */
+  var babs=$('#btnAddBankTask');
+  if(babs) babs.onclick = function(){ openBankForm(null); };
+  var bbsc=$('#btnBankSave'); if(bbsc) bbsc.onclick = saveBankTask;
+  var bbcx=$('#btnBankCancel'); if(bbcx) bbcx.onclick = closeBankForm;
+  var bet=$('#bankExamType');
+  if(bet) bet.onchange = function(){
+    fillBankNumSelect($('#bankExamTaskNumber'), bet.value, 0);
+  };
+  var bbtt=$('#bankTaskType');
+  if(bbtt) bbtt.onchange = function(){
+    var isInput = bbtt.value==='input';
+    $('#bankInputBlock').hidden = !isInput;
+    $('#bankChoiceBlock').hidden = isInput;
+  };
+
+  /* Фильтры банка — debounce на поиск */
+  var bs=$('#bankSearch'); if(bs){ var st=null; bs.oninput=function(){ clearTimeout(st); st=setTimeout(loadBankList,250); }; }
+  ['#bankFilterScope','#bankFilterExam','#bankFilterNum','#bankFilterDifficulty','#bankFilterTopic'].forEach(function(id){
+    var el = $(id); if(el) el.onchange = loadBankList;
+  });
+  var bfe = $('#bankFilterExam');
+  if(bfe) bfe.onchange = function(){
+    fillBankNumSelect($('#bankFilterNum'), bfe.value || 'profile', 0);
+    loadBankList();
+  };
+
+  /* Модалка выбора */
+  var bcbp = $('#btnCloseBankPicker'); if(bcbp) bcbp.onclick = closeBankPicker;
+  var bpClr = $('#bpClear'); if(bpClr) bpClr.onclick = function(){ bankState.pickerSelected = {}; renderBankPickerList(); };
+  var bpAdd = $('#bpAdd'); if(bpAdd) bpAdd.onclick = addSelectedToDraft;
+  var bpS=$('#bpSearch'); if(bpS){ var st2=null; bpS.oninput=function(){ clearTimeout(st2); st2=setTimeout(loadBankPickerList,250); }; }
+  ['#bpExam','#bpNum','#bpDifficulty','#bpTopic','#bpScope'].forEach(function(id){
+    var el = $(id); if(el) el.onchange = loadBankPickerList;
+  });
+  var bpE = $('#bpExam');
+  if(bpE) bpE.onchange = function(){
+    fillBankNumSelect($('#bpNum'), bpE.value || 'profile', 0);
+    loadBankPickerList();
+  };
+
+  /* Закрытие модалки по клику на фон */
+  var bpModal = $('#bankPickerModal');
+  if(bpModal){
+    bpModal.addEventListener('click', function(e){
+      if(e.target === bpModal) closeBankPicker();
+    });
+  }
 }
 function addOption(){
   var ol=$('#optionsList');if(!ol)return;
@@ -1808,16 +2351,13 @@ function pdfSetupWorker(){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 }
-
 function readerStep(){ return window.innerWidth < 700 ? 1 : 2; }
-
 function normalizeLeftPage(n){
   if(!n || n < 1) return 1;
   var step = readerStep();
   if(step === 1) return n;
   return (n % 2 === 0) ? n - 1 : n;
 }
-
 function readerClose(){
   if(reader.pdf){try{reader.pdf.destroy();}catch(e){}}
   reader.pdf=null;reader.totalPages=0;reader.currentPage=1;reader.cache={};reader.outline=[];
@@ -1855,21 +2395,17 @@ async function renderSpreadToSlot(slotEl, leftPage){
   var padH=step===2?24:8;
   var availH=stage.clientHeight-40;
   var availW=step===2 ? ((stage.clientWidth - padH - gap) / 2) : (stage.clientWidth - padH);
-
   var wrap=document.createElement('div');
   wrap.className='reader-spread'+(step===1?' single':'');
   wrap.style.gap=gap+'px';
-
   var leftCanvas = await renderPdfToCanvas(leftPage, availW, availH);
   wrap.appendChild(leftCanvas);
-
   if(step===2 && (leftPage + 1) <= reader.totalPages){
     try{
       var rightCanvas = await renderPdfToCanvas(leftPage + 1, availW, availH);
       wrap.appendChild(rightCanvas);
     }catch(e){ console.warn('right page:', e.message); }
   }
-
   slotEl.appendChild(wrap);
 }
 
@@ -1908,12 +2444,10 @@ async function goToPage(target, direction){
   target=normalizeLeftPage(target);
   target=Math.max(1, Math.min(reader.totalPages, target));
   if(target===reader.currentPage) return;
-
   reader.animating=true;
   var dir = direction || (target>reader.currentPage ? 'next' : 'prev');
   var cur = activeSlot();
   var nxt = inactiveSlot();
-
   nxt.innerHTML='';
   var loading=$('#readerLoading');
   if(loading)loading.hidden=false;
@@ -1921,20 +2455,16 @@ async function goToPage(target, direction){
     await renderSpreadToSlot(nxt, target);
   }catch(e){console.error(e);}
   if(loading)loading.hidden=true;
-
   var offX = dir==='next' ? '100%' : '-100%';
   var exitX = dir==='next' ? '-100%' : '100%';
-
   nxt.style.transition='none';
   nxt.style.transform='translateX('+offX+')';
   nxt.classList.remove('hidden');
   void nxt.offsetWidth;
-
   nxt.style.transition='';
   cur.style.transition='';
   nxt.style.transform='translateX(0)';
   cur.style.transform='translateX('+exitX+')';
-
   setTimeout(function(){
     cur.classList.add('hidden');
     cur.style.transform='translateX(0)';
@@ -1982,7 +2512,6 @@ async function renderReaderToc(){
     host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
     return;
   }
-
   var flat = [];
   async function collect(items, level){
     for(var i=0;i<items.length;i++){
@@ -1993,7 +2522,6 @@ async function renderReaderToc(){
     }
   }
   try { await collect(reader.outline, 1); } catch(e){ console.error(e); }
-
   host.innerHTML='';
   if(!flat.length){ host.innerHTML='<div class="empty" style="padding:24px 16px">Пустое оглавление</div>'; return; }
   flat.forEach(function(item){
@@ -2021,16 +2549,13 @@ async function openReader(bookId){
   reader.activeSlot='A';
   reader.zoom=1;
   updateReaderZoomLabel();
-
   var slotA=$('#readerSlotA'),slotB=$('#readerSlotB');
   slotA.innerHTML='';slotB.innerHTML='';
   slotA.style.transform='translateX(0)';
   slotB.style.transform='translateX(0)';
   slotA.classList.remove('hidden');
   slotB.classList.add('hidden');
-
   var loading=$('#readerLoading');if(loading)loading.hidden=false;
-
   try{
     var r=await api('/books/'+bookId);
     var b=r.book;
@@ -2055,189 +2580,18 @@ async function openReader(bookId){
     });
     reader.pdf=await loadingTask.promise;
     reader.totalPages=reader.pdf.numPages;
-
     var saved=1;
     try{ saved=parseInt(localStorage.getItem('reader_page_'+bookId)||'1')||1; }catch(e){}
     reader.currentPage=normalizeLeftPage(Math.max(1, Math.min(reader.totalPages, saved)));
-
     updateReaderIndicator();
     await renderCurrentPage();
     if(loading)loading.hidden=true;
-
     try{
       var outline=await reader.pdf.getOutline();
       reader.outline=outline||[];
     }catch(e){reader.outline=[];}
     renderReaderToc();
-
     renderReaderBookmarks(b.bookmarks||[]);
-
-    if(!reader.hintShown && 'ontouchstart' in window){
-      reader.hintShown=true;
-      var hint=$('#readerHint');
-      if(hint){hint.hidden=false;setTimeout(function(){hint.hidden=true;},3500);}
-    }
-    window.__readerSavePage=function(){
-      try{localStorage.setItem('reader_page_'+bookId, String(reader.currentPage));}catch(e){}
-    };
-  }catch(e){
-    console.error(e);
-    if(loading)loading.hidden=true;
-    $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">'+esc(e.message||'Ошибка загрузки PDF')+'</div>';
-  }
-}
-
-function renderReaderBookmarks(bms){
-  var host=$('#readerBookmarksList');if(!host)return;
-  host.innerHTML='';
-  if(!bms.length){host.innerHTML='<div class="empty" style="padding:24px 16px">Закладок нет</div>';return;}
-  bms.forEach(function(bm){
-    var el=document.createElement('div');el.className='bookmark-item';
-    el.innerHTML='<div class="bm-body"><div class="bm-pos">Страница '+bm.position+'</div>'+
-      (bm.note?'<div class="bm-note">'+esc(bm.note)+'</div>':'')+'</div>';
-    var del=document.createElement('button');del.textContent='✕';
-    del.onclick=async function(e){e.stopPropagation();try{await api('/bookmarks/'+bm.id,{method:'DELETE'});openReader(reader.bookId);}catch(e){toast(e.message,'err');}};
-    el.appendChild(del);
-    el.onclick=function(){
-      $('#readerBookmarksPanel').hidden=true;
-      goToPage(bm.position, bm.position>reader.currentPage?'next':'prev');
-    };
-    host.appendChild(el);
-  });
-}
-async function addBookmarkFromReader(){
-  if(!reader.bookId)return;
-  var page=reader.currentPage||1;
-  var note=prompt('Заметка к закладке (страница '+page+', можно оставить пустым):','');
-  if(note===null)return;
-  try{await api('/books/'+reader.bookId+'/bookmarks',{method:'POST',body:{position:page,note:note||null}});toast('Закладка добавлена','ok');openReader(reader.bookId);}
-  catch(e){toast(e.message,'err');}
-}
-
-function toggleReaderUI(){
-  reader.uiHidden=!reader.uiHidden;
-  ['#readerTopbar','#readerProgress'].forEach(function(sel){
-    var el=$(sel);if(!el)return;
-    el.classList.toggle('hidden-ui', reader.uiHidden);
-  });
-  var ind=$('#readerPageIndicator');
-  if(ind)ind.classList.toggle('hidden-ui', reader.uiHidden);
-}
-
-/* -------- Оглавление: резолв ссылок -------- */
-async function resolveOutlineDest(dest){
-  if(!dest || !reader.pdf) return -1;
-  try{
-    var d = dest;
-    if(typeof d === 'string'){
-      d = await reader.pdf.getDestination(d);
-      if(!d) return -1;
-    }
-    if(!d || !d[0]) return -1;
-    var ref = d[0];
-    if(typeof ref === 'number') return ref;
-    var idx = await reader.pdf.getPageIndex(ref);
-    return (typeof idx === 'number' && idx >= 0) ? idx : -1;
-  }catch(e){ console.warn('outline dest:', e.message); return -1; }
-}
-
-async function renderReaderToc(){
-  var host=$('#readerTocList');if(!host)return;
-  host.innerHTML='<div class="muted" style="padding:20px;text-align:center;font-size:13px">Загрузка оглавления…</div>';
-  if(!reader.outline || !reader.outline.length){
-    host.innerHTML='<div class="empty" style="padding:24px 16px">В PDF нет встроенного оглавления</div>';
-    return;
-  }
-
-  var flat = [];
-  async function collect(items, level){
-    for(var i=0;i<items.length;i++){
-      var it = items[i];
-      var pageIdx = await resolveOutlineDest(it.dest);
-      flat.push({ title: it.title || '—', level: Math.min(3, level), pageIndex: pageIdx });
-      if(it.items && it.items.length) await collect(it.items, level+1);
-    }
-  }
-  try { await collect(reader.outline, 1); } catch(e){ console.error(e); }
-
-  host.innerHTML='';
-  if(!flat.length){ host.innerHTML='<div class="empty" style="padding:24px 16px">Пустое оглавление</div>'; return; }
-  flat.forEach(function(item){
-    var btn=document.createElement('button');
-    btn.className='reader-toc-item lvl-'+item.level;
-    btn.textContent=item.title;
-    if(item.pageIndex < 0){
-      btn.style.opacity='.5';
-      btn.title='Страница не определена';
-    }
-    btn.onclick=function(){
-      if(item.pageIndex < 0){ toast('Не удалось определить страницу','warn'); return; }
-      $('#readerTocPanel').hidden=true;
-      var target = item.pageIndex + 1;
-      goToPage(target, target > reader.currentPage ? 'next' : 'prev');
-    };
-    host.appendChild(btn);
-  });
-}
-
-async function openReader(bookId){
-  show('view-reader');
-  readerClose();
-  reader.bookId=bookId;
-  reader.activeSlot='A';
-  reader.zoom=1;
-  updateReaderZoomLabel();
-
-  var slotA=$('#readerSlotA'),slotB=$('#readerSlotB');
-  slotA.innerHTML='';slotB.innerHTML='';
-  slotA.style.transform='translateX(0)';
-  slotB.style.transform='translateX(0)';
-  slotA.classList.remove('hidden');
-  slotB.classList.add('hidden');
-
-  var loading=$('#readerLoading');if(loading)loading.hidden=false;
-
-  try{
-    var r=await api('/books/'+bookId);
-    var b=r.book;
-    reader.book=b;
-    $('#readerTitle').textContent=b.title;
-    if(!b.hasPdf){
-      if(loading)loading.hidden=true;
-      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">К этой книге не загружен PDF-файл.</div>';
-      return;
-    }
-    pdfSetupWorker();
-    if(!window.pdfjsLib){
-      if(loading)loading.hidden=true;
-      $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">Не удалось загрузить pdf.js. Проверьте интернет.</div>';
-      return;
-    }
-    var tk=getToken();
-    var loadingTask=pdfjsLib.getDocument({
-      url:'/api/books/'+bookId+'/pdf',
-      httpHeaders: tk ? {'Authorization':'Bearer '+tk} : {},
-      withCredentials:false
-    });
-    reader.pdf=await loadingTask.promise;
-    reader.totalPages=reader.pdf.numPages;
-
-    var saved=1;
-    try{ saved=parseInt(localStorage.getItem('reader_page_'+bookId)||'1')||1; }catch(e){}
-    reader.currentPage=Math.max(1, Math.min(reader.totalPages, saved));
-
-    updateReaderIndicator();
-    await renderCurrentPage();
-    if(loading)loading.hidden=true;
-
-    try{
-      var outline=await reader.pdf.getOutline();
-      reader.outline=outline||[];
-    }catch(e){reader.outline=[];}
-    renderReaderToc();
-
-    renderReaderBookmarks(b.bookmarks||[]);
-
     if(!reader.hintShown && 'ontouchstart' in window){
       reader.hintShown=true;
       var hint=$('#readerHint');
@@ -2353,7 +2707,7 @@ async function loadAdminUsers(){
     var sh=$('#adminStats');sh.innerHTML='';
     [['Всего',r.stats.total],['Админов',r.stats.admin],['Учителей',r.stats.teacher],
      ['Библиотекарей',r.stats.librarian],['Учеников',r.stats.student],
-     ['Работ',r.stats.tests],['Книг',r.stats.books]].forEach(function(s){
+     ['Работ',r.stats.tests],['Книг',r.stats.books],['Банк',r.stats.bank||0]].forEach(function(s){
       var c=document.createElement('div');c.className='stat-card';
       c.innerHTML='<div class="stat-value">'+s[1]+'</div><div class="stat-label">'+s[0]+'</div>';
       sh.appendChild(c);
@@ -2472,7 +2826,7 @@ async function openProfileStats(){
         var dash2=document.createElement('div');dash2.className='dash-summary';dash2.style.marginBottom='0';
         [['Классов',stats.classesCount,'i-book'],['Учеников',stats.studentsCount,'i-users'],
          ['Работ',stats.testsCount,'i-edit'],['Сдач',stats.submissionsCount,'i-chart'],
-         ['Средний',stats.avgPercent+'%','i-chart'],['Книг',stats.booksCount,'i-book']].forEach(function(it){
+         ['Средний',stats.avgPercent+'%','i-chart'],['Банк',stats.bankCount||0,'i-layers']].forEach(function(it){
           var c=document.createElement('div');c.className='dash-item';
           c.innerHTML='<div class="di-label">'+it[0]+'</div><div class="di-value'+(it[0]==='Средний'?' accent':'')+'">'+it[1]+'</div><div class="di-icon"><svg><use href="#'+it[2]+'"/></svg></div>';
           dash2.appendChild(c);
@@ -2564,7 +2918,6 @@ async function uploadAvatarFile(file){
     toast('Аватар обновлён','ok');
   }catch(e){toast(e.message,'err');}
 }
-
 async function deleteAvatarFile(){
   if(!currentUser)return;
   if(!confirm('Удалить аватар?'))return;
@@ -2674,10 +3027,23 @@ function bindAll(){
     $('#admin-users-tab').hidden=(tab!=='users');$('#admin-logs-tab').hidden=(tab!=='logs');$('#admin-backups-tab').hidden=(tab!=='backups');
     if(tab==='logs')loadAdminLogs();if(tab==='backups')loadBackups();
   };});
-  $$('.sym-tab').forEach(function(t){t.onclick=function(){
-    $$('.sym-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');
-    currentSymTab=t.dataset.symtab;buildSymbolBar($('#symbolBar'));
-  };});
+  $$('.sym-tab').forEach(function(t){
+    if(t.dataset.banksymtab){
+      t.onclick=function(){
+        $$('.sym-tab[data-banksymtab]').forEach(function(x){x.classList.remove('active');});
+        t.classList.add('active');
+        currentBankSymTab=t.dataset.banksymtab;
+        buildBankSymbolBar($('#bankSymbolBar'));
+      };
+    } else {
+      t.onclick=function(){
+        $$('.sym-tab:not([data-banksymtab])').forEach(function(x){x.classList.remove('active');});
+        t.classList.add('active');
+        currentSymTab=t.dataset.symtab;
+        buildSymbolBar($('#symbolBar'));
+      };
+    }
+  });
 
   var backMap={
     'btnBackToTeacher':goTeacher,
@@ -2687,6 +3053,7 @@ function bindAll(){
     'btnBackFromTake':function(){if(!currentTest)return goStudent();if(confirm('Выйти? Черновик сохранится.')){if(timerInterval){clearInterval(timerInterval);timerInterval=null;}goStudent();}},
     'btnBackFromSubs':goTeacher,
     'btnBackFromDashboard':goTeacher,
+    'btnBackFromBank':function(){ if(isTeacherLike()) goTeacher(); else goStudent(); },
     'btnBackFromLibrary':function(){if(!currentUser)return show('view-landing');if(currentUser.role==='student')return goStudent();if(currentUser.role==='teacher'||currentUser.role==='admin')return goTeacher();show('view-landing');},
     'btnBackFromAdmin':goTeacher,
     'btnBackFromProfile':function(){if(!currentUser)return show('view-landing');if(currentUser.role==='student')return goStudent();if(currentUser.role==='teacher'||currentUser.role==='admin')return goTeacher();if(currentUser.role==='librarian')return openLibrary();show('view-landing');},
@@ -2739,14 +3106,14 @@ function bindAll(){
     if(ic) ic.setAttribute('href', document.fullscreenElement ? '#i-minimize' : '#i-maximize');
   });
 
-       var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-readerStep(),'prev');};
+  var rp=$('#readerPrev');if(rp)rp.onclick=function(){goToPage(reader.currentPage-readerStep(),'prev');};
   var rn=$('#readerNext');if(rn)rn.onclick=function(){goToPage(reader.currentPage+readerStep(),'next');};
-  
+
   document.addEventListener('keydown',function(e){
     var v=$('#view-reader');
     if(!v||!v.classList.contains('active'))return;
     if(e.target && /input|textarea|select/i.test(e.target.tagName))return;
-        if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goToPage(reader.currentPage-readerStep(),'prev');}
+    if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goToPage(reader.currentPage-readerStep(),'prev');}
     else if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' '){e.preventDefault();goToPage(reader.currentPage+readerStep(),'next');}
     else if(e.key==='Home'){e.preventDefault();goToPage(1,'prev');}
     else if(e.key==='End'){e.preventDefault();goToPage(reader.totalPages,'next');}
@@ -2768,7 +3135,7 @@ function bindAll(){
       var dy=e.changedTouches[0].clientY-sy;
       var dt=Date.now()-st;
       if(Math.abs(dx)>50 && Math.abs(dy)<70 && dt<600){
-                if(dx<0) goToPage(reader.currentPage+readerStep(),'next');
+        if(dx<0) goToPage(reader.currentPage+readerStep(),'next');
         else goToPage(reader.currentPage-readerStep(),'prev');
         return;
       }
@@ -2807,8 +3174,8 @@ function bindAll(){
       var k=b.dataset.mnav;
       if(!currentUser){if(k==='profile')show('view-auth');else show('view-landing');return;}
       if(k==='home'){if(currentUser.role==='student')goStudent();else if(currentUser.role==='teacher'||currentUser.role==='admin')goTeacher();else openLibrary();}
+      else if(k==='bank'){ if(canUseBank()) openTaskBank(); else openLibrary(); }
       else if(k==='library')openLibrary();
-      else if(k==='dashboard'){if(isTeacherLike())openDashboard();else if(currentClassId)openClassRating();else goStudent();}
       else if(k==='profile')openProfileStats();
     };
   });
