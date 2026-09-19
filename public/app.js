@@ -693,7 +693,7 @@ async function renderTeacherTests(){
     var r=await api('/tests');
     host.innerHTML='';
     if(!r.tests.length){
-      host.innerHTML='<div class="card"><div class="empty"><div class="icon">📝</div>Работ пока нет.<br>Нажмите <b>«+ Работа»</b>.</div></div>';
+            host.innerHTML='<div class="card"><div class="empty"><div class="icon">✨</div><div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Здесь пока пусто</div>Создайте первую работу — ученики её увидят и смогут пройти.<br>Кнопка <b style="color:var(--accent)">«+ Работа»</b> вверху страницы.</div></div>';
       return;
     }
     r.tests.forEach(function(test){
