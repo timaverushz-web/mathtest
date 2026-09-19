@@ -801,6 +801,24 @@
       </div>
       <div class="muted" style="margin-bottom:18px">Авто-бэкап раз в 24 часа. Хранятся последние 7 копий.</div>
       <div id="adminBackupsList"></div>
+            <div style="margin-top:24px;padding:24px;background:var(--panel-2);border-radius:var(--radius);border:1px solid var(--border-soft)">
+        <h3 style="margin-bottom:8px">Генератор задач ЕГЭ 2027</h3>
+        <div class="muted" style="margin-bottom:16px">
+          Создаёт задачи с новыми числами по всем номерам 1–11 и 13 (структура ЕГЭ 2027).
+          N — сколько вариантов каждого типа сгенерировать.
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <label style="margin:0;color:var(--text-2);font-size:13px;font-weight:700">
+            Вариантов на шаблон:
+            <input id="genTasksN" type="number" value="30" min="1" max="200"
+                   style="width:100px;margin-left:8px;display:inline-block">
+          </label>
+          <button class="primary" id="btnGenerateTasks">
+            <svg><use href="#i-layers"/></svg> Сгенерировать задачи
+          </button>
+          <span id="genTasksResult" class="muted" style="font-weight:600"></span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
