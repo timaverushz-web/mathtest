@@ -94,14 +94,27 @@ function roleLabel(){
 function avatarUrl(id,bust){return '/api/users/'+id+'/avatar'+(bust?('?v='+bust):'');}
 function renderAvatar(el,user,size){
   if(!el)return;
-  el.style.width=(size||28)+'px';el.style.height=(size||28)+'px';
+  el.style.width=(size||28)+'px';
+  el.style.height=(size||28)+'px';
   el.style.fontSize=Math.round((size||28)*0.45)+'px';
-  if(user&&user.hasAvatar){
-    var bust=null;try{bust=localStorage.getItem('avatar_bust_'+user.id);}catch(e){}
-    el.style.backgroundImage="url('"+avatarUrl(user.id,bust)+"')";
-    el.textContent='';
+  el.style.backgroundImage=''; /* всегда сбрасываем */
+
+  if(user && user.hasAvatar){
+    var bust=null;
+    try{ bust=localStorage.getItem('avatar_bust_'+user.id); }catch(e){}
+    var url=avatarUrl(user.id,bust);
+    /* Проверяем, что картинка реально грузится */
+    var probe=new Image();
+    probe.onload=function(){
+      el.style.backgroundImage="url('"+url+"')";
+      el.textContent='';
+    };
+    probe.onerror=function(){
+      el.style.backgroundImage='';
+      el.textContent=(user.name?user.name[0]:'?').toUpperCase();
+    };
+    probe.src=url;
   } else {
-    el.style.backgroundImage='';
     el.textContent=(user&&user.name?user.name[0]:'?').toUpperCase();
   }
 }
@@ -405,6 +418,15 @@ function updateTopbarTabs(){
 window.updateTopbarTabs = updateTopbarTabs;
 
 function show(id){
+  /* Защита: не пускаем гостя на приватные экраны */
+  var privateViews = [
+    'view-teacher','view-student','view-taskbank','view-library','view-reader',
+    'view-admin','view-dashboard','view-editor','view-class','view-analytics',
+    'view-rating','view-take','view-submissions','view-profile','view-editprofile'
+  ];
+  if(!currentUser && privateViews.indexOf(id) >= 0){
+    id = 'view-landing';
+  }
   var wasReader = $('#view-reader').classList.contains('active');
   $$('.view').forEach(function(v){v.classList.toggle('active',v.id===id);});
   var isReader = id==='view-reader';
@@ -485,8 +507,14 @@ function buildUserMenu(){
 }
 function renderTop(){
   var wrap=$('#userChipWrap');
-  if(!currentUser){if(wrap)wrap.hidden=true;return;}
+  var tabs=$('#topbarTabs');
+  if(!currentUser){
+    if(wrap)wrap.hidden=true;
+    if(tabs)tabs.hidden=true;
+    return;
+  }
   if(wrap)wrap.hidden=false;
+  if(tabs)tabs.hidden=false;
   var a=$('#chipAvatar'),n=$('#chipName'),r=$('#chipRole');
   if(n)n.textContent=currentUser.name;
   if(r)r.textContent=roleLabel();
@@ -2348,8 +2376,31 @@ async function searchBooks(){
     var params='?q='+encodeURIComponent(q)+'&classId='+encodeURIComponent(cid)+'&sort='+encodeURIComponent(sort);
     var r=await api('/books'+params);
     host.innerHTML='';
-    if(!r.books.length){
-      host.innerHTML='<div class="card"><div class="empty"><div class="icon">📚</div>'+(q||cid?'Ничего не найдено':'Книг пока нет')+'</div></div>';
+        if(!r.books.length){
+      if(q || cid){
+        host.innerHTML='<div class="card"><div class="empty">'+
+          '<div class="icon">🔍</div>'+
+          '<div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:6px">Ничего не найдено</div>'+
+          'Попробуйте изменить поиск или фильтр.'+
+          '</div></div>';
+      } else if(canUploadBooks()){
+        host.innerHTML='<div class="card"><div class="empty">'+
+          '<div class="icon">📚</div>'+
+          '<div style="font-size:22px;font-weight:900;color:var(--text);margin-bottom:10px;letter-spacing:-0.02em">Библиотека пуста</div>'+
+          '<div style="max-width:420px;margin:0 auto;line-height:1.6">Загрузите первый учебник или сборник — ученики смогут читать прямо в браузере с закладками и оглавлением.</div>'+
+          '<div style="margin-top:22px"><button class="primary" id="emptyAddBookBtn">'+
+            '<svg><use href="#i-plus"/></svg> Загрузить первую книгу'+
+          '</button></div>'+
+          '</div></div>';
+        var eab=$('#emptyAddBookBtn');
+        if(eab) eab.onclick=function(){ var b=$('#btnAddBook'); if(b) b.click(); };
+      } else {
+        host.innerHTML='<div class="card"><div class="empty">'+
+          '<div class="icon">📚</div>'+
+          '<div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px">Книг пока нет</div>'+
+          'Как только репетитор добавит учебник — он появится здесь.'+
+          '</div></div>';
+      }
       return;
     }
     if(bookView==='grid'){
@@ -3211,8 +3262,14 @@ function bindAll(){
   var bSearch=$('#bookSearch');if(bSearch){var st=null;bSearch.oninput=function(){clearTimeout(st);st=setTimeout(searchBooks,250);};}
   var bcf2=$('#bookClassFilter');if(bcf2)bcf2.onchange=searchBooks;
   var bsort=$('#bookSort');if(bsort)bsort.onchange=searchBooks;
-  var bbv=$('#btnBookView');
-  if(bbv)bbv.onclick=function(){bookView=(bookView==='grid')?'list':'grid';bbv.textContent=(bookView==='grid')?'Список':'Сетка';searchBooks();};
+   var bbv=$('#btnBookView');
+  if(bbv)bbv.onclick=function(){
+    bookView=(bookView==='grid')?'list':'grid';
+    bbv.innerHTML=(bookView==='grid')
+      ? '<svg><use href="#i-list"/></svg> Список'
+      : '<svg><use href="#i-grid"/></svg> Сетка';
+    searchBooks();
+  };
   bindCoverDrop();bindPdfDrop();
 
   var brToc=$('#btnReaderToc');
@@ -3347,7 +3404,8 @@ async function bootstrap(){
       else if(currentUser.role==='librarian')openLibrary();
       else show('view-landing');
     }catch(e){setToken(null);show('view-landing');}
-  } else show('view-landing');
+    } else show('view-landing');
+  renderTop(); /* на случай гостя — скрывает табы */
   initReveal();animateCounters();initGoogleLogin();initTelegramLogin();bindAll();registerSW();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrap);
