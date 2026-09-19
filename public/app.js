@@ -247,31 +247,60 @@ var bankState={
   pickerList: []
 };
 
-/* [WIDGETS] Тематики номеров ЕГЭ профиль */
+/* [WIDGETS] Тематики номеров ЕГЭ профиль 2027 (по кодификатору ФИПИ) */
 var EXAM_TOPICS = {
   1:  'Планиметрия',
   2:  'Векторы',
   3:  'Стереометрия',
-  4:  'Теория вероятностей',
-  5:  'Теория вероятностей',
-  6:  'Уравнения',
-  7:  'Производная',
-  8:  'Производная',
-  9:  'Вычисления и преобразования',
+  4:  'Вероятность',
+  5:  'Вероятность · сложное',
+  6:  'Случайные величины',
+  7:  'Уравнения',
+  8:  'Вычисления',
+  9:  'Производная',
   10: 'Прикладные задачи',
-  11: 'Функции и графики',
-  12: 'Производная',
-  13: 'Тригонометрия',
-  14: 'Стереометрия',
-  15: 'Неравенства',
-  16: 'Экономические задачи',
-  17: 'Планиметрия',
-  18: 'Параметры',
-  19: 'Теория чисел',
-  20: 'Нестандартные задачи'
+  11: 'Текстовые задачи',
+  12: 'Функции и графики',
+  13: 'Финансы',
+  14: 'Тригонометрия',
+  15: 'Стереометрия · 2ч',
+  16: 'Неравенства',
+  17: 'Прикладная · 2ч',
+  18: 'Планиметрия · 2ч',
+  19: 'Параметры',
+  20: 'Теория чисел'
 };
 
-/* [WIDGETS] Склонение слова "задача" */
+/* [WIDGETS] Иконки тем — SVG-строки для большей чёткости */
+var EXAM_ICONS = {
+  1:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18L12 4z"/></svg>',
+  2:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="14 5 19 5 19 10"/></svg>',
+  3:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12"/><path d="M3 7l9 5 9-5"/></svg>',
+  4:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M9 15h.01M15 15h.01M12 12h.01"/></svg>',
+  5:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/></svg>',
+  6:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4v-6H3zM10 20h4V8h-4zM17 20h4V4h-4z"/></svg>',
+  7:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><polyline points="8 8 4 12 8 16"/><polyline points="16 8 20 12 16 16"/></svg>',
+  8:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M19 4v16M5 12h14M9 4l-4 4M15 20l4-4"/></svg>',
+  9:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20c4-8 8-12 14-14M17 6h4v4"/></svg>',
+  10: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 2.5a7 7 0 0 0-1.7 1L5 5.5l-2 3.5L5 11a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.7 1l.3 2.5h5l.3-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1z"/></svg>',
+  11: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13l5 6-5 6H3z"/><path d="M8 10v4M12 10v4"/></svg>',
+  12: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 9 8l4 6 3-4 5 10z"/></svg>',
+  13: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c0-1-1-2-2.5-2s-2.5 1-2.5 2 1 2 2.5 2 2.5 1 2.5 2-1 2-2.5 2-2.5-1-2.5-2M12 6v12"/></svg>',
+  14: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18c0-8 8-14 16-14M4 18c8 0 14-8 14-16"/></svg>',
+  15: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v12l8 4 8-4V6z"/><path d="M12 12 4 6M12 12l8-6M12 12v10"/></svg>',
+  16: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6l2-8 2 16 2-8h4"/></svg>',
+  17: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h6"/></svg>',
+  18: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>',
+  19: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2"/></svg>',
+  20: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21h10M9 3v6l-4 8c-.5 1 .3 2 1.5 2h11c1.2 0 2-1 1.5-2l-4-8V3"/><path d="M7 3h10"/></svg>'
+};
+
+/* Максимальный балл за задание (для подсказки при наведении) */
+var EXAM_MAX_POINTS = {
+  1:1, 2:1, 3:1, 4:1, 5:1, 6:1, 7:1, 8:1, 9:1, 10:1, 11:1, 12:1, 13:1,
+  14:2, 15:3, 16:2, 17:2, 18:3, 19:4, 20:4
+};
+
 function pluralTasks(n){
   var m10 = n % 10, m100 = n % 100;
   if (m10 === 1 && m100 !== 11) return 'задача';
@@ -279,7 +308,6 @@ function pluralTasks(n){
   return 'задач';
 }
 
-/* [WIDGETS] Рендер сетки виджетов 1–20 */
 function renderExamWidgets(counts){
   var host = document.getElementById('examWidgets');
   if (!host) return;
@@ -291,20 +319,32 @@ function renderExamWidgets(counts){
     var cnt = counts[num] || 0;
     var cls = 'exam-widget';
     if (cnt === 0) cls += ' empty';
+    if (cnt > 0 && cnt < 5) cls += ' low';
+    if (cnt >= 5) cls += ' full';
     if (num === cur) cls += ' active';
 
-    var pct = Math.min(100, cnt * 10);
+    var pct = Math.min(100, cnt * 12);
+    var pts = EXAM_MAX_POINTS[num] || 1;
+    var part = num <= 13 ? 'ч.1' : 'ч.2';
 
     var w = document.createElement('div');
     w.className = cls;
     w.dataset.num = num;
+    w.title = 'Задание №' + num + ' · ' + (EXAM_TOPICS[num] || '') + ' · макс. ' + pts + ' б.';
     w.innerHTML =
-      '<div class="exam-widget-num">' + num + '</div>' +
+      '<div class="exam-widget-top">' +
+        '<span class="exam-widget-icon">' + (EXAM_ICONS[num] || '') + '</span>' +
+        '<span class="exam-widget-part">' + part + '</span>' +
+      '</div>' +
+      '<div class="exam-widget-num">№' + num + '</div>' +
       '<div class="exam-widget-topic">' + (EXAM_TOPICS[num] || '—') + '</div>' +
       '<div class="exam-widget-bar">' +
         '<div class="exam-widget-bar-fill" style="width:' + pct + '%"></div>' +
       '</div>' +
-      '<div class="exam-widget-count">' + cnt + ' ' + pluralTasks(cnt) + '</div>';
+      '<div class="exam-widget-foot">' +
+        '<span class="exam-widget-count">' + cnt + '</span>' +
+        '<span class="exam-widget-pts">макс ' + pts + 'б</span>' +
+      '</div>';
 
     w.onclick = (function(n){
       return function(){
@@ -325,7 +365,6 @@ function renderExamWidgets(counts){
   }
 }
 
-/* [WIDGETS] Синхронизация активного виджета с селектом */
 function syncWidgetsActive(){
   var cur = ($('#bankFilterNum') && parseInt($('#bankFilterNum').value)) || 0;
   $$('#examWidgets .exam-widget').forEach(function(el){
@@ -333,7 +372,6 @@ function syncWidgetsActive(){
   });
 }
 
-/* [WIDGETS] Загрузка счётчиков с сервера */
 async function refreshExamWidgets(){
   try {
     var r = await api('/task-bank/counts');
