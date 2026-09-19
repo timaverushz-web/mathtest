@@ -2163,4 +2163,223 @@ app.get('/api/profile/teacher', auth, async (req, res) => {
     const args = isAdmin ? [] : [req.user.id];
     const classesCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM classes ${where}`, args)).rows[0].n;
     const studentsCount = (await pool.query(
-      `SELECT COUNT(DISTINCT cs.student
+      `SELECT COUNT(DISTINCT cs.student_id)::int AS n
+       FROM class_students cs JOIN classes c ON c.id=cs.class_id ${isAdmin ? '' : 'WHERE c.teacher_id=$1'}`, args)).rows[0].n;
+    const testsCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM tests ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
+    const booksCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM books ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
+    const bankCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM task_bank ${isAdmin ? '' : 'WHERE owner_id=$1 OR is_public=true'}`, args)).rows[0].n;
+    const subR = (await pool.query(
+      `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
+       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}`, args)).rows[0];
+    const recent = (await pool.query(
+      `SELECT s.id,s.student_name,s.score,s.max,s.at,t.title AS test_title
+       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}
+       ORDER BY s.at DESC LIMIT 5`, args)).rows
+      .map(r => ({ id: r.id, studentName: r.student_name, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
+    res.json({ classesCount, studentsCount, testsCount, booksCount, bankCount,
+      submissionsCount: subR.n, avgPercent: Math.round(subR.avg), recent });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/profile/student', auth, async (req, res) => {
+  try {
+    const cR = (await pool.query('SELECT COUNT(*)::int AS n FROM class_students WHERE student_id=$1', [req.user.id])).rows[0].n;
+    const sR = (await pool.query(
+      `SELECT COUNT(*)::int AS n,
+              COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg,
+              COALESCE(SUM(score),0)::int AS ts, COALESCE(SUM(max),0)::int AS tm
+       FROM submissions WHERE student_id=$1`, [req.user.id])).rows[0];
+    const recent = (await pool.query(
+      `SELECT s.id,s.score,s.max,s.at,t.title AS test_title
+       FROM submissions s JOIN tests t ON t.id=s.test_id WHERE s.student_id=$1 ORDER BY s.at DESC LIMIT 5`,
+      [req.user.id])).rows
+      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
+    const myCids = await getClassIdsForStudent(req.user.id);
+    const booksCount = (await pool.query(
+      `SELECT COUNT(*)::int AS n FROM books WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]`, [myCids])).rows[0].n;
+    const all = (await pool.query(
+      `SELECT s.id,s.score,s.max,s.at,s.attempt,t.title AS test_title,c.name AS class_name,s.class_id
+       FROM submissions s JOIN tests t ON t.id=s.test_id JOIN classes c ON c.id=s.class_id
+       WHERE s.student_id=$1 ORDER BY s.at DESC`, [req.user.id])).rows
+      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), attempt: r.attempt,
+                   testTitle: r.test_title, className: r.class_name, classId: r.class_id,
+                   pct: r.max ? Math.round(r.score / r.max * 100) : 0 }));
+    const byClass = {};
+    all.forEach(s => {
+      if (!byClass[s.classId]) byClass[s.classId] = { name: s.className, count: 0, sumPct: 0, best: 0, worst: 100 };
+      byClass[s.classId].count++;
+      byClass[s.classId].sumPct += s.pct;
+      if (s.pct > byClass[s.classId].best) byClass[s.classId].best = s.pct;
+      if (s.pct < byClass[s.classId].worst) byClass[s.classId].worst = s.pct;
+    });
+    const classStats = Object.values(byClass).map(c => ({
+      name: c.name, count: c.count, avgPct: Math.round(c.sumPct / c.count), best: c.best, worst: c.worst
+    }));
+    res.json({ classesCount: cR, submissionsCount: sR.n, avgPercent: Math.round(sR.avg),
+      totalScore: sR.ts, totalMax: sR.tm, booksCount, recent, all, classStats });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
+  try{
+    const limit = Math.min(500, parseInt(req.query.limit) || 200);
+    const r = await pool.query('SELECT * FROM action_logs ORDER BY at DESC LIMIT $1', [limit]);
+    res.json({ logs: r.rows.map(l => ({ id: l.id, userId: l.user_id, userName: l.user_name,
+      action: l.action, details: l.details, at: Number(l.at) })) });
+  }catch(e){ res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/admin/users', auth, adminOnly, async (req, res) => {
+  try {
+    const q = (req.query.q || '').toString().trim().toLowerCase();
+    const role = req.query.role || '';
+    let sql = 'SELECT * FROM users';
+    const args = [];
+    const conds = [];
+    if (role) { conds.push('role=$' + (args.length + 1)); args.push(role); }
+    if (q) {
+      conds.push('(LOWER(name) LIKE $' + (args.length + 1) + ' OR LOWER(email) LIKE $' + (args.length + 1) + ')');
+      args.push('%' + q + '%');
+    }
+    if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
+    sql += ' ORDER BY created_at DESC LIMIT 500';
+    const rows = (await pool.query(sql, args)).rows;
+    const users = [];
+    for (const u of rows) {
+      const stats = (await pool.query(
+        `SELECT
+          (SELECT COUNT(*)::int FROM classes WHERE teacher_id=$1) AS classes_created,
+          (SELECT COUNT(*)::int FROM class_students WHERE student_id=$1) AS classes_joined,
+          (SELECT COUNT(*)::int FROM submissions WHERE student_id=$1) AS submissions,
+          (SELECT COUNT(*)::int FROM books WHERE owner_id=$1) AS books`, [u.id])).rows[0];
+      users.push({ id: u.id, name: u.name, email: u.email, role: u.role,
+                   hasAvatar: !!u.avatar_key, createdAt: Number(u.created_at), stats });
+    }
+    const stats = {
+      total: (await pool.query('SELECT COUNT(*)::int AS n FROM users')).rows[0].n,
+      admin: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='admin'")).rows[0].n,
+      teacher: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='teacher'")).rows[0].n,
+      student: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='student'")).rows[0].n,
+      librarian: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='librarian'")).rows[0].n,
+      tests: (await pool.query('SELECT COUNT(*)::int AS n FROM tests')).rows[0].n,
+      books: (await pool.query('SELECT COUNT(*)::int AS n FROM books')).rows[0].n,
+      bank: (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n
+    };
+    res.json({ users, stats });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/admin/users/:id/role', auth, adminOnly, async (req, res) => {
+  try {
+    const { role } = req.body || {};
+    if (!['admin', 'teacher', 'student', 'librarian'].includes(role))
+      return res.status(400).json({ error: 'Неверная роль' });
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя менять свою роль' });
+    await pool.query('UPDATE users SET role=$1 WHERE id=$2', [role, req.params.id]);
+    const target = await getUserById(req.params.id);
+    await logAction(req.user.id, req.user.name, 'Сменил роль', (target ? target.name : req.params.id) + ' → ' + role);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/admin/users/:id/reset-password', auth, adminOnly, async (req, res) => {
+  try {
+    const newPass = crypto.randomBytes(4).toString('hex');
+    await pool.query('UPDATE users SET pass=$1 WHERE id=$2', [await bcrypt.hash(newPass, 10), req.params.id]);
+    const target = await getUserById(req.params.id);
+    await logAction(req.user.id, req.user.name, 'Сбросил пароль', target ? target.name + ' (' + target.email + ')' : req.params.id);
+    res.json({ password: newPass });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
+  try {
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя удалить себя' });
+    const u = await getUserById(req.params.id);
+    if (!u) return res.status(404).json({ error: 'Не найден' });
+    if (u.avatar_key) await s3Del(u.avatar_key);
+    await pool.query('DELETE FROM users WHERE id=$1', [u.id]);
+    await pool.query('DELETE FROM class_students WHERE student_id=$1', [u.id]);
+    await pool.query('DELETE FROM group_students WHERE student_id=$1', [u.id]);
+    await pool.query('DELETE FROM notifications WHERE user_id=$1', [u.id]);
+    await pool.query('DELETE FROM bookmarks WHERE user_id=$1', [u.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил пользователя', u.name + ' (' + u.email + ')');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/admin/backups', auth, adminOnly, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM backups ORDER BY created_at DESC LIMIT 20');
+    res.json({ backups: r.rows.map(b => ({ id: b.id, key: b.key, size: Number(b.size) || 0,
+      auto: b.auto, createdAt: Number(b.created_at) })) });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/admin/backups/create', auth, adminOnly, async (req, res) => {
+  try {
+    const r = await createBackup(false);
+    await logAction(req.user.id, req.user.name, 'Создал бэкап', r.key);
+    res.json({ ok: true, key: r.key, size: r.size });
+  } catch (e) { res.status(500).json({ error: 'Ошибка: ' + e.message }); }
+});
+
+app.get('/api/admin/backups/:id/download', auth, adminOnly, async (req, res) => {
+  try {
+    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
+    if (!b) return res.status(404).json({ error: 'Бэкап не найден' });
+    const { buffer, contentType } = await s3GetBuffer(b.key);
+    res.setHeader('Content-Type', contentType || 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + path.basename(b.key) + '"');
+    res.send(buffer);
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
+    if (!b) return res.status(404).json({ error: 'Не найден' });
+    await s3Del(b.key);
+    await pool.query('DELETE FROM backups WHERE id=$1', [b.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил бэкап', b.key);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get(/^\/(?!api\/).*/, (req, res, next) => {
+  if (req.path.includes('.')) return next();
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+app.use((err, req, res, next) => {
+  console.error('❌', err.message);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'Внутренняя ошибка' });
+});
+
+(async () => {
+  try { await initDB(); console.log('✅ Схема БД готова'); }
+  catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
+
+  if (s3) {
+    try {
+      const probeKey = 'healthcheck/probe_' + Date.now() + '.txt';
+      await s3Put(probeKey, Buffer.from('ok'), 'text/plain');
+      await s3Del(probeKey);
+      console.log('✅ B2 проверен');
+    } catch (e) {
+      console.error('❌ B2 self-test:', e.message);
+    }
+  }
+
+  app.listen(PORT, () => {
+    console.log('═══════════════════════════════════');
+    console.log('✅ MathTest v3.2 (банк заданий ЕГЭ)');
+    console.log('🌐 Порт: ' + PORT);
+    console.log('📦 B2: ' + (s3 ? s3Endpoint : '❌'));
+    console.log('📚 Библиотека: PDF + обложка');
+    console.log('🗂️  Банк заданий: включён');
+    console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
+    console.log('═══════════════════════════════════');
+  });
+})();
