@@ -1474,3 +1474,15 @@ body.reader-mode main { padding: 0 !important; }
   line-height: 1.4;
   display: block;
 }
+/* Предпросмотр в режиме обычного текста (когда есть кириллица) */
+.mi-preview.mi-preview-plain {
+  font-family: inherit;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--text);
+  border-style: solid;
+  border-color: var(--border-soft);
+  background: var(--panel-2);
+  white-space: pre-wrap;
+  padding: 14px 18px;
+}
