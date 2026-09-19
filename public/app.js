@@ -856,9 +856,11 @@ async function openTaskBank(){
     fillBankNumSelect(numSel, 'profile', curVal);
   }
 
-  /* Скрываем кнопку "Новая задача" у учеников */
+   /* Кнопки репетитора: новая задача + импорт */
   var bAdd=$('#btnAddBankTask');
   if(bAdd) bAdd.hidden = !canEditBank();
+  var bImp=$('#btnImportBankCsv');
+  if(bImp) bImp.hidden = !canEditBank();
 
   await refreshExamWidgets();
   try{
@@ -1657,6 +1659,30 @@ function initEditorFields(){
   var bstb=$('#btnSaveToBank'); if(bstb) bstb.onclick = saveCurrentToBank;
 
   var babs=$('#btnAddBankTask');
+    var bImp=$('#btnImportBankCsv');
+  if(bImp) bImp.onclick = function(){ var f=$('#bankCsvInput'); if(f) f.click(); };
+  var bcsv=$('#bankCsvInput');
+  if(bcsv) bcsv.onchange = async function(){
+    var file = this.files[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file);
+    try {
+      toast('Импорт задач...', 'info');
+      var r = await apiForm('/task-bank/import-csv', fd);
+      var msg = 'Добавлено: ' + r.added;
+      if (r.failed && r.failed.length) msg += ' · ошибок: ' + r.failed.length;
+      toast(msg, r.added > 0 ? 'ok' : 'warn');
+      if (r.failed && r.failed.length) {
+        console.warn('Проблемные строки:', r.failed);
+      }
+      bcsv.value = '';
+      await loadBankList();
+      refreshExamWidgets();
+    } catch(e) {
+      toast(e.message, 'err');
+    }
+  };
   if(babs) babs.onclick = function(){ openBankForm(null); };
   var bbsc=$('#btnBankSave'); if(bbsc) bbsc.onclick = saveBankTask;
   var bbcx=$('#btnBankCancel'); if(bbcx) bbcx.onclick = closeBankForm;
