@@ -414,6 +414,19 @@ function userToJSON(u) {
     hasAvatar: !!u.avatar_key,
     telegram: u.telegram_chat_id ? { chatId: Number(u.telegram_chat_id), username: u.telegram_username } : null
   };
+  /* Автоназначение админа по ADMIN_EMAIL */
+async function applyAdminRole(user) {
+  if (!user) return user;
+  const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+  if (!adminEmail) return user;
+  const userEmail = (user.email || '').toLowerCase().trim();
+  if (userEmail === adminEmail && user.role !== 'admin') {
+    await pool.query("UPDATE users SET role='admin' WHERE id=$1", [user.id]);
+    user.role = 'admin';
+    console.log('👑 Роль admin назначена: ' + user.email);
+  }
+  return user;
+}
 }
 async function getClassIdsForStudent(sid) {
   const r = await pool.query('SELECT class_id FROM class_students WHERE student_id=$1', [sid]);
@@ -637,14 +650,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
     loginRateSuccess(ip);
 
-    let role = u.role;
-    if (process.env.ADMIN_EMAIL &&
-        u.email.toLowerCase().trim() === process.env.ADMIN_EMAIL.toLowerCase().trim() &&
-        u.role !== 'admin') {
-      await pool.query("UPDATE users SET role='admin' WHERE id=$1", [u.id]);
-      role = 'admin';
-    }
-    const token = jwt.sign({ id: u.id, role: role, name: u.name }, SECRET, { expiresIn: '30d' });
+       await applyAdminRole(u);
+    const token = jwt.sign({ id: u.id, role: u.role, name: u.name }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: u.id, name: u.name, role: role } });
   } catch (err) {
     res.status(500).json({ error: 'Ошибка' });
@@ -654,6 +661,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', auth, async (req, res) => {
   const u = await getUserById(req.user.id);
   if (!u) return res.status(401).json({ error: 'Войдите заново' });
+  await applyAdminRole(u);
   res.json({ user: userToJSON(u) });
 });
 
@@ -689,6 +697,7 @@ app.post('/api/auth/telegram', async (req, res) => {
         user = await getUserById(id);
       }
     }
+        await applyAdminRole(user);
     const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
@@ -701,15 +710,19 @@ app.post('/api/auth/google', async (req, res) => {
     if (!credential) return res.status(400).json({ error: 'Нет токена' });
     const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
     const p = ticket.getPayload();
-    let user = await getUserByEmail(p.email);
+        let user = await getUserByEmail(p.email);
     if (!user) {
       const id = uid();
+      const isAdmin = process.env.ADMIN_EMAIL &&
+        p.email.toLowerCase().trim() === process.env.ADMIN_EMAIL.toLowerCase().trim();
       await pool.query(
         `INSERT INTO users (id,name,email,pass,role,link_code,created_at)
-         VALUES ($1,$2,$3,'google_no_password','student',$4,$5)`,
-        [id, p.name || p.email, p.email.toLowerCase(), uid() + uid(), Date.now()]);
+         VALUES ($1,$2,$3,'google_no_password',$4,$5,$6)`,
+        [id, p.name || p.email, p.email.toLowerCase(),
+         isAdmin ? 'admin' : 'student', uid() + uid(), Date.now()]);
       user = await getUserById(id);
     }
+    await applyAdminRole(user);
     const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, SECRET, { expiresIn: '30d' });
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
