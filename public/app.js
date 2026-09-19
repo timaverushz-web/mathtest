@@ -86,7 +86,8 @@ async function apiForm(path,fd,method){
 function isTeacherLike(){return currentUser&&(currentUser.role==='teacher'||currentUser.role==='admin');}
 function isAdmin(){return currentUser&&currentUser.role==='admin';}
 function canUploadBooks(){return currentUser&&['teacher','admin','librarian'].includes(currentUser.role);}
-function canUseBank(){return currentUser&&['teacher','admin'].includes(currentUser.role);}
+function canUseBank(){return !!currentUser;} /* банк открыт всем авторизованным */
+function canEditBank(){return currentUser&&['teacher','admin'].includes(currentUser.role);} /* редактирование — только репетитору */
 function roleLabel(){
   if(!currentUser)return '';
   return {'admin':'администратор','teacher':'репетитор','librarian':'библиотекарь','student':'ученик'}[currentUser.role]||currentUser.role;
@@ -491,7 +492,7 @@ function buildUserMenu(){
   function sep(){var d=document.createElement('div');d.className='user-menu-sep';return d;}
   menu.appendChild(item('i-settings','Личный кабинет','Профиль и настройки',openProfileStats));
   if(isTeacherLike()) menu.appendChild(item('i-chart','Дашборд','Успеваемость, топ учеников',openDashboard));
-  if(canUseBank()) menu.appendChild(item('i-layers','Банк заданий','Задачи по номерам ЕГЭ',openTaskBank));
+   if(currentUser) menu.appendChild(item('i-layers','Банк заданий','Задачи по номерам ЕГЭ',openTaskBank));
   menu.appendChild(item('i-book','Библиотека','Учебники и пособия',openLibrary));
   if(isTeacherLike()) menu.appendChild(item('i-edit','Мои работы','Работы и группы',goTeacher));
   else if(currentUser&&currentUser.role==='student') menu.appendChild(item('i-edit','Мои работы','Доступные работы',goStudent));
@@ -816,10 +817,13 @@ function fillBankNumSelect(sel, examType, selected){
 }
 
 async function openTaskBank(){
-  if(!canUseBank()){ toast('Банк заданий доступен репетиторам', 'warn'); return; }
+  if(!currentUser){ show('view-auth'); return; }
   show('view-taskbank');
   var host=$('#bankList');
   skeleton(host, 4);
+  /* Кнопка "Новая задача" только для репетитора/админа */
+  var bAdd=$('#btnAddBankTask');
+  if(bAdd) bAdd.hidden = !canEditBank();
   await refreshExamWidgets();
   try{
     if(!bankState.meta.topics.length){
@@ -934,7 +938,7 @@ function renderBankTaskCard(t){
   meta.push('<span class="pill">'+(t.points||1)+' б.</span>');
   if(t.isPublic) meta.push('<span class="pill green"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-globe"/></svg> публичная</span>');
 
-  var canEdit = isAdmin() || (currentUser && t.ownerId === currentUser.id);
+    var canEdit = canEditBank() && (isAdmin() || (currentUser && t.ownerId === currentUser.id));
 
   card.innerHTML = '<div class="bank-task-meta">'+meta.join(' ')+'</div>'+
     '<div class="bank-task-body"></div>'+
@@ -1335,6 +1339,10 @@ async function openClassView(id){
       };
       $('#classGroups').parentNode.appendChild(bb);
     }
+       /* Карточка «Работы группы» — только для репетитора */
+    var cardTests = $('#classTestsCard');
+    if(cardTests) cardTests.hidden = !isTeacherLike();
+
     var ts=$('#classTests');ts.innerHTML='';
     if(!r.tests.length)ts.innerHTML='<div class="empty" style="padding:32px">Этой группе ещё не назначено работ.</div>';
     r.tests.forEach(function(t){
@@ -1907,9 +1915,29 @@ async function renderStudentClasses(){
       el.innerHTML='<div class="avatar">'+esc((c.name[0]||'?').toUpperCase())+'</div>'+
         '<div class="name"><div style="font-weight:600">'+esc(c.name)+'</div>'+
         '<div class="muted">Репетитор: '+esc(c.teacherName)+gH+'</div></div>';
-      var b=document.createElement('button');b.className='ghost small danger';b.textContent='Покинуть';
-      b.onclick=async function(){if(!confirm('Покинуть группу?'))return;try{await api('/classes/'+c.id+'/leave',{method:'POST'});toast('Вы покинули группу','info');renderStudentClasses();renderStudentTests();}catch(e){toast(e.message,'err');}};
-      el.appendChild(b);host.appendChild(el);
+
+      /* Кнопка «Открыть» — заходим в группу: чат + работы */
+      var bOpen=document.createElement('button');
+      bOpen.className='primary small';
+      bOpen.innerHTML='<svg><use href="#i-arrow-right"/></svg> Открыть';
+      bOpen.onclick=function(){ openClassView(c.id); };
+      el.appendChild(bOpen);
+
+      /* Кнопка «Покинуть» — с подтверждением */
+      var b=document.createElement('button');
+      b.className='ghost small danger';
+      b.textContent='Покинуть';
+      b.onclick=async function(){
+        if(!confirm('Покинуть группу «'+c.name+'»?'))return;
+        try{
+          await api('/classes/'+c.id+'/leave',{method:'POST'});
+          toast('Вы покинули группу','info');
+          renderStudentClasses();
+          renderStudentTests();
+        }catch(e){toast(e.message,'err');}
+      };
+      el.appendChild(b);
+      host.appendChild(el);
     });
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
@@ -3122,9 +3150,8 @@ function bindAll(){
         else if(currentUser.role==='teacher'||currentUser.role==='admin') goTeacher();
         else openLibrary();
       }
-      else if(tab==='bank'){
-        if(canUseBank()) openTaskBank();
-        else toast('Банк заданий доступен репетиторам', 'warn');
+            else if(tab==='bank'){
+        openTaskBank();
       }
       else if(tab==='library'){
         openLibrary();
@@ -3369,9 +3396,8 @@ function bindAll(){
         else if(currentUser.role==='teacher'||currentUser.role==='admin')goTeacher();
         else openLibrary();
       }
-      else if(k==='bank'){
-        if(canUseBank()) openTaskBank();
-        else toast('Банк заданий доступен репетиторам', 'warn');
+           else if(k==='bank'){
+        openTaskBank();
       }
       else if(k==='library')openLibrary();
       else if(k==='profile')openProfileStats();
