@@ -2500,7 +2500,25 @@ app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
+/* ========== ГЕНЕРАЦИЯ ЗАДАЧ ========== */
+const { generateTasks } = require('./task-generator');
 
+app.post('/api/admin/generate-tasks', auth, adminOnly, async (req, res) => {
+  try {
+    const N = Math.min(200, Math.max(1, parseInt(req.body.n) || 20));
+    const u = await getUserById(req.user.id);
+    if (!u) return res.status(401).json({ error: 'Войдите заново' });
+    console.log('🎲 Генерация задач: N=' + N + ' для ' + u.email);
+    const result = await generateTasks(pool, u.id, N);
+    await logAction(u.id, u.name, 'Сгенерировал задачи',
+      'Добавлено: ' + result.added + ' (N=' + N + ')');
+    console.log('✅ Генерация завершена: +' + result.added);
+    res.json(result);
+  } catch (e) {
+    console.error('generate-tasks:', e.message);
+    res.status(500).json({ error: 'Ошибка генерации: ' + e.message });
+  }
+});
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (req.path.includes('.')) return next();
