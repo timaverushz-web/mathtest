@@ -423,13 +423,19 @@ function initReveal(){
   els.forEach(function(el){io.observe(el);});
 }
 function animateCounters(){
-  var els=$$('.landing-stat .ls-value[data-count]');
+  var els=$$('.ld-number-value[data-count], .landing-stat .ls-value[data-count]');
   els.forEach(function(el){
     var raw=el.dataset.count;if(raw==='infinity') return;
     var target=parseInt(raw);if(isNaN(target)) return;
     var suffix=el.textContent.replace(/^[\d\s]+/,'');
-    var dur=1400,start=null;
-    function tick(ts){if(!start)start=ts;var p=Math.min(1,(ts-start)/dur);var v=Math.round(target*(1-Math.pow(1-p,3)));el.textContent=v+suffix;if(p<1)requestAnimationFrame(tick);}
+    var dur=1600,start=null;
+    function tick(ts){
+      if(!start)start=ts;
+      var p=Math.min(1,(ts-start)/dur);
+      var v=Math.round(target*(1-Math.pow(1-p,3)));
+      el.textContent=v.toLocaleString('ru-RU')+suffix;
+      if(p<1)requestAnimationFrame(tick);
+    }
     requestAnimationFrame(tick);
   });
 }
@@ -3117,6 +3123,8 @@ function bindAll(){
   if(ls1)ls1.onclick=function(){show('view-auth');switchAuthTab('reg');};
   if(ls2)ls2.onclick=function(){show('view-auth');switchAuthTab('reg');};
   if(ll)ll.onclick=function(){show('view-auth');switchAuthTab('login');};
+    var lbb=$('#landingBankBtn');
+  if(lbb)lbb.onclick=function(){show('view-auth');switchAuthTab('reg');};
   $$('.tab[data-tab]').forEach(function(t){t.onclick=function(){switchAuthTab(t.dataset.tab);};});
   $$('.pass-toggle').forEach(function(b){b.onclick=function(){var inp=$('#'+b.dataset.target);if(inp)inp.type=inp.type==='password'?'text':'password';};});
 
