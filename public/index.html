@@ -182,7 +182,7 @@
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-edit"/></svg></div><h3>Умный конструктор</h3><p>Формулы прямо в браузере — корни, интегралы, пределы. Панель символов и предпросмотр.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-chart"/></svg></div><h3>Автопроверка</h3><p>√16 = 4 = 2² будет зачтено. Числовое и символьное сравнение.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-users"/></svg></div><h3>Классы и группы</h3><p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-layers"/></svg></div><h3>Банк заданий ЕГЭ</h3><p>20 стартовых задач по номерам ЕГЭ профиля. Добавляйте свои и переиспользуйте в работах.</p></div>
+      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-layers"/></svg></div><h3>Банк заданий ЕГЭ</h3><p>Задачи по номерам ЕГЭ профиля. Добавляйте свои и переиспользуйте в работах.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-book"/></svg></div><h3>Библиотека книг</h3><p>Учебники в PDF. Ученики читают прямо в браузере — как в Яндекс.Книгах.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-crown"/></svg></div><h3>Роли и права</h3><p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности.</p></div>
     </div>
@@ -396,15 +396,13 @@
   <div id="ratingBody"></div>
 </section>
 
-<!-- ==================== БАНК ЗАДАНИЙ ==================== -->
 <section id="view-taskbank" class="view">
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromBank"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 class="page-title" style="margin:0;flex:1">Банк заданий</h1>
     <button class="primary" id="btnAddBankTask"><svg><use href="#i-plus"/></svg> Задача</button>
   </div>
-<!-- Виджеты номеров ЕГЭ -->
-<div id="examWidgets" class="exam-grid"></div>
+
   <div class="card" id="bankForm" hidden>
     <h3 id="bankFormTitle">Новая задача</h3>
     <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -468,6 +466,8 @@
     <p class="err" id="bankErr"></p>
   </div>
 
+  <div class="exam-widgets" id="examWidgets"></div>
+
   <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
     <input id="bankSearch" placeholder="Поиск по тексту задачи..." style="flex:1;min-width:220px;margin:0">
     <select id="bankFilterScope" style="width:auto;margin:0">
@@ -475,7 +475,7 @@
       <option value="my">Только мои</option>
       <option value="public">Только публичные</option>
     </select>
-       <select id="bankFilterExam" style="width:auto;margin:0">
+    <select id="bankFilterExam" style="width:auto;margin:0">
       <option value="">Все экзамены</option>
       <option value="profile">ЕГЭ профиль</option>
     </select>
@@ -767,7 +767,6 @@
 
 </main>
 
-<!-- ==================== МОДАЛКА ВЫБОРА ИЗ БАНКА ==================== -->
 <div class="modal-overlay" id="bankPickerModal" hidden>
   <div class="modal-card" style="max-width:900px;width:calc(100vw - 32px)">
     <div class="modal-head">
@@ -777,7 +776,7 @@
     <div style="padding:20px 24px 24px">
       <div class="bank-picker-filters">
         <input id="bpSearch" placeholder="Поиск по тексту..." style="flex:1;min-width:180px;margin:0">
-               <select id="bpExam" style="width:auto;margin:0">
+        <select id="bpExam" style="width:auto;margin:0">
           <option value="">Все экзамены</option>
           <option value="profile">ЕГЭ профиль</option>
         </select>
