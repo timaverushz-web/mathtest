@@ -3341,6 +3341,29 @@ function bindAll(){
   var bcr=$('#btnClassRating');if(bcr)bcr.onclick=openClassRating;
 
   var bcb=$('#btnCreateBackup');if(bcb)bcb.onclick=createBackupNow;
+    var bgt=$('#btnGenerateTasks');
+  if(bgt) bgt.onclick=async function(){
+    var N = parseInt($('#genTasksN').value) || 30;
+    if(N < 1 || N > 200){ toast('Число должно быть от 1 до 200', 'warn'); return; }
+    if(!confirm('Сгенерировать по ' + N + ' вариантов каждого типа?\nЭто займёт 20-60 секунд.')) return;
+    bgt.disabled = true;
+    var old = bgt.innerHTML;
+    bgt.innerHTML = 'Генерация… это может занять минуту';
+    var res = $('#genTasksResult');
+    if(res) res.textContent = '⏳ Работаем…';
+    try{
+      var r = await api('/admin/generate-tasks', { method:'POST', body:{ n: N } });
+      if(res) res.innerHTML = '✅ Добавлено: <b style="color:var(--ok)">' + r.added + '</b> задач'
+        + (r.failed ? ' · ошибок: ' + r.failed : '');
+      toast('Готово: +' + r.added + ' задач', 'ok');
+    }catch(e){
+      if(res) res.textContent = '❌ ' + e.message;
+      toast(e.message, 'err');
+    }finally{
+      bgt.disabled = false;
+      bgt.innerHTML = old;
+    }
+  };
   var as=$('#adminSearch');if(as)as.oninput=(function(){var t=null;return function(){clearTimeout(t);t=setTimeout(loadAdminUsers,300);};})();
   var arf=$('#adminRoleFilter');if(arf)arf.onchange=loadAdminUsers;
 
