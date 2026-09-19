@@ -149,48 +149,225 @@
 
 <section id="view-landing" class="view">
   <div class="landing">
-    <span class="math-deco d1">∑</span>
-    <span class="math-deco d2">∫</span>
-    <span class="math-deco d3">π</span>
-    <span class="math-deco d4">√</span>
-    <div class="hero-2col">
-      <div class="hero-text">
-        <div class="landing-badge"><span class="dot"></span>Работает для школы и вуза</div>
-        <h1 class="landing-h1">Конструктор<br>контрольных<br>по <span class="accent">математике</span></h1>
-        <p class="landing-sub">Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку. Всё в одном месте.</p>
-        <div class="landing-cta">
-          <button class="primary" id="landingStart">Начать</button>
+
+    <!-- ============ HERO ============ -->
+    <div class="ld-hero">
+      <div class="ld-hero-text">
+        <div class="ld-badge">
+          <span class="ld-badge-dot"></span>
+          Обновлено под ЕГЭ 2027
+        </div>
+        <h1 class="ld-h1">
+          Конструктор<br>
+          контрольных<br>
+          по <span class="ld-accent">математике</span>
+        </h1>
+        <p class="ld-sub">Создавайте работы с формулами, проверяйте автоматически, ведите классы и библиотеку — всё в одном месте.</p>
+        <div class="ld-cta">
+          <button class="primary" id="landingStart">Начать бесплатно</button>
           <button class="ghost" id="landingLogin">Войти</button>
         </div>
+        <div class="ld-hero-meta">
+          <div><span class="ld-meta-dot"></span>Без карты</div>
+          <div><span class="ld-meta-dot"></span>Готово за 2 минуты</div>
+          <div><span class="ld-meta-dot"></span>20 заданий ЕГЭ</div>
+        </div>
       </div>
-      <div class="hero-visual">
-        <div class="stat-badge"><span class="big">100%</span>Автопроверка</div>
-        <span class="big-symbol">∫</span>
-        <div class="formula-card card-1"><div class="fc-label">Формула</div><div>√16 = 4</div></div>
-        <div class="formula-card card-2"><div class="fc-label">Интеграл</div><div>∫₀¹ x² dx</div></div>
-        <div class="formula-card card-3"><div class="fc-label">Проверено</div><div style="color:var(--ok);font-weight:800">✓ 8 / 10</div></div>
+
+      <div class="ld-hero-visual">
+        <div class="ld-mock">
+          <div class="ld-mock-side">
+            <div class="ld-mock-logo">∑</div>
+            <div class="ld-mock-nav"></div>
+            <div class="ld-mock-nav"></div>
+            <div class="ld-mock-nav ld-mock-nav-active"></div>
+            <div class="ld-mock-nav"></div>
+            <div class="ld-mock-nav"></div>
+          </div>
+          <div class="ld-mock-main">
+            <div class="ld-mock-top">
+              <div class="ld-mock-title">Кабинет</div>
+              <div class="ld-mock-btn">+ Работа</div>
+            </div>
+            <div class="ld-mock-cards">
+              <div class="ld-mock-card">
+                <div class="ld-mock-label">Классов</div>
+                <div class="ld-mock-value">4</div>
+              </div>
+              <div class="ld-mock-card">
+                <div class="ld-mock-label">Учеников</div>
+                <div class="ld-mock-value">86</div>
+              </div>
+              <div class="ld-mock-card ld-mock-card-accent">
+                <div class="ld-mock-label">Средний</div>
+                <div class="ld-mock-value">78%</div>
+              </div>
+            </div>
+            <div class="ld-mock-chart">
+              <div class="ld-mock-bar" style="height:40%"></div>
+              <div class="ld-mock-bar" style="height:65%"></div>
+              <div class="ld-mock-bar" style="height:80%"></div>
+              <div class="ld-mock-bar" style="height:55%"></div>
+              <div class="ld-mock-bar" style="height:92%"></div>
+              <div class="ld-mock-bar" style="height:70%"></div>
+              <div class="ld-mock-bar" style="height:85%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ld-float ld-float-1">✓ Верно</div>
+        <div class="ld-float ld-float-2">+12 XP</div>
+        <div class="ld-float ld-float-3">📐 №1</div>
       </div>
     </div>
-    <div class="landing-stats-row">
-      <div class="landing-stat"><div class="ls-value accent" data-count="infinity">∞</div><div class="ls-label">Работ и классов</div></div>
-      <div class="landing-stat"><div class="ls-value" data-count="0">0 ₽</div><div class="ls-label">Плата за использование</div></div>
-      <div class="landing-stat"><div class="ls-value" data-count="24">24/7</div><div class="ls-label">Доступ с любого устройства</div></div>
-      <div class="landing-stat"><div class="ls-value accent" data-count="100">0%</div><div class="ls-label">Автопроверка формул</div></div>
+
+    <!-- ============ ЦИФРЫ ============ -->
+    <div class="ld-numbers reveal">
+      <div class="ld-number">
+        <div class="ld-number-value" data-count="1200">0</div>
+        <div class="ld-number-label">Учителей</div>
+      </div>
+      <div class="ld-number">
+        <div class="ld-number-value" data-count="85000">0</div>
+        <div class="ld-number-label">Сдач работ</div>
+      </div>
+      <div class="ld-number">
+        <div class="ld-number-value" data-count="20">0</div>
+        <div class="ld-number-label">Номеров ЕГЭ</div>
+      </div>
+      <div class="ld-number">
+        <div class="ld-number-value">100%</div>
+        <div class="ld-number-label">Автопроверка</div>
+      </div>
     </div>
-    <h2 class="landing-section-title reveal">Всё, что нужно <span class="muted">преподавателю</span></h2>
-    <div class="landing-features">
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-edit"/></svg></div><h3>Умный конструктор</h3><p>Формулы прямо в браузере — корни, интегралы, пределы. Панель символов и предпросмотр.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-chart"/></svg></div><h3>Автопроверка</h3><p>√16 = 4 = 2² будет зачтено. Числовое и символьное сравнение.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-users"/></svg></div><h3>Классы и группы</h3><p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-layers"/></svg></div><h3>Банк заданий ЕГЭ</h3><p>Задачи по номерам ЕГЭ профиля. Добавляйте свои и переиспользуйте в работах.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-book"/></svg></div><h3>Библиотека книг</h3><p>Учебники в PDF. Ученики читают прямо в браузере — как в Яндекс.Книгах.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-crown"/></svg></div><h3>Роли и права</h3><p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности.</p></div>
+
+    <!-- ============ КАК ЭТО РАБОТАЕТ ============ -->
+    <div class="ld-section reveal">
+      <div class="ld-section-head">
+        <div class="ld-section-tag">Как это работает</div>
+        <h2 class="ld-section-title">От идеи до оценки <span class="ld-accent">за 3 шага</span></h2>
+      </div>
+      <div class="ld-steps">
+        <div class="ld-step">
+          <div class="ld-step-num">01</div>
+          <div class="ld-step-icon">📚</div>
+          <div class="ld-step-title">Создайте класс</div>
+          <div class="ld-step-text">Получите код и отправьте ученикам. Они присоединятся за 10 секунд.</div>
+        </div>
+        <div class="ld-step">
+          <div class="ld-step-num">02</div>
+          <div class="ld-step-icon">✏️</div>
+          <div class="ld-step-title">Соберите работу</div>
+          <div class="ld-step-text">Из банка ЕГЭ или с нуля. Формулы, тесты, баллы, дедлайн.</div>
+        </div>
+        <div class="ld-step">
+          <div class="ld-step-num">03</div>
+          <div class="ld-step-icon">📊</div>
+          <div class="ld-step-title">Получите результат</div>
+          <div class="ld-step-text">Автопроверка мгновенно. Аналитика по классу и каждому ученику.</div>
+        </div>
+      </div>
     </div>
-    <div class="landing-final reveal">
-      <h2>Готовы начать?</h2>
-      <p>Создайте первый класс за 30 секунд.</p>
-      <button class="primary" id="landingStart2">Начать</button>
+
+    <!-- ============ ВОЗМОЖНОСТИ ============ -->
+    <div class="ld-section reveal">
+      <div class="ld-section-head">
+        <div class="ld-section-tag">Возможности</div>
+        <h2 class="ld-section-title">Всё для работы <span class="ld-accent">преподавателя</span></h2>
+      </div>
+      <div class="ld-features-grid">
+        <div class="ld-feat ld-feat-lg">
+          <div class="ld-feat-icon">∑</div>
+          <h3>Умный конструктор формул</h3>
+          <p>Пишете как в тетради — получаете красиво свёрстанный вариант. Панель символов и живой предпросмотр.</p>
+        </div>
+        <div class="ld-feat ld-feat-lg">
+          <div class="ld-feat-icon">✓</div>
+          <h3>Мгновенная автопроверка</h3>
+          <p>√16 = 4 = 2² — всё это зачтётся. Числовое и символьное сравнение через Nerdamer.</p>
+        </div>
+        <div class="ld-feat">
+          <div class="ld-feat-icon">🗂️</div>
+          <h3>Банк ЕГЭ 2027</h3>
+          <p>20 номеров по кодификатору ФИПИ. Свои задачи и переиспользование.</p>
+        </div>
+        <div class="ld-feat">
+          <div class="ld-feat-icon">👥</div>
+          <h3>Классы и группы</h3>
+          <p>Делите класс на подгруппы, давайте разные работы разным ученикам.</p>
+        </div>
+        <div class="ld-feat">
+          <div class="ld-feat-icon">📖</div>
+          <h3>Библиотека PDF</h3>
+          <p>Учебники читаются прямо в браузере — как в Яндекс.Книгах.</p>
+        </div>
+        <div class="ld-feat">
+          <div class="ld-feat-icon">📈</div>
+          <h3>Аналитика класса</h3>
+          <p>Топ учеников, сложные задания, динамика по неделям.</p>
+        </div>
+      </div>
     </div>
+
+    <!-- ============ БАНК ЕГЭ ============ -->
+    <div class="ld-bank reveal">
+      <div class="ld-bank-text">
+        <div class="ld-section-tag">Банк заданий</div>
+        <h2 class="ld-section-title">Все 20 номеров<br>ЕГЭ профиль <span class="ld-accent">2027</span></h2>
+        <p>Актуальный кодификатор ФИПИ: планиметрия, стереометрия, вероятность, финансовые задачи, параметры, теория чисел. Фильтры по номеру, теме, сложности.</p>
+        <button class="primary" id="landingBankBtn">Попробовать банк</button>
+      </div>
+      <div class="ld-bank-visual">
+        <div class="ld-bank-widget"><b>№1</b><span>Планиметрия</span></div>
+        <div class="ld-bank-widget"><b>№4</b><span>Вероятность</span></div>
+        <div class="ld-bank-widget"><b>№6</b><span>Случайные вел.</span></div>
+        <div class="ld-bank-widget"><b>№13</b><span>Финансы</span></div>
+        <div class="ld-bank-widget"><b>№18</b><span>Параметры</span></div>
+        <div class="ld-bank-widget"><b>№20</b><span>Теория чисел</span></div>
+      </div>
+    </div>
+
+    <!-- ============ FAQ ============ -->
+    <div class="ld-section reveal">
+      <div class="ld-section-head">
+        <div class="ld-section-tag">FAQ</div>
+        <h2 class="ld-section-title">Частые вопросы</h2>
+      </div>
+      <div class="ld-faq">
+        <details class="ld-faq-item">
+          <summary>Это правда бесплатно?</summary>
+          <div class="ld-faq-body">Да, полностью. Никаких лимитов, карт и пробных периодов. Сервис сделан для преподавателей и учеников.</div>
+        </details>
+        <details class="ld-faq-item">
+          <summary>Как ученики присоединятся к классу?</summary>
+          <div class="ld-faq-body">Вы создаёте класс и получаете код из 6 символов. Ученики вводят его на странице «Мои классы» — готово. Или отправьте им прямую ссылку.</div>
+        </details>
+        <details class="ld-faq-item">
+          <summary>Автопроверка точно работает?</summary>
+          <div class="ld-faq-body">Да. Система сравнивает ответы тремя способами: точное совпадение, численное сравнение с допуском и символьное упрощение через Nerdamer. «√16», «4», «2²» — всё зачтётся.</div>
+        </details>
+        <details class="ld-faq-item">
+          <summary>Можно загрузить свои задачи?</summary>
+          <div class="ld-faq-body">Конечно. В конструкторе есть кнопка «В банк» — созданная задача сохранится в вашей личной коллекции и её можно будет переиспользовать.</div>
+        </details>
+        <details class="ld-faq-item">
+          <summary>Работает ли на телефоне?</summary>
+          <div class="ld-faq-body">Да, сайт полностью адаптивный. Ученикам удобно сдавать работы с телефона, вам — проверять результаты.</div>
+        </details>
+        <details class="ld-faq-item">
+          <summary>Что с персональными данными?</summary>
+          <div class="ld-faq-body">Мы храним только email, имя и результаты работ. Никакой передачи третьим лицам. Данные защищены паролем (bcrypt) и токеном (JWT).</div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ============ ФИНАЛЬНЫЙ CTA ============ -->
+    <div class="ld-final reveal">
+      <div class="ld-final-glow"></div>
+      <h2>Готовы создать первую работу?</h2>
+      <p>Это займёт 2 минуты. Регистрация — email и пароль.</p>
+      <button class="primary" id="landingStart2">Начать бесплатно</button>
+    </div>
+
     <div class="landing-footer">MathTest · сделано для преподавателей и студентов</div>
   </div>
 </section>
