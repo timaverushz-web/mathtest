@@ -32,10 +32,10 @@ if (!B2_KEY_ID || !B2_APP_KEY || !B2_BUCKET || !s3Endpoint) {
 }
 
 /* ---------- Простой rate limiter для логина ---------- */
-const loginAttempts = new Map(); // ip -> { fails, resetAt, blockedUntil }
-const LOGIN_MAX_FAILS = 5;        // попыток
-const LOGIN_WINDOW_MS = 15 * 60 * 1000; // окно 15 минут
-const LOGIN_BLOCK_MS = 15 * 60 * 1000;  // блокировка 15 минут
+const loginAttempts = new Map();
+const LOGIN_MAX_FAILS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_BLOCK_MS = 15 * 60 * 1000;
 
 function loginRateCheck(ip){
   const now = Date.now();
@@ -44,7 +44,6 @@ function loginRateCheck(ip){
     rec = { fails: 0, resetAt: now + LOGIN_WINDOW_MS, blockedUntil: 0 };
     loginAttempts.set(ip, rec);
   }
-  // если окно истекло и не заблокирован — сбрасываем
   if(now > rec.resetAt && now > rec.blockedUntil){
     rec.fails = 0;
     rec.resetAt = now + LOGIN_WINDOW_MS;
@@ -59,14 +58,9 @@ function loginRateFail(ip){
   const rec = loginAttempts.get(ip);
   if(!rec) return;
   rec.fails++;
-  if(rec.fails >= LOGIN_MAX_FAILS){
-    rec.blockedUntil = Date.now() + LOGIN_BLOCK_MS;
-  }
+  if(rec.fails >= LOGIN_MAX_FAILS) rec.blockedUntil = Date.now() + LOGIN_BLOCK_MS;
 }
-function loginRateSuccess(ip){
-  loginAttempts.delete(ip);
-}
-// раз в час чистим старые записи
+function loginRateSuccess(ip){ loginAttempts.delete(ip); }
 setInterval(function(){
   const now = Date.now();
   for(const [ip, rec] of loginAttempts){
@@ -137,6 +131,70 @@ async function s3Del(key) {
   if (!s3 || !key) return;
   try { await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key })); } catch (e) {}
 }
+
+/* ---------- Сидер банка заданий (20 задач ЕГЭ профиль) ---------- */
+const TASK_BANK_SEED = [
+  { examType:'profile', examTaskNumber:1, topic:'Планиметрия', difficulty:'easy',
+    statement:'В треугольнике ABC угол C равен 90°, AC = 3, BC = 4. Найдите AB.',
+    answer:'5', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:2, topic:'Стереометрия', difficulty:'easy',
+    statement:'В прямоугольном параллелепипеде ABCDA₁B₁C₁D₁ известно, что AB = 3, AD = 4, AA₁ = 12. Найдите длину диагонали AC₁.',
+    answer:'13', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:3, topic:'Стереометрия', difficulty:'medium',
+    statement:'Объём шара равен 36π. Найдите его радиус.',
+    answer:'3', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:4, topic:'Теория вероятностей', difficulty:'easy',
+    statement:'Вероятность того, что новый фонарик прослужит больше года, равна 0,96. Вероятность того, что он прослужит больше двух лет, равна 0,87. Найдите вероятность того, что фонарик прослужит меньше двух лет, но больше года.',
+    answer:'0,09', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:4, topic:'Теория вероятностей', difficulty:'medium',
+    statement:'В случайном эксперименте бросают две игральные кости. Найдите вероятность того, что в сумме выпадет 8 очков. Ответ округлите до сотых.',
+    answer:'0,14', tolerance:0.01, points:1 },
+  { examType:'profile', examTaskNumber:5, topic:'Теория вероятностей', difficulty:'hard',
+    statement:'Автоматическая линия изготавливает батарейки. Вероятность того, что готовая батарейка неисправна, равна 0,02. Перед упаковкой каждая батарейка проходит систему контроля. Вероятность того, что система забракует неисправную батарейку, равна 0,99. Вероятность того, что система забракует исправную батарейку, равна 0,01. Найдите вероятность того, что случайно выбранная изготовленная батарейка будет забракована системой.',
+    answer:'0,0296', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:6, topic:'Уравнения', difficulty:'easy',
+    statement:'Найдите корень уравнения $7^{x-3} = 49$.',
+    answer:'5', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:6, topic:'Уравнения', difficulty:'medium',
+    statement:'Найдите корень уравнения $\\log_2 (x+3) = 4$.',
+    answer:'13', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:7, topic:'Производная и её применение', difficulty:'medium',
+    statement:'На рисунке изображён график производной функции f(x), определённой на интервале (−9; 5). Найдите количество точек, в которых касательная к графику f(x) параллельна прямой y = 2x + 17 или совпадает с ней.',
+    answer:'3', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:8, topic:'Производная и её применение', difficulty:'medium',
+    statement:'Найдите наименьшее значение функции $y = x^3 - 3x^2 + 2$ на отрезке $[1; 4]$.',
+    answer:'-2', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:9, topic:'Вычисления и преобразования', difficulty:'easy',
+    statement:'Найдите значение выражения $\\frac{\\sqrt{108}}{\\sqrt{3}}$.',
+    answer:'6', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:9, topic:'Вычисления и преобразования', difficulty:'medium',
+    statement:'Найдите значение выражения $\\frac{5\\sin 98°}{\\sin 49° \\cdot \\sin 41°}$.',
+    answer:'10', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:10, topic:'Текстовые задачи', difficulty:'easy',
+    statement:'Поезд, двигаясь равномерно со скоростью 60 км/ч, проезжает мимо придорожного столба за 30 секунд. Найдите длину поезда в метрах.',
+    answer:'500', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:11, topic:'Функции и графики', difficulty:'medium',
+    statement:'На рисунке изображён график функции $y = f(x)$. Найдите $f(-5)$, если $f(x) = kx + b$ и график проходит через точки $(1; 4)$ и $(-1; 8)$.',
+    answer:'14', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:12, topic:'Производная и её применение', difficulty:'medium',
+    statement:'Найдите точку максимума функции $y = x^3 + 6x^2 + 9x + 4$.',
+    answer:'-3', tolerance:1e-6, points:1 },
+  { examType:'profile', examTaskNumber:13, topic:'Уравнения', difficulty:'hard',
+    statement:'Решите уравнение $\\sin 2x = \\cos x$. В ответе укажите наибольший отрицательный корень.',
+    answer:'-\\frac{\\pi}{2}', tolerance:1e-6, points:2 },
+  { examType:'profile', examTaskNumber:13, topic:'Уравнения', difficulty:'hard',
+    statement:'Решите уравнение $2\\cos^2 x - 3\\cos x + 1 = 0$. В ответе укажите наименьший положительный корень.',
+    answer:'\\frac{\\pi}{3}', tolerance:1e-6, points:2 },
+  { examType:'profile', examTaskNumber:14, topic:'Стереометрия', difficulty:'hard',
+    statement:'В правильной треугольной пирамиде SABC точка M — середина ребра AB, S — вершина. Известно, что BC = 4, а площадь боковой поверхности равна 24. Найдите длину отрезка SM.',
+    answer:'4', tolerance:1e-6, points:2 },
+  { examType:'profile', examTaskNumber:15, topic:'Неравенства', difficulty:'hard',
+    statement:'Решите неравенство $\\frac{1}{x-1} \\geq \\frac{1}{x+1}$. В ответе укажите целое число из решения.',
+    answer:'0', tolerance:1e-6, points:2 },
+  { examType:'profile', examTaskNumber:17, topic:'Планиметрия', difficulty:'hard',
+    statement:'В прямоугольном треугольнике ABC (угол C = 90°) проведена высота CH. Известно, что AC = 6, BC = 8. Найдите AH.',
+    answer:'3,6', tolerance:0.01, points:2 }
+];
 
 async function initDB() {
   await pool.query(`
@@ -224,8 +282,29 @@ async function initDB() {
       auto BOOLEAN DEFAULT FALSE, created_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_backups_created ON backups(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS task_bank (
+      id TEXT PRIMARY KEY,
+      owner_id TEXT NOT NULL,
+      exam_type TEXT NOT NULL DEFAULT 'profile',
+      exam_task_number INT,
+      topic TEXT,
+      difficulty TEXT NOT NULL DEFAULT 'medium',
+      statement TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'input',
+      answer TEXT,
+      tolerance REAL,
+      options JSONB,
+      correct_index INT,
+      points REAL NOT NULL DEFAULT 1,
+      is_public BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_taskbank_owner ON task_bank(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_taskbank_exam ON task_bank(exam_type, exam_task_number);
+    CREATE INDEX IF NOT EXISTS idx_taskbank_public ON task_bank(is_public);
   `);
-   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT`); } catch (e) { console.error('migr users.avatar_key:', e.message); }
+  try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT`); } catch (e) { console.error('migr users.avatar_key:', e.message); }
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS link_code TEXT`); } catch (e) {}
@@ -237,6 +316,31 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_key TEXT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_size BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS class_ids JSONB DEFAULT '[]'::jsonb`); } catch (e) {}
+
+  /* Сидер банка — только если банк пуст */
+  try {
+    const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM task_bank');
+    if (cnt.rows[0].n === 0) {
+      const admin = (await pool.query(
+        `SELECT id FROM users WHERE role='admin' ORDER BY created_at ASC LIMIT 1`)).rows[0];
+      const ownerId = admin ? admin.id : null;
+      if (ownerId) {
+        for (const t of TASK_BANK_SEED) {
+          await pool.query(
+            `INSERT INTO task_bank (id, owner_id, exam_type, exam_task_number, topic, difficulty,
+                                    statement, type, answer, tolerance, options, correct_index,
+                                    points, is_public, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,NULL,$11,true,$12)`,
+            [uid(), ownerId, t.examType, t.examTaskNumber, t.topic, t.difficulty,
+             t.statement, t.type || 'input', t.answer, t.tolerance || 1e-6,
+             t.points || 1, Date.now()]);
+        }
+        console.log('📚 Банк заданий: загружено ' + TASK_BANK_SEED.length + ' стартовых задач');
+      } else {
+        console.log('📚 Банк заданий: пусто, ждём первого админа');
+      }
+    }
+  } catch (e) { console.error('seed task_bank:', e.message); }
 }
 
 async function logAction(userId, userName, action, details) {
@@ -257,11 +361,11 @@ async function createBackup(auto) {
     const dump = {};
     for (const table of ['users','classes','class_students','groups','group_students',
                          'tests','submissions','notifications','books','bookmarks',
-                         'messages','action_logs']) {
+                         'messages','action_logs','task_bank']) {
       const r = await pool.query('SELECT * FROM ' + table);
       dump[table] = r.rows;
     }
-    dump._meta = { created: Date.now(), version: '3.1.0' };
+    dump._meta = { created: Date.now(), version: '3.2.0' };
     const json = JSON.stringify(dump, null, 2);
     const buf = Buffer.from(json, 'utf8');
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -385,6 +489,25 @@ async function canSeeBook(userId, role, b) {
   if (cids.length === 0) return true;
   return cids.some(id => myCids.includes(id));
 }
+function taskBankToJSON(t) {
+  return {
+    id: t.id,
+    ownerId: t.owner_id,
+    examType: t.exam_type,
+    examTaskNumber: t.exam_task_number,
+    topic: t.topic,
+    difficulty: t.difficulty,
+    statement: t.statement,
+    type: t.type,
+    answer: t.answer,
+    tolerance: t.tolerance,
+    options: t.options || null,
+    correctIndex: t.correct_index,
+    points: t.points,
+    isPublic: t.is_public,
+    createdAt: Number(t.created_at)
+  };
+}
 
 let bot = null;
 if (TG_TOKEN) {
@@ -471,6 +594,11 @@ function canUploadBooks(req, res, next) {
     return res.status(403).json({ error: 'Нет прав' });
   next();
 }
+function canUseBank(req, res, next) {
+  if (!['teacher', 'admin'].includes(req.user.role))
+    return res.status(403).json({ error: 'Только для учителя' });
+  next();
+}
 
 /* ========== AUTH ========== */
 app.post('/api/auth/register', async (req, res) => {
@@ -496,7 +624,6 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() || 'unknown';
-
   const rate = loginRateCheck(ip);
   if(!rate.ok) return res.status(429).json({ error: rate.error });
 
@@ -663,6 +790,195 @@ app.get('/api/telegram/link', auth, async (req, res) => {
 app.post('/api/telegram/unlink', auth, async (req, res) => {
   await pool.query('UPDATE users SET telegram_chat_id=NULL, telegram_username=NULL WHERE id=$1', [req.user.id]);
   res.json({ ok: true });
+});
+
+/* ========== БАНК ЗАДАНИЙ ========== */
+const EXAM_TOPICS_PROFILE = [
+  'Планиметрия', 'Стереометрия', 'Теория вероятностей', 'Уравнения', 'Неравенства',
+  'Производная и её применение', 'Функции и графики', 'Логарифмы', 'Тригонометрия',
+  'Показательные и степенные', 'Иррациональные', 'Параметры', 'Теория чисел',
+  'Экономические задачи', 'Текстовые задачи', 'Вычисления и преобразования'
+];
+
+app.get('/api/task-bank/meta', auth, canUseBank, async (req, res) => {
+  try {
+    const topics = (await pool.query(
+      `SELECT DISTINCT topic FROM task_bank
+       WHERE topic IS NOT NULL AND topic <> ''
+       ORDER BY topic ASC`)).rows.map(r => r.topic);
+    res.json({ topics: topics, presetTopics: EXAM_TOPICS_PROFILE });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
+  try {
+    const examType = (req.query.examType || '').toString();
+    const examTask = parseInt(req.query.examTask) || 0;
+    const topic = (req.query.topic || '').toString().trim();
+    const difficulty = (req.query.difficulty || '').toString();
+    const scope = (req.query.scope || 'all').toString();
+    const q = (req.query.q || '').toString().trim();
+
+    const args = [];
+    const conds = [];
+    const isAdmin = req.user.role === 'admin';
+
+    if (scope === 'my') {
+      conds.push('owner_id=$' + (args.length + 1)); args.push(req.user.id);
+    } else if (scope === 'public') {
+      conds.push('is_public=true');
+    } else {
+      if (!isAdmin) {
+        conds.push('(owner_id=$' + (args.length + 1) + ' OR is_public=true)'); args.push(req.user.id);
+      }
+    }
+    if (examType === 'profile' || examType === 'base') {
+      conds.push('exam_type=$' + (args.length + 1)); args.push(examType);
+    }
+    if (examTask > 0) {
+      conds.push('exam_task_number=$' + (args.length + 1)); args.push(examTask);
+    }
+    if (topic) {
+      conds.push('topic=$' + (args.length + 1)); args.push(topic);
+    }
+    if (['easy','medium','hard'].includes(difficulty)) {
+      conds.push('difficulty=$' + (args.length + 1)); args.push(difficulty);
+    }
+    if (q) {
+      conds.push('LOWER(statement) LIKE $' + (args.length + 1)); args.push('%' + q.toLowerCase() + '%');
+    }
+    let sql = 'SELECT * FROM task_bank';
+    if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
+    sql += ' ORDER BY exam_task_number ASC NULLS LAST, created_at DESC LIMIT 500';
+    const rows = (await pool.query(sql, args)).rows;
+    res.json({ tasks: rows.map(taskBankToJSON) });
+  } catch (e) {
+    console.error('task-bank GET:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
+  try {
+    const {
+      examType, examTaskNumber, topic, difficulty,
+      statement, type, answer, tolerance, options, correctIndex,
+      points, isPublic
+    } = req.body || {};
+
+    if (!statement || !statement.trim())
+      return res.status(400).json({ error: 'Введите условие задачи' });
+    const tType = type === 'choice' ? 'choice' : 'input';
+    if (tType === 'input' && (!answer || !answer.trim()))
+      return res.status(400).json({ error: 'Введите правильный ответ' });
+    if (tType === 'choice') {
+      if (!Array.isArray(options) || options.length < 2)
+        return res.status(400).json({ error: 'Нужно минимум 2 варианта' });
+      if (typeof correctIndex !== 'number' || correctIndex < 0 || correctIndex >= options.length)
+        return res.status(400).json({ error: 'Отметьте правильный вариант' });
+    }
+
+    const eType = examType === 'base' ? 'base' : 'profile';
+    const maxNum = eType === 'base' ? 21 : 19;
+    let eNum = parseInt(examTaskNumber) || null;
+    if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
+
+    const diff = ['easy','medium','hard'].includes(difficulty) ? difficulty : 'medium';
+    const id = uid();
+    await pool.query(
+      `INSERT INTO task_bank
+         (id, owner_id, exam_type, exam_task_number, topic, difficulty,
+          statement, type, answer, tolerance, options, correct_index,
+          points, is_public, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [id, req.user.id, eType, eNum, topic ? String(topic).trim() : null, diff,
+       statement.trim(), tType,
+       tType === 'input' ? answer.trim() : null,
+       tType === 'input' ? (Number(tolerance) || 1e-6) : null,
+       tType === 'choice' ? JSON.stringify(options) : null,
+       tType === 'choice' ? correctIndex : null,
+       Math.max(0.5, Number(points) || 1),
+       !!isPublic,
+       Date.now()]);
+    const task = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [id])).rows[0];
+    res.json({ task: taskBankToJSON(task) });
+  } catch (e) {
+    console.error('task-bank POST:', e.message);
+    res.status(500).json({ error: 'Ошибка: ' + e.message });
+  }
+});
+
+app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
+  try {
+    const t = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [req.params.id])).rows[0];
+    if (!t) return res.status(404).json({ error: 'Задача не найдена' });
+    if (req.user.role !== 'admin' && t.owner_id !== req.user.id)
+      return res.status(403).json({ error: 'Нет доступа' });
+
+    const {
+      examType, examTaskNumber, topic, difficulty,
+      statement, type, answer, tolerance, options, correctIndex,
+      points, isPublic
+    } = req.body || {};
+
+    const tType = type === 'choice' ? 'choice' : (type === 'input' ? 'input' : t.type);
+    const stmt = statement != null ? String(statement).trim() : t.statement;
+    if (!stmt) return res.status(400).json({ error: 'Введите условие задачи' });
+
+    let finalAnswer = t.answer;
+    let finalTol = t.tolerance;
+    let finalOptions = t.options;
+    let finalCorrect = t.correct_index;
+    if (tType === 'input') {
+      if (answer != null) finalAnswer = String(answer).trim();
+      if (tolerance != null) finalTol = Number(tolerance) || 1e-6;
+      finalOptions = null; finalCorrect = null;
+    } else {
+      if (Array.isArray(options)) finalOptions = options;
+      if (typeof correctIndex === 'number') finalCorrect = correctIndex;
+      finalAnswer = null; finalTol = null;
+    }
+
+    const eType = examType === 'base' ? 'base' : (examType === 'profile' ? 'profile' : t.exam_type);
+    const maxNum = eType === 'base' ? 21 : 19;
+    let eNum = examTaskNumber != null ? (parseInt(examTaskNumber) || null) : t.exam_task_number;
+    if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
+
+    const diff = ['easy','medium','hard'].includes(difficulty) ? difficulty : t.difficulty;
+
+    await pool.query(
+      `UPDATE task_bank SET
+        exam_type=$1, exam_task_number=$2, topic=$3, difficulty=$4,
+        statement=$5, type=$6, answer=$7, tolerance=$8, options=$9, correct_index=$10,
+        points=$11, is_public=$12
+       WHERE id=$13`,
+      [eType, eNum,
+       topic != null ? (String(topic).trim() || null) : t.topic,
+       diff, stmt, tType, finalAnswer, finalTol,
+       finalOptions ? JSON.stringify(finalOptions) : null,
+       finalCorrect,
+       points != null ? Math.max(0.5, Number(points) || 1) : t.points,
+       isPublic != null ? !!isPublic : t.is_public,
+       t.id]);
+
+    const task = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [t.id])).rows[0];
+    res.json({ task: taskBankToJSON(task) });
+  } catch (e) {
+    console.error('task-bank PUT:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+app.delete('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
+  try {
+    const t = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [req.params.id])).rows[0];
+    if (!t) return res.status(404).json({ error: 'Не найдено' });
+    if (req.user.role !== 'admin' && t.owner_id !== req.user.id)
+      return res.status(403).json({ error: 'Нет доступа' });
+    await pool.query('DELETE FROM task_bank WHERE id=$1', [t.id]);
+    await logAction(req.user.id, req.user.name, 'Удалил задачу из банка', t.statement.slice(0, 60));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
 /* ========== КЛАССЫ ========== */
@@ -1847,220 +2163,4 @@ app.get('/api/profile/teacher', auth, async (req, res) => {
     const args = isAdmin ? [] : [req.user.id];
     const classesCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM classes ${where}`, args)).rows[0].n;
     const studentsCount = (await pool.query(
-      `SELECT COUNT(DISTINCT cs.student_id)::int AS n
-       FROM class_students cs JOIN classes c ON c.id=cs.class_id ${isAdmin ? '' : 'WHERE c.teacher_id=$1'}`, args)).rows[0].n;
-    const testsCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM tests ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
-    const booksCount = (await pool.query(`SELECT COUNT(*)::int AS n FROM books ${isAdmin ? '' : 'WHERE owner_id=$1'}`, args)).rows[0].n;
-    const subR = (await pool.query(
-      `SELECT COUNT(*)::int AS n, COALESCE(AVG(CASE WHEN s.max>0 THEN s.score*100.0/s.max END),0)::float AS avg
-       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}`, args)).rows[0];
-    const recent = (await pool.query(
-      `SELECT s.id,s.student_name,s.score,s.max,s.at,t.title AS test_title
-       FROM submissions s JOIN tests t ON t.id=s.test_id ${isAdmin ? '' : 'WHERE t.owner_id=$1'}
-       ORDER BY s.at DESC LIMIT 5`, args)).rows
-      .map(r => ({ id: r.id, studentName: r.student_name, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
-    res.json({ classesCount, studentsCount, testsCount, booksCount,
-      submissionsCount: subR.n, avgPercent: Math.round(subR.avg), recent });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/api/profile/student', auth, async (req, res) => {
-  try {
-    const cR = (await pool.query('SELECT COUNT(*)::int AS n FROM class_students WHERE student_id=$1', [req.user.id])).rows[0].n;
-    const sR = (await pool.query(
-      `SELECT COUNT(*)::int AS n,
-              COALESCE(AVG(CASE WHEN max>0 THEN score*100.0/max END),0)::float AS avg,
-              COALESCE(SUM(score),0)::int AS ts, COALESCE(SUM(max),0)::int AS tm
-       FROM submissions WHERE student_id=$1`, [req.user.id])).rows[0];
-    const recent = (await pool.query(
-      `SELECT s.id,s.score,s.max,s.at,t.title AS test_title
-       FROM submissions s JOIN tests t ON t.id=s.test_id WHERE s.student_id=$1 ORDER BY s.at DESC LIMIT 5`,
-      [req.user.id])).rows
-      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), testTitle: r.test_title }));
-    const myCids = await getClassIdsForStudent(req.user.id);
-    const booksCount = (await pool.query(
-      `SELECT COUNT(*)::int AS n FROM books WHERE class_ids = '[]'::jsonb OR class_ids ?| $1::text[]`, [myCids])).rows[0].n;
-    const all = (await pool.query(
-      `SELECT s.id,s.score,s.max,s.at,s.attempt,t.title AS test_title,c.name AS class_name,s.class_id
-       FROM submissions s JOIN tests t ON t.id=s.test_id JOIN classes c ON c.id=s.class_id
-       WHERE s.student_id=$1 ORDER BY s.at DESC`, [req.user.id])).rows
-      .map(r => ({ id: r.id, score: r.score, max: r.max, at: Number(r.at), attempt: r.attempt,
-                   testTitle: r.test_title, className: r.class_name, classId: r.class_id,
-                   pct: r.max ? Math.round(r.score / r.max * 100) : 0 }));
-    const byClass = {};
-    all.forEach(s => {
-      if (!byClass[s.classId]) byClass[s.classId] = { name: s.className, count: 0, sumPct: 0, best: 0, worst: 100 };
-      byClass[s.classId].count++;
-      byClass[s.classId].sumPct += s.pct;
-      if (s.pct > byClass[s.classId].best) byClass[s.classId].best = s.pct;
-      if (s.pct < byClass[s.classId].worst) byClass[s.classId].worst = s.pct;
-    });
-    const classStats = Object.values(byClass).map(c => ({
-      name: c.name, count: c.count, avgPct: Math.round(c.sumPct / c.count), best: c.best, worst: c.worst
-    }));
-    res.json({ classesCount: cR, submissionsCount: sR.n, avgPercent: Math.round(sR.avg),
-      totalScore: sR.ts, totalMax: sR.tm, booksCount, recent, all, classStats });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
-  try{
-    const limit = Math.min(500, parseInt(req.query.limit) || 200);
-    const r = await pool.query('SELECT * FROM action_logs ORDER BY at DESC LIMIT $1', [limit]);
-    res.json({ logs: r.rows.map(l => ({ id: l.id, userId: l.user_id, userName: l.user_name,
-      action: l.action, details: l.details, at: Number(l.at) })) });
-  }catch(e){ res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/api/admin/users', auth, adminOnly, async (req, res) => {
-  try {
-    const q = (req.query.q || '').toString().trim().toLowerCase();
-    const role = req.query.role || '';
-    let sql = 'SELECT * FROM users';
-    const args = [];
-    const conds = [];
-    if (role) { conds.push('role=$' + (args.length + 1)); args.push(role); }
-    if (q) {
-      conds.push('(LOWER(name) LIKE $' + (args.length + 1) + ' OR LOWER(email) LIKE $' + (args.length + 1) + ')');
-      args.push('%' + q + '%');
-    }
-    if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
-    sql += ' ORDER BY created_at DESC LIMIT 500';
-    const rows = (await pool.query(sql, args)).rows;
-    const users = [];
-    for (const u of rows) {
-      const stats = (await pool.query(
-        `SELECT
-          (SELECT COUNT(*)::int FROM classes WHERE teacher_id=$1) AS classes_created,
-          (SELECT COUNT(*)::int FROM class_students WHERE student_id=$1) AS classes_joined,
-          (SELECT COUNT(*)::int FROM submissions WHERE student_id=$1) AS submissions,
-          (SELECT COUNT(*)::int FROM books WHERE owner_id=$1) AS books`, [u.id])).rows[0];
-      users.push({ id: u.id, name: u.name, email: u.email, role: u.role,
-                   hasAvatar: !!u.avatar_key, createdAt: Number(u.created_at), stats });
-    }
-    const stats = {
-      total: (await pool.query('SELECT COUNT(*)::int AS n FROM users')).rows[0].n,
-      admin: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='admin'")).rows[0].n,
-      teacher: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='teacher'")).rows[0].n,
-      student: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='student'")).rows[0].n,
-      librarian: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='librarian'")).rows[0].n,
-      tests: (await pool.query('SELECT COUNT(*)::int AS n FROM tests')).rows[0].n,
-      books: (await pool.query('SELECT COUNT(*)::int AS n FROM books')).rows[0].n
-    };
-    res.json({ users, stats });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.post('/api/admin/users/:id/role', auth, adminOnly, async (req, res) => {
-  try {
-    const { role } = req.body || {};
-    if (!['admin', 'teacher', 'student', 'librarian'].includes(role))
-      return res.status(400).json({ error: 'Неверная роль' });
-    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя менять свою роль' });
-    await pool.query('UPDATE users SET role=$1 WHERE id=$2', [role, req.params.id]);
-    const target = await getUserById(req.params.id);
-    await logAction(req.user.id, req.user.name, 'Сменил роль', (target ? target.name : req.params.id) + ' → ' + role);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.post('/api/admin/users/:id/reset-password', auth, adminOnly, async (req, res) => {
-  try {
-    const newPass = crypto.randomBytes(4).toString('hex');
-    await pool.query('UPDATE users SET pass=$1 WHERE id=$2', [await bcrypt.hash(newPass, 10), req.params.id]);
-    const target = await getUserById(req.params.id);
-    await logAction(req.user.id, req.user.name, 'Сбросил пароль', target ? target.name + ' (' + target.email + ')' : req.params.id);
-    res.json({ password: newPass });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.delete('/api/admin/users/:id', auth, adminOnly, async (req, res) => {
-  try {
-    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя удалить себя' });
-    const u = await getUserById(req.params.id);
-    if (!u) return res.status(404).json({ error: 'Не найден' });
-    if (u.avatar_key) await s3Del(u.avatar_key);
-    await pool.query('DELETE FROM users WHERE id=$1', [u.id]);
-    await pool.query('DELETE FROM class_students WHERE student_id=$1', [u.id]);
-    await pool.query('DELETE FROM group_students WHERE student_id=$1', [u.id]);
-    await pool.query('DELETE FROM notifications WHERE user_id=$1', [u.id]);
-    await pool.query('DELETE FROM bookmarks WHERE user_id=$1', [u.id]);
-    await logAction(req.user.id, req.user.name, 'Удалил пользователя', u.name + ' (' + u.email + ')');
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/api/admin/backups', auth, adminOnly, async (req, res) => {
-  try {
-    const r = await pool.query('SELECT * FROM backups ORDER BY created_at DESC LIMIT 20');
-    res.json({ backups: r.rows.map(b => ({ id: b.id, key: b.key, size: Number(b.size) || 0,
-      auto: b.auto, createdAt: Number(b.created_at) })) });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.post('/api/admin/backups/create', auth, adminOnly, async (req, res) => {
-  try {
-    const r = await createBackup(false);
-    await logAction(req.user.id, req.user.name, 'Создал бэкап', r.key);
-    res.json({ ok: true, key: r.key, size: r.size });
-  } catch (e) { res.status(500).json({ error: 'Ошибка: ' + e.message }); }
-});
-
-app.get('/api/admin/backups/:id/download', auth, adminOnly, async (req, res) => {
-  try {
-    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
-    if (!b) return res.status(404).json({ error: 'Бэкап не найден' });
-    const { buffer, contentType } = await s3GetBuffer(b.key);
-    res.setHeader('Content-Type', contentType || 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename="' + path.basename(b.key) + '"');
-    res.send(buffer);
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
-  try {
-    const b = (await pool.query('SELECT * FROM backups WHERE id=$1', [req.params.id])).rows[0];
-    if (!b) return res.status(404).json({ error: 'Не найден' });
-    await s3Del(b.key);
-    await pool.query('DELETE FROM backups WHERE id=$1', [b.id]);
-    await logAction(req.user.id, req.user.name, 'Удалил бэкап', b.key);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.get('/favicon.ico', (req, res) => res.status(204).end());
-app.get(/^\/(?!api\/).*/, (req, res, next) => {
-  if (req.path.includes('.')) return next();
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-app.use((err, req, res, next) => {
-  console.error('❌', err.message);
-  if (res.headersSent) return;
-  res.status(500).json({ error: 'Внутренняя ошибка' });
-});
-
-(async () => {
-  try { await initDB(); console.log('✅ Схема БД готова'); }
-  catch (e) { console.error('❌ БД:', e.message); process.exit(1); }
-
-  if (s3) {
-    try {
-      const probeKey = 'healthcheck/probe_' + Date.now() + '.txt';
-      await s3Put(probeKey, Buffer.from('ok'), 'text/plain');
-      await s3Del(probeKey);
-      console.log('✅ B2 проверен');
-    } catch (e) {
-      console.error('❌ B2 self-test:', e.message);
-    }
-  }
-
-  app.listen(PORT, () => {
-    console.log('═══════════════════════════════════');
-    console.log('✅ MathTest v3.1 (PDF-библиотека)');
-    console.log('🌐 Порт: ' + PORT);
-    console.log('📦 B2: ' + (s3 ? s3Endpoint : '❌'));
-    console.log('📚 Библиотека: PDF + обложка');
-    console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
-    console.log('═══════════════════════════════════');
-  });
-})();
+      `SELECT COUNT(DISTINCT cs.student
