@@ -966,6 +966,97 @@ body.reader-mode main { padding: 0 !important; }
   flex-wrap: wrap;
 }
 
+/* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
+.exam-widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.exam-widget {
+  position: relative;
+  background: var(--panel);
+  border: 1.5px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: var(--trans);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 112px;
+}
+.exam-widget:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+.exam-widget:active {
+  transform: translateY(-1px) scale(0.98);
+}
+.exam-widget.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.exam-widget.empty {
+  opacity: 0.55;
+}
+.exam-widget.empty .exam-widget-bar-fill {
+  background: var(--text-3);
+}
+.exam-widget-num {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+.exam-widget.active .exam-widget-num {
+  color: var(--accent);
+}
+.exam-widget-topic {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  line-height: 1.3;
+  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.exam-widget-bar {
+  height: 4px;
+  background: var(--bg-soft);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.exam-widget-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.exam-widget-count {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-3);
+  letter-spacing: 0.3px;
+}
+@media (max-width: 720px) {
+  .exam-widgets {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .exam-widget {
+    padding: 14px 16px;
+    min-height: 100px;
+  }
+  .exam-widget-num { font-size: 22px; }
+  .exam-widget-topic { font-size: 11.5px; }
+}
+
 /* MOBILE ADAPT */
 @media (max-width: 720px) {
   main { padding: 32px 18px 120px; }
@@ -1064,194 +1155,4 @@ body.reader-mode main { padding: 0 !important; }
 @media (max-width: 720px) {
   .reader-page-slot { padding: 8px 4px; }
   .reader-spread { gap: 6px; }
-}
-/* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
-.exam-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 14px;
-  margin: 20px 0;
-}
-
-.exam-widget {
-  position: relative;
-  background: var(--panel);
-  border: 1.5px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
-  cursor: pointer;
-  transition: var(--trans);
-  overflow: hidden;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.exam-widget:hover {
-  border-color: var(--accent);
-  transform: translateY(-4px);
-  box-shadow: var(--shadow);
-}
-
-.exam-widget.done {
-  border-color: var(--ok);
-  background: rgba(34, 197, 94, 0.06);
-}
-
-.exam-widget.warning {
-  border-color: var(--warn);
-  background: rgba(245, 158, 11, 0.06);
-}
-
-.exam-widget.danger {
-  border-color: var(--err);
-  background: rgba(239, 68, 68, 0.06);
-}
-
-.exam-widget-num {
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: var(--text);
-  margin-bottom: 6px;
-}
-
-.exam-widget-topic {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text-2);
-  line-height: 1.3;
-  margin-bottom: 12px;
-}
-
-.exam-widget-bar {
-  height: 6px;
-  background: var(--bg-soft);
-  border-radius: 99px;
-  overflow: hidden;
-  margin-top: auto;
-}
-
-.exam-widget-bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.exam-widget.done .exam-widget-bar-fill { background: var(--ok); }
-.exam-widget.warning .exam-widget-bar-fill { background: var(--warn); }
-.exam-widget.danger .exam-widget-bar-fill { background: var(--err); }
-
-.exam-widget-stat {
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--text-3);
-  margin-top: 6px;
-  display: flex;
-  justify-content: space-between;
-}
-/* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
-.exam-widgets {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.exam-widget {
-  position: relative;
-  background: var(--panel);
-  border: 1.5px solid var(--border-soft);
-  border-radius: 20px;
-  padding: 16px 18px;
-  cursor: pointer;
-  transition: var(--trans);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 110px;
-}
-
-.exam-widget:hover {
-  border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow);
-}
-
-.exam-widget:active {
-  transform: translateY(-1px) scale(0.98);
-}
-
-.exam-widget.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.exam-widget-num {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: var(--text);
-}
-
-.exam-widget.active .exam-widget-num {
-  color: var(--accent);
-}
-
-.exam-widget-topic {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-2);
-  line-height: 1.3;
-  flex: 1;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.exam-widget-bar {
-  height: 4px;
-  background: var(--bg-soft);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.exam-widget-bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  background: var(--accent);
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.exam-widget.empty {
-  opacity: 0.55;
-}
-
-.exam-widget.empty .exam-widget-bar-fill {
-  background: var(--text-3);
-}
-
-.exam-widget-count {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-3);
-  letter-spacing: 0.3px;
-}
-
-@media (max-width: 720px) {
-  .exam-widgets {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
-  }
-  .exam-widget {
-    padding: 14px 16px;
-    min-height: 100px;
-  }
-  .exam-widget-num { font-size: 22px; }
-  .exam-widget-topic { font-size: 11.5px; }
 }
