@@ -1066,7 +1066,76 @@ app.delete('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
+/* Импорт задач из CSV */
+app.post('/api/task-bank/import-csv', auth, canUseBank, uploadSmall.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
+    const text = req.file.buffer.toString('utf8').replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
 
+    const result = { added: 0, failed: [], skipped: 0 };
+
+    /* Ожидаемые колонки: exam_type, exam_task_number, topic, difficulty, statement, type, answer, tolerance, points */
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      /* Пропускаем заголовок */
+      if (i === 0 && /exam_type|номер|number/i.test(line)) { result.skipped++; continue; }
+
+      /* Простой CSV-парсер с поддержкой кавычек */
+      const cells = [];
+      let cur = '', inQ = false;
+      for (let j = 0; j < line.length; j++) {
+        const ch = line[j];
+        if (ch === '"' && line[j+1] === '"') { cur += '"'; j++; }
+        else if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cells.push(cur); cur = ''; }
+        else { cur += ch; }
+      }
+      cells.push(cur);
+
+      if (cells.length < 6) {
+        result.failed.push({ line: i + 1, reason: 'мало полей (нужно минимум 6)' });
+        continue;
+      }
+
+      const [examType, examNum, topic, difficulty, statement, type, answer, tolerance, points] = cells.map(c => (c || '').trim());
+
+      if (!statement) { result.failed.push({ line: i + 1, reason: 'пустое условие' }); continue; }
+      if (type !== 'input' && type !== 'choice') { result.failed.push({ line: i + 1, reason: 'неверный тип' }); continue; }
+      if (type === 'input' && !answer) { result.failed.push({ line: i + 1, reason: 'нет ответа' }); continue; }
+
+      const eType = examType === 'base' ? 'base' : 'profile';
+      let eNum = parseInt(examNum) || null;
+      if (eNum != null && (eNum < 1 || eNum > 20)) eNum = null;
+      const diff = ['easy','medium','hard'].includes(difficulty) ? difficulty : 'medium';
+
+      try {
+        await pool.query(
+          `INSERT INTO task_bank (id, owner_id, exam_type, exam_task_number, topic, difficulty,
+                                  statement, type, answer, tolerance, options, correct_index,
+                                  points, is_public, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,NULL,$11,false,$12)`,
+          [uid(), req.user.id, eType, eNum, topic || null, diff,
+           statement, type,
+           type === 'input' ? answer : null,
+           type === 'input' ? (parseFloat(tolerance) || 1e-6) : null,
+           Math.max(0.5, parseFloat(points) || 1),
+           Date.now()]);
+        result.added++;
+      } catch (e) {
+        result.failed.push({ line: i + 1, reason: e.message });
+      }
+    }
+
+    await logAction(req.user.id, req.user.name, 'Импорт задач из CSV', 'добавлено: ' + result.added);
+    res.json(result);
+  } catch (e) {
+    console.error('task-bank import-csv:', e.message);
+    res.status(500).json({ error: 'Ошибка: ' + e.message });
+  }
+});
 /* ========== КЛАССЫ ========== */
 app.get('/api/classes', auth, async (req, res) => {
   try {
