@@ -104,6 +104,9 @@
     <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
     <symbol id="i-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
   </defs>
 </svg>
 
@@ -179,8 +182,8 @@
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-edit"/></svg></div><h3>Умный конструктор</h3><p>Формулы прямо в браузере — корни, интегралы, пределы. Панель символов и предпросмотр.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-chart"/></svg></div><h3>Автопроверка</h3><p>√16 = 4 = 2² будет зачтено. Числовое и символьное сравнение.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-users"/></svg></div><h3>Классы и группы</h3><p>Создавайте классы, делите на подгруппы, давайте разные работы разным ученикам.</p></div>
+      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-layers"/></svg></div><h3>Банк заданий ЕГЭ</h3><p>20 стартовых задач по номерам ЕГЭ профиля. Добавляйте свои и переиспользуйте в работах.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-book"/></svg></div><h3>Библиотека книг</h3><p>Учебники в PDF. Ученики читают прямо в браузере — как в Яндекс.Книгах.</p></div>
-      <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-chat"/></svg></div><h3>Чат класса</h3><p>Обсуждайте задачи, обменивайтесь файлами, уведомления в Telegram.</p></div>
       <div class="landing-feature reveal"><div class="lf-icon"><svg><use href="#i-crown"/></svg></div><h3>Роли и права</h3><p>Администратор, учитель, библиотекарь, ученик — у каждого свои возможности.</p></div>
     </div>
     <div class="landing-final reveal">
@@ -285,6 +288,14 @@
   <div class="two-col">
     <div class="card">
       <h3>Конструктор задания</h3>
+      <div class="row tight" style="gap:8px">
+        <button class="small" id="btnPickFromBank" type="button">
+          <svg><use href="#i-layers"/></svg> Из банка
+        </button>
+        <button class="small" id="btnSaveToBank" type="button">
+          <svg><use href="#i-save"/></svg> В банк
+        </button>
+      </div>
       <label>Тип задания
         <select id="taskType">
           <option value="input">Ввод ответа (формула / число)</option>
@@ -383,6 +394,107 @@
     <h1 class="page-title" style="margin:0;flex:1">Рейтинг класса</h1>
   </div>
   <div id="ratingBody"></div>
+</section>
+
+<!-- ==================== БАНК ЗАДАНИЙ ==================== -->
+<section id="view-taskbank" class="view">
+  <div class="row" style="margin-bottom:24px">
+    <button class="ghost" id="btnBackFromBank"><svg><use href="#i-arrow-left"/></svg> Назад</button>
+    <h1 class="page-title" style="margin:0;flex:1">Банк заданий</h1>
+    <button class="primary" id="btnAddBankTask"><svg><use href="#i-plus"/></svg> Задача</button>
+  </div>
+
+  <div class="card" id="bankForm" hidden>
+    <h3 id="bankFormTitle">Новая задача</h3>
+    <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <label>Профиль экзамена
+        <select id="bankExamType">
+          <option value="profile">ЕГЭ профиль (1–19)</option>
+          <option value="base">ЕГЭ база (1–21)</option>
+        </select>
+      </label>
+      <label>Номер задания
+        <input id="bankExamTaskNumber" type="number" min="1" max="19" placeholder="1–19">
+      </label>
+    </div>
+    <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <label>Тема
+        <input id="bankTopic" list="bankTopicsList" placeholder="Например: Производная и её применение">
+        <datalist id="bankTopicsList"></datalist>
+      </label>
+      <label>Сложность
+        <select id="bankDifficulty">
+          <option value="easy">Легко</option>
+          <option value="medium" selected>Средне</option>
+          <option value="hard">Сложно</option>
+        </select>
+      </label>
+    </div>
+    <label>Тип задания
+      <select id="bankTaskType">
+        <option value="input">Ввод ответа (формула / число)</option>
+        <option value="choice">Выбор варианта</option>
+      </select>
+    </label>
+    <div class="muted" style="margin-top:14px">Условие задачи</div>
+    <div id="bankStatementHost"></div>
+    <div class="muted" style="margin-top:14px">Символы</div>
+    <div class="sym-tabs">
+      <button class="sym-tab active" data-banksymtab="basic">Базовые</button>
+      <button class="sym-tab" data-banksymtab="advanced">Продвинутые</button>
+    </div>
+    <div id="bankSymbolBar" class="symbols"></div>
+    <div id="bankInputBlock">
+      <div class="muted">Правильный ответ</div>
+      <div id="bankAnswerHost"></div>
+      <label>Допуск<input id="bankTol" value="1e-6" style="width:160px"></label>
+    </div>
+    <div id="bankChoiceBlock" hidden>
+      <div class="muted" style="margin-top:14px">Варианты (отметьте правильный)</div>
+      <div id="bankOptionsList"></div>
+      <button class="ghost small" id="btnBankAddOption" style="margin-top:8px"><svg><use href="#i-plus"/></svg> вариант</button>
+    </div>
+    <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <label>Баллы<input id="bankPoints" type="number" value="1" min="0.5" step="0.5"></label>
+      <label class="class-pick" style="margin-top:22px">
+        <input type="checkbox" id="bankIsPublic">
+        <span>Сделать публичной (увидят другие учителя)</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:20px">
+      <button class="primary" id="btnBankSave"><svg><use href="#i-save"/></svg> Сохранить</button>
+      <button class="ghost" id="btnBankCancel">Отмена</button>
+    </div>
+    <p class="err" id="bankErr"></p>
+  </div>
+
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+    <input id="bankSearch" placeholder="Поиск по тексту задачи..." style="flex:1;min-width:220px;margin:0">
+    <select id="bankFilterScope" style="width:auto;margin:0">
+      <option value="all">Все доступные</option>
+      <option value="my">Только мои</option>
+      <option value="public">Только публичные</option>
+    </select>
+    <select id="bankFilterExam" style="width:auto;margin:0">
+      <option value="">Все экзамены</option>
+      <option value="profile">ЕГЭ профиль</option>
+      <option value="base">ЕГЭ база</option>
+    </select>
+    <select id="bankFilterNum" style="width:auto;margin:0">
+      <option value="0">Все номера</option>
+    </select>
+    <select id="bankFilterDifficulty" style="width:auto;margin:0">
+      <option value="">Любая сложность</option>
+      <option value="easy">Легко</option>
+      <option value="medium">Средне</option>
+      <option value="hard">Сложно</option>
+    </select>
+    <select id="bankFilterTopic" style="width:auto;margin:0">
+      <option value="">Все темы</option>
+    </select>
+  </div>
+
+  <div id="bankList"></div>
 </section>
 
 <section id="view-student" class="view">
@@ -656,6 +768,51 @@
 
 </main>
 
+<!-- ==================== МОДАЛКА ВЫБОРА ИЗ БАНКА ==================== -->
+<div class="modal-overlay" id="bankPickerModal" hidden>
+  <div class="modal-card" style="max-width:900px;width:calc(100vw - 32px)">
+    <div class="modal-head">
+      <h3>Выбрать задачи из банка</h3>
+      <button class="ghost small" id="btnCloseBankPicker"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div style="padding:20px 24px 24px">
+      <div class="bank-picker-filters">
+        <input id="bpSearch" placeholder="Поиск по тексту..." style="flex:1;min-width:180px;margin:0">
+        <select id="bpExam" style="width:auto;margin:0">
+          <option value="">Все экзамены</option>
+          <option value="profile">ЕГЭ профиль</option>
+          <option value="base">ЕГЭ база</option>
+        </select>
+        <select id="bpNum" style="width:auto;margin:0">
+          <option value="0">Все номера</option>
+        </select>
+        <select id="bpDifficulty" style="width:auto;margin:0">
+          <option value="">Любая</option>
+          <option value="easy">Легко</option>
+          <option value="medium">Средне</option>
+          <option value="hard">Сложно</option>
+        </select>
+        <select id="bpTopic" style="width:auto;margin:0">
+          <option value="">Все темы</option>
+        </select>
+        <select id="bpScope" style="width:auto;margin:0">
+          <option value="all">Все доступные</option>
+          <option value="my">Только мои</option>
+          <option value="public">Только публичные</option>
+        </select>
+      </div>
+      <div id="bpList" class="bank-picker-list"></div>
+      <div class="bank-picker-foot">
+        <span class="muted" id="bpCount">Выбрано: 0</span>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <button class="ghost small" id="bpClear">Сбросить</button>
+          <button class="primary small" id="bpAdd">Добавить в работу</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <button id="supportBtn" title="Чат поддержки">
   <svg><use href="#i-chat"/></svg>
   <span class="support-badge"></span>
@@ -685,8 +842,8 @@
 <nav id="mobile-nav">
   <div class="mn-inner">
     <button data-mnav="home"><svg><use href="#i-home"/></svg> Главная</button>
+    <button data-mnav="bank"><svg><use href="#i-layers"/></svg> Банк</button>
     <button data-mnav="library"><svg><use href="#i-book"/></svg> Книги</button>
-    <button data-mnav="dashboard"><svg><use href="#i-chart"/></svg> Дашборд</button>
     <button data-mnav="profile"><svg><use href="#i-settings"/></svg> Профиль</button>
   </div>
 </nav>
