@@ -860,7 +860,7 @@ app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
         conds.push('(owner_id=$' + (args.length + 1) + ' OR is_public=true)'); args.push(req.user.id);
       }
     }
-    if (examType === 'profile' || examType === 'base') {
+        if (examType === 'profile') {
       conds.push('exam_type=$' + (args.length + 1)); args.push(examType);
     }
     if (examTask > 0) {
@@ -906,8 +906,8 @@ app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
         return res.status(400).json({ error: 'Отметьте правильный вариант' });
     }
 
-    const eType = examType === 'base' ? 'base' : 'profile';
-    const maxNum = eType === 'base' ? 21 : 19;
+        const eType = 'profile';
+    const maxNum = 20;
     let eNum = parseInt(examTaskNumber) || null;
     if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
 
@@ -967,8 +967,8 @@ app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
       finalAnswer = null; finalTol = null;
     }
 
-    const eType = examType === 'base' ? 'base' : (examType === 'profile' ? 'profile' : t.exam_type);
-    const maxNum = eType === 'base' ? 21 : 19;
+        const eType = 'profile';
+    const maxNum = 20;
     let eNum = examTaskNumber != null ? (parseInt(examTaskNumber) || null) : t.exam_task_number;
     if (eNum != null && (eNum < 1 || eNum > maxNum)) eNum = null;
 
