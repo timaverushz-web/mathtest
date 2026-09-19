@@ -966,55 +966,142 @@ body.reader-mode main { padding: 0 !important; }
   flex-wrap: wrap;
 }
 
-/* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
+/* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ 2027 — ПРЕМИУМ ========== */
 .exam-widgets {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
 }
+
 .exam-widget {
   position: relative;
-  background: var(--panel);
+  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-2) 100%);
   border: 1.5px solid var(--border-soft);
   border-radius: 20px;
-  padding: 16px 18px;
+  padding: 14px 16px 12px;
   cursor: pointer;
-  transition: var(--trans);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 112px;
+  gap: 8px;
+  min-height: 140px;
 }
+
+.exam-widget::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), #ff9f43);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.exam-widget::after {
+  content: '';
+  position: absolute;
+  top: -50%; right: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
 .exam-widget:hover {
   border-color: var(--accent);
-  transform: translateY(-3px);
-  box-shadow: var(--shadow);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -16px var(--accent-soft), 0 0 0 1px var(--accent);
 }
+
+.exam-widget:hover::before { opacity: 1; }
+.exam-widget:hover::after { opacity: 1; }
+
 .exam-widget:active {
-  transform: translateY(-1px) scale(0.98);
+  transform: translateY(-2px) scale(0.98);
 }
+
 .exam-widget.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background: linear-gradient(160deg, var(--accent-soft) 0%, var(--panel-2) 100%);
+  box-shadow: 0 0 0 2px var(--accent), 0 12px 32px -12px var(--accent-soft);
 }
+
 .exam-widget.empty {
-  opacity: 0.55;
+  opacity: 0.42;
+  filter: grayscale(0.7);
 }
-.exam-widget.empty .exam-widget-bar-fill {
-  background: var(--text-3);
+
+.exam-widget.empty:hover {
+  opacity: 0.75;
+  filter: grayscale(0.3);
 }
+
+.exam-widget-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.exam-widget-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  transition: all 0.25s;
+}
+
+.exam-widget-icon svg {
+  width: 18px; height: 18px;
+}
+
+.exam-widget:hover .exam-widget-icon {
+  background: var(--accent);
+  color: var(--accent-text);
+  transform: rotate(-6deg) scale(1.05);
+}
+
+.exam-widget.active .exam-widget-icon {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.exam-widget.empty .exam-widget-icon {
+  background: var(--panel-2);
+  color: var(--text-3);
+}
+
+.exam-widget-part {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--bg-soft);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
 .exam-widget-num {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--text);
+  position: relative;
+  z-index: 1;
 }
-.exam-widget.active .exam-widget-num {
-  color: var(--accent);
-}
+
+.exam-widget.active .exam-widget-num { color: var(--accent); }
+
 .exam-widget-topic {
   font-size: 12px;
   font-weight: 700;
@@ -1025,36 +1112,80 @@ body.reader-mode main { padding: 0 !important; }
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  min-height: 31px;
+  position: relative;
+  z-index: 1;
 }
+
 .exam-widget-bar {
-  height: 4px;
+  height: 5px;
   background: var(--bg-soft);
   border-radius: 99px;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
+
 .exam-widget-bar-fill {
   height: 100%;
   border-radius: 99px;
-  background: var(--accent);
-  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(90deg, var(--accent), #ff9f43);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px var(--accent-soft);
 }
-.exam-widget-count {
-  font-size: 11px;
+
+.exam-widget.low .exam-widget-bar-fill {
+  background: linear-gradient(90deg, var(--warn), #fbbf24);
+  box-shadow: 0 0 8px rgba(245, 158, 11, .3);
+}
+
+.exam-widget.full .exam-widget-bar-fill {
+  background: linear-gradient(90deg, var(--ok), #4ade80);
+  box-shadow: 0 0 8px rgba(34, 197, 94, .3);
+}
+
+.exam-widget.empty .exam-widget-bar-fill {
+  background: var(--text-3);
+  box-shadow: none;
+}
+
+.exam-widget-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
   font-weight: 800;
   color: var(--text-3);
-  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 1;
 }
+
+.exam-widget-count {
+  color: var(--text-2);
+}
+
+.exam-widget.active .exam-widget-count { color: var(--accent); }
+
+.exam-widget-pts {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
 @media (max-width: 720px) {
   .exam-widgets {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
     gap: 10px;
   }
   .exam-widget {
-    padding: 14px 16px;
-    min-height: 100px;
+    padding: 12px 13px 10px;
+    min-height: 128px;
+    border-radius: 16px;
   }
-  .exam-widget-num { font-size: 22px; }
-  .exam-widget-topic { font-size: 11.5px; }
+  .exam-widget-icon { width: 28px; height: 28px; }
+  .exam-widget-icon svg { width: 15px; height: 15px; }
+  .exam-widget-num { font-size: 18px; }
+  .exam-widget-topic { font-size: 11px; min-height: 28px; }
+  .exam-widget-part { font-size: 9px; padding: 2px 6px; }
 }
 
 /* MOBILE ADAPT */
@@ -1155,4 +1286,141 @@ body.reader-mode main { padding: 0 !important; }
 @media (max-width: 720px) {
   .reader-page-slot { padding: 8px 4px; }
   .reader-spread { gap: 6px; }
+}
+/* ========== YOUTH DESIGN — свечение, глубина, анимации ========== */
+button.primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  box-shadow: 0 8px 24px -8px var(--accent-soft);
+}
+
+button.primary:hover {
+  box-shadow: 0 16px 40px -10px var(--accent), 0 0 0 1px var(--accent);
+}
+
+.card:hover {
+  border-color: var(--border);
+}
+
+.stat-card {
+  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-2) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: -100%; right: -100%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 55%);
+  opacity: 0;
+  transition: opacity .4s;
+  pointer-events: none;
+}
+
+.stat-card:hover::before { opacity: 1; }
+
+.dash-summary .dash-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, transparent 60%, var(--accent-soft) 100%);
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+.dash-summary .dash-item:hover::after { opacity: 1; }
+
+.test-card-v2::before,
+.class-card::before,
+.book-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), #ff9f43);
+  transition: width .4s cubic-bezier(.4, 0, .2, 1);
+  border-radius: inherit;
+}
+
+.test-card-v2:hover::before,
+.class-card:hover::before,
+.book-card:hover::before {
+  width: 100%;
+}
+
+.test-card-v2,
+.class-card,
+.book-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Пустые состояния — сделаем дружелюбнее */
+.empty .icon {
+  font-size: 72px;
+  opacity: .35;
+  filter: grayscale(0.3);
+  animation: float-empty 3s ease-in-out infinite;
+}
+
+@keyframes float-empty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Микро-анимация появления карточек */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card, .exam-widget, .test-card-v2, .class-card, .book-card, .stat-card {
+  animation: slide-up .35s cubic-bezier(.4, 0, .2, 1) backwards;
+}
+
+/* Очередь для каскадного появления виджетов */
+.exam-widget:nth-child(1) { animation-delay: 0s; }
+.exam-widget:nth-child(2) { animation-delay: 0.02s; }
+.exam-widget:nth-child(3) { animation-delay: 0.04s; }
+.exam-widget:nth-child(4) { animation-delay: 0.06s; }
+.exam-widget:nth-child(5) { animation-delay: 0.08s; }
+.exam-widget:nth-child(6) { animation-delay: 0.10s; }
+.exam-widget:nth-child(7) { animation-delay: 0.12s; }
+.exam-widget:nth-child(8) { animation-delay: 0.14s; }
+.exam-widget:nth-child(9) { animation-delay: 0.16s; }
+.exam-widget:nth-child(10) { animation-delay: 0.18s; }
+.exam-widget:nth-child(n+11) { animation-delay: 0.20s; }
+
+/* Светящаяся точка статуса на активных кнопках */
+button.primary:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+  transition: left .6s;
+}
+
+button.primary:not(:disabled):hover::after {
+  left: 100%;
+}
+
+/* Скроллбар в тон */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--border), var(--text-3));
+}
+
+/* Уведомление о новых элементах (пульс) */
+@keyframes pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+.pill.blue { animation: none; }
+
+.notif-badge:not([hidden]) {
+  animation: pulse-soft 2s infinite;
 }
