@@ -657,7 +657,30 @@ async function openTaskBank(){
   }catch(e){}
   await loadBankList();
 }
+async function openTaskBank() {
+  if (!canUseBank()) return;
+  show('view-taskbank');
+  var host = $('#bankList');
+  skeleton(host, 4);
 
+  // Загружаем статистику по номерам для виджетов
+  try {
+    var stats = await api('/task-bank/stats');
+    renderExamWidgets(stats.byNumber || {});
+  } catch (e) {
+    console.warn('exam stats:', e.message);
+  }
+
+  try {
+    if (!bankState.meta.topics.length) {
+      var m = await api('/task-bank/meta');
+      bankState.meta.topics = m.topics || [];
+      bankState.meta.presetTopics = m.presetTopics || [];
+      fillTopicSelects();
+    }
+  } catch (e) {}
+  await loadBankList();
+}
 function fillTopicSelects(){
   var sel = $('#bankFilterTopic');
   if(sel){
@@ -715,6 +738,77 @@ async function loadBankList(){
     var r = await api('/task-bank'+params);
     bankState.list = r.tasks || [];
     renderBankList();
+    /* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
+const EXAM_TOPICS = {
+  1:  'Планиметрия',
+  2:  'Векторы',
+  3:  'Стереометрия',
+  4:  'Теория вероятностей',
+  5:  'Теория вероятностей',
+  6:  'Уравнения',
+  7:  'Производная и графики',
+  8:  'Производная и графики',
+  9:  'Вычисления и преобразования',
+  10: 'Текстовые задачи',
+  11: 'Функции и графики',
+  12: 'Производная и графики',
+  13: 'Уравнения',
+  14: 'Стереометрия',
+  15: 'Неравенства',
+  16: 'Экономические задачи',
+  17: 'Планиметрия',
+  18: 'Параметры',
+  19: 'Теория чисел',
+  20: 'Нестандартные задачи'
+};
+
+function renderExamWidgets(stats) {
+  var host = document.getElementById('examWidgets');
+  if (!host) return;
+  host.innerHTML = '';
+
+  for (var num = 1; num <= 20; num++) {
+    var s = stats[num] || { correct: 0, total: 0 };
+    var pct = s.total > 0 ? Math.round(s.correct / s.total * 100) : 0;
+    var cls = 'exam-widget';
+    if (s.total >= 5 && pct >= 80) cls += ' done';
+    else if (s.total >= 3 && pct >= 50) cls += ' warning';
+    else if (s.total >= 1 && pct < 50) cls += ' danger';
+
+    var widget = document.createElement('div');
+    widget.className = cls;
+    widget.innerHTML =
+      '<div>' +
+        '<div class="exam-widget-num">' + num + '</div>' +
+        '<div class="exam-widget-topic">' + (EXAM_TOPICS[num] || '—') + '</div>' +
+      '</div>' +
+      '<div>' +
+        '<div class="exam-widget-bar">' +
+          '<div class="exam-widget-bar-fill" style="width:' + pct + '%"></div>' +
+        '</div>' +
+        '<div class="exam-widget-stat">' +
+          '<span>' + s.correct + '/' + s.total + '</span>' +
+          '<span>' + pct + '%</span>' +
+        '</div>' +
+      '</div>';
+
+    widget.onclick = (function(n) {
+      return function() {
+        // Устанавливаем фильтр по номеру и загружаем список
+        var sel = document.getElementById('bankFilterNum');
+        if (sel) { sel.value = n; }
+        var examSel = document.getElementById('bankFilterExam');
+        if (examSel) { examSel.value = 'profile'; }
+        loadBankList();
+        // Прокрутка к списку
+        var list = document.getElementById('bankList');
+        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    })(num);
+
+    host.appendChild(widget);
+  }
+}
   }catch(e){
     host.innerHTML = '<div class="card err">'+esc(e.message)+'</div>';
   }
