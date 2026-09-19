@@ -827,20 +827,41 @@ const EXAM_TOPICS_PROFILE = [
   'Параметры', 'Теория чисел', 'Нестандартные задачи'
 ];
 
-app.get('/api/task-bank/counts', auth, canUseBank, async (req, res) => {
+app.get('/api/task-bank/counts', auth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'admin';
-    const sql = isAdmin
-      ? `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
-         FROM task_bank
-         WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
-         GROUP BY exam_task_number`
-      : `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
-         FROM task_bank
-         WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
-           AND (owner_id = $1 OR is_public = true)
-         GROUP BY exam_task_number`;
-    const args = isAdmin ? [] : [req.user.id];
+    const isStudent = req.user.role === 'student';
+    let sql, args;
+
+    if (isAdmin) {
+      sql = `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
+             FROM task_bank
+             WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
+             GROUP BY exam_task_number`;
+      args = [];
+    } else if (isStudent) {
+      /* Ученик видит задачи своего репетитора + публичные */
+      sql = `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
+             FROM task_bank
+             WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
+               AND (
+                 is_public = true
+                 OR owner_id IN (
+                   SELECT c.teacher_id FROM classes c
+                   JOIN class_students cs ON cs.class_id = c.id
+                   WHERE cs.student_id = $1
+                 )
+               )
+             GROUP BY exam_task_number`;
+      args = [req.user.id];
+    } else {
+      sql = `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
+             FROM task_bank
+             WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
+               AND (owner_id = $1 OR is_public = true)
+             GROUP BY exam_task_number`;
+      args = [req.user.id];
+    }
     const rows = (await pool.query(sql, args)).rows;
     const counts = {};
     for (let i = 1; i <= 20; i++) counts[i] = 0;
@@ -865,7 +886,7 @@ app.get('/api/task-bank/meta', auth, canUseBank, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
-app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
+app.get('/api/task-bank', auth, async (req, res) => {
   try {
     const examType = (req.query.examType || '').toString();
     const examTask = parseInt(req.query.examTask) || 0;
@@ -877,8 +898,18 @@ app.get('/api/task-bank', auth, canUseBank, async (req, res) => {
     const args = [];
     const conds = [];
     const isAdmin = req.user.role === 'admin';
+    const isStudent = req.user.role === 'student';
 
-    if (scope === 'my') {
+    if (isStudent) {
+      /* Ученик: публичные + задачи его репетитора */
+      conds.push(
+        '(is_public = true OR owner_id IN (' +
+        'SELECT c.teacher_id FROM classes c ' +
+        'JOIN class_students cs ON cs.class_id = c.id ' +
+        'WHERE cs.student_id = $' + (args.length + 1) + '))'
+      );
+      args.push(req.user.id);
+    } else if (scope === 'my') {
       conds.push('owner_id=$' + (args.length + 1)); args.push(req.user.id);
     } else if (scope === 'public') {
       conds.push('is_public=true');
