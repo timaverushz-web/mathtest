@@ -474,7 +474,13 @@
   <div class="row" style="margin-bottom:24px">
     <button class="ghost" id="btnBackFromBank"><svg><use href="#i-arrow-left"/></svg> Назад</button>
     <h1 class="page-title" style="margin:0;flex:1">Банк заданий</h1>
-       <button class="primary" id="btnAddBankTask" hidden><svg><use href="#i-plus"/></svg> Задача</button>
+          <button class="ghost small" id="btnImportBankCsv" hidden>
+      <svg><use href="#i-upload"/></svg> Импорт CSV
+    </button>
+    <button class="primary" id="btnAddBankTask" hidden>
+      <svg><use href="#i-plus"/></svg> Задача
+    </button>
+    <input type="file" id="bankCsvInput" hidden accept=".csv,text/csv">
   </div>
 
   <div class="card" id="bankForm" hidden>
