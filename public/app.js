@@ -247,6 +247,102 @@ var bankState={
   pickerList: []
 };
 
+/* [WIDGETS] Тематики номеров ЕГЭ профиль */
+var EXAM_TOPICS = {
+  1:  'Планиметрия',
+  2:  'Векторы',
+  3:  'Стереометрия',
+  4:  'Теория вероятностей',
+  5:  'Теория вероятностей',
+  6:  'Уравнения',
+  7:  'Производная',
+  8:  'Производная',
+  9:  'Вычисления и преобразования',
+  10: 'Прикладные задачи',
+  11: 'Функции и графики',
+  12: 'Производная',
+  13: 'Тригонометрия',
+  14: 'Стереометрия',
+  15: 'Неравенства',
+  16: 'Экономические задачи',
+  17: 'Планиметрия',
+  18: 'Параметры',
+  19: 'Теория чисел',
+  20: 'Нестандартные задачи'
+};
+
+/* [WIDGETS] Склонение слова "задача" */
+function pluralTasks(n){
+  var m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'задача';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'задачи';
+  return 'задач';
+}
+
+/* [WIDGETS] Рендер сетки виджетов 1–20 */
+function renderExamWidgets(counts){
+  var host = document.getElementById('examWidgets');
+  if (!host) return;
+  host.innerHTML = '';
+  counts = counts || {};
+  var cur = ($('#bankFilterNum') && parseInt($('#bankFilterNum').value)) || 0;
+
+  for (var num = 1; num <= 20; num++) {
+    var cnt = counts[num] || 0;
+    var cls = 'exam-widget';
+    if (cnt === 0) cls += ' empty';
+    if (num === cur) cls += ' active';
+
+    var pct = Math.min(100, cnt * 10);
+
+    var w = document.createElement('div');
+    w.className = cls;
+    w.dataset.num = num;
+    w.innerHTML =
+      '<div class="exam-widget-num">' + num + '</div>' +
+      '<div class="exam-widget-topic">' + (EXAM_TOPICS[num] || '—') + '</div>' +
+      '<div class="exam-widget-bar">' +
+        '<div class="exam-widget-bar-fill" style="width:' + pct + '%"></div>' +
+      '</div>' +
+      '<div class="exam-widget-count">' + cnt + ' ' + pluralTasks(cnt) + '</div>';
+
+    w.onclick = (function(n){
+      return function(){
+        var sel = $('#bankFilterNum');
+        if (!sel) return;
+        var newVal = (parseInt(sel.value) === n) ? '0' : String(n);
+        sel.value = newVal;
+        if (newVal !== '0') {
+          var ex = $('#bankFilterExam');
+          if (ex) ex.value = 'profile';
+        }
+        syncWidgetsActive();
+        loadBankList();
+      };
+    })(num);
+
+    host.appendChild(w);
+  }
+}
+
+/* [WIDGETS] Синхронизация активного виджета с селектом */
+function syncWidgetsActive(){
+  var cur = ($('#bankFilterNum') && parseInt($('#bankFilterNum').value)) || 0;
+  $$('#examWidgets .exam-widget').forEach(function(el){
+    el.classList.toggle('active', parseInt(el.dataset.num) === cur);
+  });
+}
+
+/* [WIDGETS] Загрузка счётчиков с сервера */
+async function refreshExamWidgets(){
+  try {
+    var r = await api('/task-bank/counts');
+    renderExamWidgets(r.counts || {});
+  } catch (e) {
+    console.warn('exam counts:', e.message);
+  }
+}
+
 /* READER STATE */
 var reader = {
   bookId:null, book:null, pdf:null, totalPages:0,
@@ -632,6 +728,7 @@ function difficultyLabel(d){
 function difficultyColor(d){
   return {'easy':'var(--ok)','medium':'var(--warn)','hard':'var(--err)'}[d] || 'var(--warn)';
 }
+/* [WIDGETS] жёстко 20 номеров */
 function fillBankNumSelect(sel, examType, selected){
   if(!sel) return;
   var max = 20;
@@ -647,6 +744,8 @@ async function openTaskBank(){
   show('view-taskbank');
   var host=$('#bankList');
   skeleton(host, 4);
+  /* [WIDGETS] подгружаем счётчики номеров */
+  await refreshExamWidgets();
   try{
     if(!bankState.meta.topics.length){
       var m = await api('/task-bank/meta');
@@ -657,30 +756,7 @@ async function openTaskBank(){
   }catch(e){}
   await loadBankList();
 }
-async function openTaskBank() {
-  if (!canUseBank()) return;
-  show('view-taskbank');
-  var host = $('#bankList');
-  skeleton(host, 4);
 
-  // Загружаем статистику по номерам для виджетов
-  try {
-    var stats = await api('/task-bank/stats');
-    renderExamWidgets(stats.byNumber || {});
-  } catch (e) {
-    console.warn('exam stats:', e.message);
-  }
-
-  try {
-    if (!bankState.meta.topics.length) {
-      var m = await api('/task-bank/meta');
-      bankState.meta.topics = m.topics || [];
-      bankState.meta.presetTopics = m.presetTopics || [];
-      fillTopicSelects();
-    }
-  } catch (e) {}
-  await loadBankList();
-}
 function fillTopicSelects(){
   var sel = $('#bankFilterTopic');
   if(sel){
@@ -689,7 +765,6 @@ function fillTopicSelects(){
     bankState.meta.presetTopics.forEach(function(t){
       html += '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';
     });
-    // Добавляем темы из банка, которых нет в preset
     bankState.meta.topics.forEach(function(t){
       if(bankState.meta.presetTopics.indexOf(t)<0){
         html += '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>';
@@ -738,77 +813,8 @@ async function loadBankList(){
     var r = await api('/task-bank'+params);
     bankState.list = r.tasks || [];
     renderBankList();
-    /* ========== ВИДЖЕТЫ НОМЕРОВ ЕГЭ ========== */
-const EXAM_TOPICS = {
-  1:  'Планиметрия',
-  2:  'Векторы',
-  3:  'Стереометрия',
-  4:  'Теория вероятностей',
-  5:  'Теория вероятностей',
-  6:  'Уравнения',
-  7:  'Производная и графики',
-  8:  'Производная и графики',
-  9:  'Вычисления и преобразования',
-  10: 'Текстовые задачи',
-  11: 'Функции и графики',
-  12: 'Производная и графики',
-  13: 'Уравнения',
-  14: 'Стереометрия',
-  15: 'Неравенства',
-  16: 'Экономические задачи',
-  17: 'Планиметрия',
-  18: 'Параметры',
-  19: 'Теория чисел',
-  20: 'Нестандартные задачи'
-};
-
-function renderExamWidgets(stats) {
-  var host = document.getElementById('examWidgets');
-  if (!host) return;
-  host.innerHTML = '';
-
-  for (var num = 1; num <= 20; num++) {
-    var s = stats[num] || { correct: 0, total: 0 };
-    var pct = s.total > 0 ? Math.round(s.correct / s.total * 100) : 0;
-    var cls = 'exam-widget';
-    if (s.total >= 5 && pct >= 80) cls += ' done';
-    else if (s.total >= 3 && pct >= 50) cls += ' warning';
-    else if (s.total >= 1 && pct < 50) cls += ' danger';
-
-    var widget = document.createElement('div');
-    widget.className = cls;
-    widget.innerHTML =
-      '<div>' +
-        '<div class="exam-widget-num">' + num + '</div>' +
-        '<div class="exam-widget-topic">' + (EXAM_TOPICS[num] || '—') + '</div>' +
-      '</div>' +
-      '<div>' +
-        '<div class="exam-widget-bar">' +
-          '<div class="exam-widget-bar-fill" style="width:' + pct + '%"></div>' +
-        '</div>' +
-        '<div class="exam-widget-stat">' +
-          '<span>' + s.correct + '/' + s.total + '</span>' +
-          '<span>' + pct + '%</span>' +
-        '</div>' +
-      '</div>';
-
-    widget.onclick = (function(n) {
-      return function() {
-        // Устанавливаем фильтр по номеру и загружаем список
-        var sel = document.getElementById('bankFilterNum');
-        if (sel) { sel.value = n; }
-        var examSel = document.getElementById('bankFilterExam');
-        if (examSel) { examSel.value = 'profile'; }
-        loadBankList();
-        // Прокрутка к списку
-        var list = document.getElementById('bankList');
-        if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      };
-    })(num);
-
-    host.appendChild(widget);
-  }
-}
+    /* [WIDGETS] синхронизация активной карточки */
+    syncWidgetsActive();
   }catch(e){
     host.innerHTML = '<div class="card err">'+esc(e.message)+'</div>';
   }
@@ -883,10 +889,15 @@ function renderBankTaskCard(t){
     var bEdit=document.createElement('button');bEdit.className='ghost small';bEdit.innerHTML='<svg><use href="#i-edit"/></svg> Изменить';
     bEdit.onclick=function(){openBankForm(t);};
     var bDel=document.createElement('button');bDel.className='ghost small danger';bDel.innerHTML='<svg><use href="#i-trash"/></svg> Удалить';
+    /* [WIDGETS] обновляем счётчики после удаления */
     bDel.onclick=async function(){
       if(!confirm('Удалить задачу из банка?')) return;
-      try{ await api('/task-bank/'+t.id,{method:'DELETE'}); toast('Удалено','ok'); loadBankList(); }
-      catch(e){ toast(e.message,'err'); }
+      try{
+        await api('/task-bank/'+t.id,{method:'DELETE'});
+        toast('Удалено','ok');
+        await loadBankList();
+        refreshExamWidgets();
+      } catch(e){ toast(e.message,'err'); }
     };
     actions.appendChild(bEdit); actions.appendChild(bDel);
   }
@@ -936,7 +947,6 @@ function openBankForm(task){
   if(!task) fillBankNumSelect($('#bankExamTaskNumber'), et, '');
   $('#bankExamTaskNumber').outerHTML = '<select id="bankExamTaskNumber"></select>';
   fillBankNumSelect($('#bankExamTaskNumber'), et, task ? task.examTaskNumber : 0);
-  // Убираем дубликат — сделаем просто select
   $('#bankTopic').value = (task && task.topic) || '';
   $('#bankDifficulty').value = (task && task.difficulty) || 'medium';
   $('#bankTaskType').value = (task && task.type) || 'input';
@@ -946,7 +956,6 @@ function openBankForm(task){
   $('#bankPoints').value = (task && task.points) || 1;
   $('#bankIsPublic').checked = !!(task && task.isPublic);
 
-  // Опции для choice
   var ol = $('#bankOptionsList');
   ol.innerHTML = '';
   if(task && task.type==='choice' && Array.isArray(task.options)){
@@ -1012,13 +1021,14 @@ async function saveBankTask(){
       toast('Задача добавлена','ok');
     }
     closeBankForm();
-    // Обновить темы
     try{
       var m = await api('/task-bank/meta');
       bankState.meta.topics = m.topics || [];
       fillTopicSelects();
     }catch(e){}
-    loadBankList();
+    /* [WIDGETS] обновляем список и счётчики */
+    await loadBankList();
+    refreshExamWidgets();
   }catch(e){ err.textContent = e.message; toast(e.message,'err'); }
   finally{ btn.disabled = false; }
 }
@@ -1030,7 +1040,6 @@ async function openBankPicker(){
   var modal = $('#bankPickerModal');
   if(!modal) return;
   modal.hidden = false;
-  // Заполняем номер-селект
   fillBankNumSelect($('#bpNum'), $('#bpExam') ? $('#bpExam').value || 'profile' : 'profile', 0);
   try{
     if(!bankState.meta.topics.length){
@@ -1543,11 +1552,9 @@ function initEditorFields(){
   var bcs=$('#btnChatSend');if(bcs)bcs.onclick=sendChatMessage;
   var cht=$('#chatText');if(cht)cht.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}};
 
-  /* Кнопки банка в конструкторе */
   var bpf=$('#btnPickFromBank'); if(bpf) bpf.onclick = openBankPicker;
   var bstb=$('#btnSaveToBank'); if(bstb) bstb.onclick = saveCurrentToBank;
 
-  /* Форма банка */
   var babs=$('#btnAddBankTask');
   if(babs) babs.onclick = function(){ openBankForm(null); };
   var bbsc=$('#btnBankSave'); if(bbsc) bbsc.onclick = saveBankTask;
@@ -1563,7 +1570,6 @@ function initEditorFields(){
     $('#bankChoiceBlock').hidden = isInput;
   };
 
-  /* Фильтры банка — debounce на поиск */
   var bs=$('#bankSearch'); if(bs){ var st=null; bs.oninput=function(){ clearTimeout(st); st=setTimeout(loadBankList,250); }; }
   ['#bankFilterScope','#bankFilterExam','#bankFilterNum','#bankFilterDifficulty','#bankFilterTopic'].forEach(function(id){
     var el = $(id); if(el) el.onchange = loadBankList;
@@ -1573,8 +1579,10 @@ function initEditorFields(){
     fillBankNumSelect($('#bankFilterNum'), bfe.value || 'profile', 0);
     loadBankList();
   };
+  /* [WIDGETS] при смене номера в селекте — синхронизируем активную карточку */
+  var bfn = $('#bankFilterNum');
+  if(bfn) bfn.onchange = function(){ syncWidgetsActive(); loadBankList(); };
 
-  /* Модалка выбора */
   var bcbp = $('#btnCloseBankPicker'); if(bcbp) bcbp.onclick = closeBankPicker;
   var bpClr = $('#bpClear'); if(bpClr) bpClr.onclick = function(){ bankState.pickerSelected = {}; renderBankPickerList(); };
   var bpAdd = $('#bpAdd'); if(bpAdd) bpAdd.onclick = addSelectedToDraft;
@@ -1588,7 +1596,6 @@ function initEditorFields(){
     loadBankPickerList();
   };
 
-  /* Закрытие модалки по клику на фон */
   var bpModal = $('#bankPickerModal');
   if(bpModal){
     bpModal.addEventListener('click', function(e){
@@ -2437,9 +2444,7 @@ async function saveBook(){
   finally{btn.disabled=false;btn.innerHTML=oldTxt;}
 }
 
-/* ============================================================
-   PDF READER — РАЗВОРОТ ПО ДВЕ СТРАНИЦЫ
-   ============================================================ */
+/* PDF READER */
 function pdfSetupWorker(){
   if(window.pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
