@@ -2046,3 +2046,35 @@ body.reader-mode main { padding: 0 !important; }
   .bank-task-solution { padding: 14px 16px; }
   .bank-task-btn-row button { flex: 1 1 auto; justify-content: center; }
 }
+/* Форма банка: загрузка чертежа */
+.bank-figure-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  margin-top: 8px;
+}
+
+.bank-figure-preview {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.bank-figure-preview img,
+.bank-figure-preview svg {
+  max-width: 100%;
+  max-height: 260px;
+  height: auto;
+  display: block;
+}
