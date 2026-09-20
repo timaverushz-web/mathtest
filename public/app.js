@@ -147,6 +147,18 @@ function renderMixedText(el, raw){
   el.innerHTML = '';
   if(!raw){ return; }
   var str = String(raw);
+
+  /* Вырезаем <div class="task-figure">…</div> в начало, как отдельный блок */
+  var figMatch = str.match(/<div class="task-figure">([\s\S]*?)<\/div>/);
+  if (figMatch) {
+    var figDiv = document.createElement('div');
+    figDiv.className = 'task-figure';
+    figDiv.innerHTML = figMatch[1];
+    el.appendChild(figDiv);
+    str = str.replace(figMatch[0], '').trim();
+  }
+
+  /* Дальше — обычный парсинг $...$ формул */
   var parts = [];
   var re = /\$([^$]+)\$/g;
   var last = 0, m;
@@ -913,6 +925,16 @@ async function openTaskBank(){
       fillTopicSelects();
     }
   }catch(e){}
+    /* Админ-блок со статистикой и кнопками */
+  var adminBox = $('#bankAdminBox');
+  if (adminBox) {
+    if (isAdmin()) {
+      adminBox.hidden = false;
+      refreshBankStats();
+    } else {
+      adminBox.hidden = true;
+    }
+  }
   await loadBankList();
 }
 
@@ -985,47 +1007,360 @@ function renderBankList(){
     host.innerHTML='<div class="card"><div class="empty"><div class="icon">🗂️</div>Задач по фильтру не найдено.<br>Измените фильтры или добавьте новую задачу.</div></div>';
     return;
   }
+
+  /* Группируем по номеру ЕГЭ */
   var byNum = {};
   bankState.list.forEach(function(t){
     var k = 'profile_' + (t.examTaskNumber || 0);
     (byNum[k] = byNum[k] || []).push(t);
   });
+
   var keys = Object.keys(byNum).sort(function(a,b){
     return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
   });
+
   keys.forEach(function(k){
     var num = parseInt(k.split('_')[1]);
     var group = byNum[k];
     var groupCard = document.createElement('div');
     groupCard.className = 'bank-group';
+
+    var protos = group.filter(function(x){return x.isPrototype;});
+    var variants = group.filter(function(x){return !x.isPrototype;});
+
     var head = document.createElement('div');
     head.className = 'bank-group-head';
-    head.innerHTML = '<span class="pill blue">ЕГЭ профиль'+(num?' · №'+num:'')+'</span>'+
-                     '<span class="muted">'+group.length+' задач</span>';
+    head.innerHTML = '<span class="pill blue">'+(num?'ЕГЭ профиль · №'+num:'Без номера')+'</span>'+
+                     '<span class="muted">'+group.length+' задач · '+protos.length+' прототипов · '+variants.length+' вариаций</span>';
     groupCard.appendChild(head);
-    group.forEach(function(t){ groupCard.appendChild(renderBankTaskCard(t)); });
+
+    /* Прототипы со своими вариациями */
+    var protoMap = {};
+    protos.forEach(function(p){ protoMap[p.id] = { proto: p, variants: [] }; });
+
+    /* Вариации привязываем к прототипам */
+    var orphan = [];
+    variants.forEach(function(v){
+      if (v.prototypeId && protoMap[v.prototypeId]) protoMap[v.prototypeId].variants.push(v);
+      else orphan.push(v);
+    });
+
+    Object.keys(protoMap).forEach(function(pid){
+      var node = protoMap[pid];
+      groupCard.appendChild(renderPrototypeBlock(node.proto, node.variants));
+    });
+
+    /* Вариации без прототипа — просто списком */
+    if (orphan.length) {
+      var orphanBlock = document.createElement('div');
+      orphanBlock.className = 'orphan-variants';
+      var oh = document.createElement('div');
+      oh.className = 'muted';
+      oh.style.cssText = 'padding:8px 12px;font-size:13px;margin:8px 0 4px';
+      oh.textContent = 'Вариации без прототипа:';
+      orphanBlock.appendChild(oh);
+      orphan.forEach(function(t){ orphanBlock.appendChild(renderBankTaskCard(t, true)); });
+      groupCard.appendChild(orphanBlock);
+    }
+
     host.appendChild(groupCard);
   });
 }
 
-function renderBankTaskCard(t){
+function renderPrototypeBlock(proto, variants){
+  var wrap = document.createElement('div');
+  wrap.className = 'proto-block';
+
+  /* Карточка прототипа */
+  wrap.appendChild(renderBankTaskCard(proto, false));
+
+  if (!variants.length) {
+    var hint = document.createElement('div');
+    hint.className = 'muted proto-empty-hint';
+    hint.textContent = 'Вариаций пока нет. Нажмите «🎲 Сгенерировать вариации» выше.';
+    wrap.appendChild(hint);
+    return wrap;
+  }
+
+  /* Список вариаций (свёрнут) */
+  var header = document.createElement('div');
+  header.className = 'variants-header';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'variants-toggle';
+  btn.innerHTML = '📎 Вариации ('+variants.length+') <span class="caret">▾</span>';
+  header.appendChild(btn);
+
+  var list = document.createElement('div');
+  list.className = 'variants-list';
+  list.hidden = true;
+
+  variants.sort(function(a,b){ return (a.variantIndex||0)-(b.variantIndex||0); });
+  variants.forEach(function(v){ list.appendChild(renderBankTaskCard(v, true)); });
+
+  btn.onclick = function(){
+    list.hidden = !list.hidden;
+    btn.querySelector('.caret').textContent = list.hidden ? '▾' : '▴';
+  };
+
+  wrap.appendChild(header);
+  wrap.appendChild(list);
+  return wrap;
+}
+/* ==========================================================
+   МОДАЛКА «РЕШИТЬ»
+   ========================================================== */
+var solveState = { task: null, answerInput: null, checked: false };
+
+function openSolveModal(task){
+  solveState.task = task;
+  solveState.checked = false;
+  solveState.answerInput = null;
+
+  var modal = $('#solveModal');
+  if (!modal) { toast('Модалка не найдена','err'); return; }
+  modal.hidden = false;
+
+  $('#solveTitle').textContent = 'Задача №' + (task.examTaskNumber || '—') + (task.topic ? ' · ' + task.topic : '');
+  $('#solvePoints').textContent = task.points || 1;
+  $('#solveDifficulty').textContent = difficultyLabel(task.difficulty);
+
+  /* Условие + картинка */
+  var host = $('#solveStatement');
+  host.innerHTML = '';
+  var stmt = createMathInput(task.statement, true);
+  host.appendChild(stmt.el);
+
+  /* Если у задачи есть figureSvg и он ещё не в statement — добавим */
+  if (task.figureSvg && !/task-figure/.test(task.statement || '')) {
+    var figWrap = document.createElement('div');
+    figWrap.className = 'task-figure';
+    figWrap.innerHTML = task.figureSvg;
+    host.insertBefore(figWrap, host.firstChild);
+  }
+
+  /* Поле ответа */
+  var answerHost = $('#solveAnswerHost');
+  answerHost.innerHTML = '';
+  if (task.type === 'input') {
+    solveState.answerInput = createMathInput('', false);
+    answerHost.appendChild(solveState.answerInput.el);
+    $('#solveChoiceBlock').hidden = true;
+    $('#solveInputBlock').hidden = false;
+  } else {
+    $('#solveInputBlock').hidden = true;
+    $('#solveChoiceBlock').hidden = false;
+    var cHost = $('#solveChoiceList');
+    cHost.innerHTML = '';
+    (task.options || []).forEach(function(opt, i){
+      var lab = document.createElement('label');
+      lab.className = 'solve-choice-item';
+      var rd = document.createElement('input');
+      rd.type = 'radio'; rd.name = 'solveChoice'; rd.value = i;
+      var ob = createMathInput(opt.text, true);
+      ob.el.style.flex = '1';
+      lab.appendChild(rd); lab.appendChild(ob.el);
+      cHost.appendChild(lab);
+    });
+  }
+
+  /* Скрыть результат и решение */
+  $('#solveResult').hidden = true;
+  $('#solveSolution').hidden = true;
+  $('#solveCheckBtn').disabled = false;
+  $('#solveCheckBtn').innerHTML = '<svg><use href="#i-check"/></svg> Проверить';
+
+  var revealBtn = $('#solveRevealBtn');
+  if (revealBtn) {
+    revealBtn.hidden = false;
+    revealBtn.textContent = '📝 Показать решение';
+  }
+
+  /* Фокус на поле ввода */
+  setTimeout(function(){
+    if (solveState.answerInput && solveState.answerInput.textarea) solveState.answerInput.textarea.focus();
+  }, 100);
+}
+
+function closeSolveModal(){
+  var modal = $('#solveModal');
+  if (modal) modal.hidden = true;
+  solveState.task = null;
+  solveState.answerInput = null;
+  solveState.checked = false;
+}
+
+function solveNorm(s){
+  return String(s || '').replace(/\\left|\\right/g,'')
+    .replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
+    .replace(/\s+/g,'').replace(/,/g,'.').toLowerCase();
+}
+
+function checkSolveAnswer(){
+  var t = solveState.task;
+  if (!t) return;
+
+  var userAns = '';
+  if (t.type === 'input') {
+    userAns = solveState.answerInput ? solveState.answerInput.getValue().trim() : '';
+    if (!userAns) { toast('Введите ответ', 'warn'); return; }
+  } else {
+    var rd = document.querySelector('#solveChoiceList input[name="solveChoice"]:checked');
+    if (!rd) { toast('Выберите вариант', 'warn'); return; }
+    userAns = String(rd.value);
+  }
+
+  var ok = false;
+  var correctText = '';
+  if (t.type === 'input') {
+    var sn = Number(solveNorm(userAns));
+    var cn = Number(solveNorm(t.answer));
+    if (isFinite(sn) && isFinite(cn)) {
+      ok = Math.abs(sn - cn) <= (t.tolerance || 1e-6);
+    } else {
+      ok = solveNorm(userAns) === solveNorm(t.answer);
+    }
+    correctText = t.answer;
+  } else {
+    ok = Number(userAns) === Number(t.correctIndex);
+    correctText = t.options && t.options[t.correctIndex] ? t.options[t.correctIndex].text : '';
+  }
+
+  solveState.checked = true;
+
+  var res = $('#solveResult');
+  res.hidden = false;
+  if (ok) {
+    res.className = 'solve-result ok';
+    res.innerHTML = '<div style="font-size:22px;font-weight:900">✓ Верно!</div>' +
+                    '<div class="muted" style="margin-top:8px">+'+(t.points||1)+' '+(t.points===1?'балл':'балла')+'</div>';
+  } else {
+    res.className = 'solve-result err';
+    res.innerHTML = '<div style="font-size:22px;font-weight:900">✗ Неверно</div>' +
+                    '<div class="muted" style="margin-top:10px">Правильный ответ:</div>' +
+                    '<div style="margin-top:6px"><span class="solve-correct-answer">'+esc(correctText)+'</span></div>';
+  }
+
+  /* Если верно и есть решение — сразу покажем */
+  if (ok) revealSolution();
+}
+
+async function revealSolution(){
+  var t = solveState.task;
+  if (!t) return;
+  var host = $('#solveSolution');
+  host.hidden = false;
+  host.innerHTML = '<h3 style="margin-bottom:12px">📝 Решение</h3>';
+
+  var sol = t.solution;
+  if (!sol) {
+    try {
+      var r = await api('/task-bank/' + t.id + '?reveal=1');
+      sol = r.task.solution;
+      solveState.task.solution = sol;
+    } catch (e) {
+      host.innerHTML += '<div class="err">Не удалось получить решение: ' + esc(e.message) + '</div>';
+      return;
+    }
+  }
+
+  if (!sol) {
+    host.innerHTML += '<div class="muted">Решение для этой задачи пока не добавлено.</div>';
+    return;
+  }
+
+  var body = document.createElement('div');
+  body.className = 'solve-solution-body';
+  renderMixedText(body, sol);
+  host.appendChild(body);
+}
+
+/* ==========================================================
+   АДМИН: ОЧИСТКА / СБРОС / СТАТИСТИКА БАНКА
+   ========================================================== */
+async function resetTaskBank(){
+  if (!confirm('⚠️ СБРОСИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены и загружены 21 прототип ФИПИ 2027.\nЭто необратимо.')) return;
+  if (!confirm('Точно? Все текущие задачи пропадут.')) return;
+  try {
+    var r = await api('/admin/task-bank/reset', { method: 'POST' });
+    toast('Готово: удалено ' + r.deleted + ', загружено прототипов: ' + r.seeded, 'ok');
+    refreshBankStats();
+    if ($('#view-taskbank').classList.contains('active')) {
+      await loadBankList();
+      refreshExamWidgets();
+    }
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function clearTaskBank(){
+  if (!confirm('⚠️ ОЧИСТИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены безвозвратно (без пересева).')) return;
+  try {
+    var r = await api('/admin/task-bank/clear', { method: 'POST' });
+    toast('Удалено задач: ' + r.deleted, 'ok');
+    refreshBankStats();
+    if ($('#view-taskbank').classList.contains('active')) {
+      await loadBankList();
+      refreshExamWidgets();
+    }
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function refreshBankStats(){
+  var el = $('#bankStatsBox');
+  if (!el) return;
+  try {
+    var r = await api('/admin/task-bank/stats');
+    el.innerHTML = '<b>' + r.total + '</b> задач · ' +
+                   '<b style="color:var(--accent)">' + r.prototypes + '</b> прототипов · ' +
+                   '<b>' + r.variants + '</b> вариаций';
+  } catch (e) { el.textContent = 'Ошибка: ' + e.message; }
+}
+
+async function generateVariantsForPrototype(proto){
+  var n = prompt('Сколько вариаций сгенерировать для этого прототипа?\n(1–200, рекомендуется 20–40)', '20');
+  if (!n) return;
+  n = parseInt(n);
+  if (!n || n < 1 || n > 200) { toast('Нужно число от 1 до 200', 'warn'); return; }
+
+  toast('Генерация... подождите 20–60 секунд', 'info');
+  try {
+    var r = await api('/admin/generate-tasks', {
+      method: 'POST',
+      body: { n: n, prototypeId: proto.id }
+    });
+    toast('Добавлено вариаций: ' + r.added + (r.failed ? ' · ошибок: ' + r.failed : ''), 'ok');
+    await loadBankList();
+    refreshExamWidgets();
+    refreshBankStats();
+  } catch (e) { toast(e.message, 'err'); }
+}
+function renderBankTaskCard(t, isVariant){
   var card=document.createElement('div');
-  card.className='bank-task';
+  card.className='bank-task' + (isVariant ? ' bank-task-variant' : '');
+  if (t.isPrototype) card.classList.add('bank-task-proto-card');
+
   var meta = [];
-  if(t.topic) meta.push('<span class="pill">'+esc(t.topic)+'</span>');
+  if (t.topic) meta.push('<span class="pill">'+esc(t.topic)+'</span>');
   meta.push('<span class="pill" style="color:'+difficultyColor(t.difficulty)+';border-color:'+difficultyColor(t.difficulty)+'">'+difficultyLabel(t.difficulty)+'</span>');
   meta.push('<span class="pill">'+(t.type==='choice'?'выбор':'ввод')+'</span>');
   meta.push('<span class="pill">'+(t.points||1)+' б.</span>');
-  if(t.isPublic) meta.push('<span class="pill green"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-globe"/></svg> публичная</span>');
 
-    var canEdit = canEditBank() && (isAdmin() || (currentUser && t.ownerId === currentUser.id));
+  if (t.isPrototype) meta.push('<span class="pill green">📘 прототип ФИПИ</span>');
+  else if (t.variantIndex) meta.push('<span class="pill blue">вариант '+t.variantIndex+'</span>');
+  if (t.solution) meta.push('<span class="pill" title="Есть подробное решение">📝 решение</span>');
+  if (t.figureSvg) meta.push('<span class="pill" title="Есть чертёж">🖼 чертёж</span>');
+  if (t.isPublic) meta.push('<span class="pill green"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-globe"/></svg> публичная</span>');
+
+  var canEdit = canEditBank() && (isAdmin() || (currentUser && t.ownerId === currentUser.id));
 
   card.innerHTML = '<div class="bank-task-meta">'+meta.join(' ')+'</div>'+
     '<div class="bank-task-body"></div>'+
     '<div class="bank-task-actions"></div>';
+
   var body = card.querySelector('.bank-task-body');
   var stmt = createMathInput(t.statement, true);
   body.appendChild(stmt.el);
+
   var ans = document.createElement('div');
   ans.style.cssText='font-size:13.5px;color:var(--text-2);margin-top:8px';
   if(t.type==='input'){
@@ -1036,10 +1371,21 @@ function renderBankTaskCard(t){
   body.appendChild(ans);
 
   var actions = card.querySelector('.bank-task-actions');
+
+  /* Кнопка «Решить» — для всех */
+  var bSolve = document.createElement('button');
+  bSolve.className='primary small';
+  bSolve.innerHTML='<svg><use href="#i-edit"/></svg> Решить';
+  bSolve.onclick=function(){ openSolveModal(t); };
+  actions.appendChild(bSolve);
+
   if(canEdit){
-    var bEdit=document.createElement('button');bEdit.className='ghost small';bEdit.innerHTML='<svg><use href="#i-edit"/></svg> Изменить';
+    var bEdit=document.createElement('button');bEdit.className='ghost small';
+    bEdit.innerHTML='<svg><use href="#i-edit"/></svg> Изменить';
     bEdit.onclick=function(){openBankForm(t);};
-    var bDel=document.createElement('button');bDel.className='ghost small danger';bDel.innerHTML='<svg><use href="#i-trash"/></svg> Удалить';
+
+    var bDel=document.createElement('button');bDel.className='ghost small danger';
+    bDel.innerHTML='<svg><use href="#i-trash"/></svg> Удалить';
     bDel.onclick=async function(){
       if(!confirm('Удалить задачу из банка?')) return;
       try{
@@ -1050,6 +1396,16 @@ function renderBankTaskCard(t){
       } catch(e){ toast(e.message,'err'); }
     };
     actions.appendChild(bEdit); actions.appendChild(bDel);
+
+    /* Кнопка «🎲 Сгенерировать вариации» — только для прототипа */
+    if (t.isPrototype) {
+      var bGen = document.createElement('button');
+      bGen.className='ghost small';
+      bGen.innerHTML='🎲 Сгенерировать вариации';
+      bGen.title='Создать новые задачи с другими числами по этому прототипу';
+      bGen.onclick=function(){ generateVariantsForPrototype(t); };
+      actions.appendChild(bGen);
+    }
   }
   return card;
 }
@@ -1119,6 +1475,10 @@ function openBankForm(task){
     bankAddOption(); bankAddOption();
   }
   $('#bankTaskType').onchange();
+    if ($('#bankIsPrototype')) $('#bankIsPrototype').checked = !!(task && task.isPrototype);
+  if ($('#bankPrototypeId')) $('#bankPrototypeId').value = (task && task.prototypeId) || '';
+  if ($('#bankSolutionInput')) $('#bankSolutionInput').value = (task && task.solution) || '';
+  if ($('#bankFigureSvgInput')) $('#bankFigureSvgInput').value = (task && task.figureSvg) || '';
   $('#bankForm').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
@@ -1133,7 +1493,7 @@ async function saveBankTask(){
   var statement = bankState.statementInput ? bankState.statementInput.getValue().trim() : '';
   if(!statement){ err.textContent='Введите условие задачи'; return; }
   var type = $('#bankTaskType').value;
-  var body = {
+    var body = {
     examType: 'profile',
     examTaskNumber: parseInt($('#bankExamTaskNumber').value) || null,
     topic: $('#bankTopic').value.trim() || null,
@@ -1141,7 +1501,11 @@ async function saveBankTask(){
     statement: statement,
     type: type,
     points: Math.max(0.5, Number($('#bankPoints').value) || 1),
-    isPublic: $('#bankIsPublic').checked
+    isPublic: $('#bankIsPublic').checked,
+    isPrototype: $('#bankIsPrototype') ? $('#bankIsPrototype').checked : false,
+    prototypeId: $('#bankPrototypeId') ? ($('#bankPrototypeId').value.trim() || null) : null,
+    solution: $('#bankSolutionInput') ? $('#bankSolutionInput').value.trim() : null,
+    figureSvg: $('#bankFigureSvgInput') ? $('#bankFigureSvgInput').value.trim() : null
   };
   if(type === 'input'){
     var ans = bankState.answerInput ? bankState.answerInput.getValue().trim() : '';
@@ -1699,7 +2063,27 @@ function initEditorFields(){
 
   var bpf=$('#btnPickFromBank'); if(bpf) bpf.onclick = openBankPicker;
   var bstb=$('#btnSaveToBank'); if(bstb) bstb.onclick = saveCurrentToBank;
+  /* --- Модалка «Решить» --- */
+  var bSolveCheck = $('#solveCheckBtn');
+  if (bSolveCheck) bSolveCheck.onclick = checkSolveAnswer;
+  var bSolveReveal = $('#solveRevealBtn');
+  if (bSolveReveal) bSolveReveal.onclick = revealSolution;
+  var bSolveClose = $('#solveClose');
+  if (bSolveClose) bSolveClose.onclick = closeSolveModal;
+  var bSolveClose2 = $('#solveCloseBtn');
+  if (bSolveClose2) bSolveClose2.onclick = closeSolveModal;
+  var solveModal = $('#solveModal');
+  if (solveModal) {
+    solveModal.addEventListener('click', function(e){
+      if (e.target === solveModal) closeSolveModal();
+    });
+  }
 
+  /* --- Админские кнопки банка --- */
+  var bReset = $('#btnResetBank');
+  if (bReset) bReset.onclick = resetTaskBank;
+  var bClear = $('#btnClearBank');
+  if (bClear) bClear.onclick = clearTaskBank;
   var babs=$('#btnAddBankTask');
     var bImp=$('#btnImportBankCsv');
   if(bImp) bImp.onclick = function(){ var f=$('#bankCsvInput'); if(f) f.click(); };
@@ -2944,6 +3328,7 @@ async function openAdmin(){
   show('view-admin');
   skeleton($('#adminStats'),3);skeleton($('#adminUsersList'),4);
   await loadAdminUsers();
+  refreshBankStats();
 }
 async function loadAdminLogs(){
   var host=$('#adminLogsList');if(!host)return;skeleton(host,5);
