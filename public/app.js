@@ -325,6 +325,7 @@ var bankState={
   editingId: null,
   statementInput: null,
   answerInput: null,
+  figureUrl: null,
   pickerSelected: {},
   pickerList: []
 };
@@ -1606,37 +1607,115 @@ function openBankForm(task){
     bankAddOption(); bankAddOption();
   }
   $('#bankTaskType').onchange();
-    if ($('#bankIsPrototype')) $('#bankIsPrototype').checked = !!(task && task.isPrototype);
+      if ($('#bankIsPrototype')) $('#bankIsPrototype').checked = !!(task && task.isPrototype);
   if ($('#bankPrototypeId')) $('#bankPrototypeId').value = (task && task.prototypeId) || '';
   if ($('#bankSolutionInput')) $('#bankSolutionInput').value = (task && task.solution) || '';
-  if ($('#bankFigureSvgInput')) $('#bankFigureSvgInput').value = (task && task.figureSvg) || '';
+
+  /* Чертёж: вытаскиваем URL из statement, если он там уже вшит */
+  bankState.figureUrl = null;
+  var stmtRaw = (task && task.statement) || '';
+  var figRe = /<div class="task-figure">\s*<img[^>]*src="([^"]+)"/i;
+  var m = stmtRaw.match(figRe);
+  if (m) {
+    bankState.figureUrl = m[1];
+    stmtRaw = stmtRaw.replace(/<div class="task-figure">[\s\S]*?<\/div>\s*/i, '').trim();
+    if (bankState.statementInput) bankState.statementInput.setValue(stmtRaw);
+  } else if ($('#bankFigureSvgInput') && task && task.figureSvg) {
+    /* Старый формат — SVG в отдельном поле */
+    bankState.figureUrl = 'inline:' + task.figureSvg;
+  }
+  renderBankFigurePreview();
+
   $('#bankForm').scrollIntoView({behavior:'smooth', block:'start'});
-}
 
 function closeBankForm(){
   $('#bankForm').hidden = true;
   bankState.editingId = null;
+  bankState.figureUrl = null;
   $('#bankErr').textContent = '';
+  renderBankFigurePreview();
+}
+function renderBankFigurePreview(){
+  var box = $('#bankFigurePreview');
+  var nameEl = $('#bankFigureName');
+  var clearBtn = $('#btnBankFigureClear');
+  if (!box) return;
+
+  if (!bankState.figureUrl) {
+    box.hidden = true;
+    box.innerHTML = '';
+    if (nameEl) nameEl.textContent = '';
+    if (clearBtn) clearBtn.hidden = true;
+    return;
+  }
+
+  box.hidden = false;
+  if (bankState.figureUrl.indexOf('inline:') === 0) {
+    box.innerHTML = bankState.figureUrl.slice(7);
+    if (nameEl) nameEl.textContent = 'SVG (встроенный)';
+  } else {
+    box.innerHTML = '<img src="' + bankState.figureUrl + '" alt="Чертёж">';
+    if (nameEl) nameEl.textContent = bankState.figureUrl.split('/').pop();
+  }
+  if (clearBtn) clearBtn.hidden = false;
 }
 
+function clearBankFigure(){
+  bankState.figureUrl = null;
+  renderBankFigurePreview();
+  var inp = $('#bankFigureInput');
+  if (inp) inp.value = '';
+}
+
+async function uploadBankFigure(file){
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    toast('Файл больше 5 МБ', 'warn');
+    return;
+  }
+  var fd = new FormData();
+  fd.append('figure', file);
+  try {
+    toast('Загрузка чертежа...', 'info');
+    var r = await apiForm('/task-bank/upload-figure', fd);
+    bankState.figureUrl = r.url;
+    renderBankFigurePreview();
+    toast('Чертёж загружен', 'ok');
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
 async function saveBankTask(){
   var err=$('#bankErr'); if(err) err.textContent='';
   var statement = bankState.statementInput ? bankState.statementInput.getValue().trim() : '';
   if(!statement){ err.textContent='Введите условие задачи'; return; }
   var type = $('#bankTaskType').value;
-    var body = {
+      /* Вшиваем чертёж прямо в statement */
+  var finalStatement = statement;
+  if (bankState.figureUrl) {
+    let figureHtml;
+    if (bankState.figureUrl.indexOf('inline:') === 0) {
+      /* Старый SVG-контент */
+      figureHtml = bankState.figureUrl.slice(7);
+    } else {
+      figureHtml = '<img src="' + bankState.figureUrl + '" alt="Чертёж">';
+    }
+    finalStatement = '<div class="task-figure">' + figureHtml + '</div>\n' + statement;
+  }
+
+  var body = {
     examType: 'profile',
     examTaskNumber: parseInt($('#bankExamTaskNumber').value) || null,
     topic: $('#bankTopic').value.trim() || null,
     difficulty: $('#bankDifficulty').value,
-    statement: statement,
+    statement: finalStatement,
     type: type,
     points: Math.max(0.5, Number($('#bankPoints').value) || 1),
     isPublic: $('#bankIsPublic').checked,
     isPrototype: $('#bankIsPrototype') ? $('#bankIsPrototype').checked : false,
     prototypeId: $('#bankPrototypeId') ? ($('#bankPrototypeId').value.trim() || null) : null,
     solution: $('#bankSolutionInput') ? $('#bankSolutionInput').value.trim() : null,
-    figureSvg: $('#bankFigureSvgInput') ? $('#bankFigureSvgInput').value.trim() : null
+    figureSvg: null
   };
   if(type === 'input'){
     var ans = bankState.answerInput ? bankState.answerInput.getValue().trim() : '';
@@ -2201,6 +2280,15 @@ function initEditorFields(){
   var bClear = $('#btnClearBank');
   if (bClear) bClear.onclick = clearTaskBank;
   var babs=$('#btnAddBankTask');
+    /* --- Чертёж в форме банка --- */
+  var bFigPick = $('#btnBankFigurePick');
+  if (bFigPick) bFigPick.onclick = function(){ var i = $('#bankFigureInput'); if (i) i.click(); };
+  var bFigInput = $('#bankFigureInput');
+  if (bFigInput) bFigInput.onchange = function(){
+    if (this.files && this.files[0]) uploadBankFigure(this.files[0]);
+  };
+  var bFigClear = $('#btnBankFigureClear');
+  if (bFigClear) bFigClear.onclick = clearBankFigure;
     var bImp=$('#btnImportBankCsv');
   if(bImp) bImp.onclick = function(){ var f=$('#bankCsvInput'); if(f) f.click(); };
   var bcsv=$('#bankCsvInput');
