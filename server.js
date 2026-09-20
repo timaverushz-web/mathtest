@@ -348,7 +348,6 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_taskbank_owner ON task_bank(owner_id);
     CREATE INDEX IF NOT EXISTS idx_taskbank_exam ON task_bank(exam_type, exam_task_number);
     CREATE INDEX IF NOT EXISTS idx_taskbank_public ON task_bank(is_public);
-    CREATE INDEX IF NOT EXISTS idx_taskbank_prototype ON task_bank(prototype_id);
   `);
 
   /* ---------- МИГРАЦИИ (для существующих БД) ---------- */
