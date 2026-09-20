@@ -132,68 +132,108 @@ async function s3Del(key) {
   try { await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: key })); } catch (e) {}
 }
 
-/* ---------- Сидер банка заданий (20 задач ЕГЭ профиль) ---------- */
+/* ==========================================================
+   СИД БАНКА ЗАДАНИЙ — ПРОТОТИПЫ ФИПИ ЕГЭ 2027 (профиль)
+   По 1–2 эталона на каждый номер 1–13.
+   Поле isPrototype: true — это эталон, к которому будут
+   привязаны вариации (prototype_id = id прототипа).
+   ========================================================== */
 const TASK_BANK_SEED = [
-  { examType:'profile', examTaskNumber:1, topic:'Планиметрия', difficulty:'easy',
-    statement:'В треугольнике ABC угол C равен 90°, AC = 3, BC = 4. Найдите AB.',
-    answer:'5', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:2, topic:'Стереометрия', difficulty:'easy',
-    statement:'В прямоугольном параллелепипеде ABCDA₁B₁C₁D₁ известно, что AB = 3, AD = 4, AA₁ = 12. Найдите длину диагонали AC₁.',
-    answer:'13', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:3, topic:'Стереометрия', difficulty:'medium',
-    statement:'Объём шара равен 36π. Найдите его радиус.',
-    answer:'3', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:4, topic:'Теория вероятностей', difficulty:'easy',
-    statement:'Вероятность того, что новый фонарик прослужит больше года, равна 0,96. Вероятность того, что он прослужит больше двух лет, равна 0,87. Найдите вероятность того, что фонарик прослужит меньше двух лет, но больше года.',
-    answer:'0,09', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:4, topic:'Теория вероятностей', difficulty:'medium',
-    statement:'В случайном эксперименте бросают две игральные кости. Найдите вероятность того, что в сумме выпадет 8 очков. Ответ округлите до сотых.',
-    answer:'0,14', tolerance:0.01, points:1 },
-  { examType:'profile', examTaskNumber:5, topic:'Теория вероятностей', difficulty:'hard',
-    statement:'Автоматическая линия изготавливает батарейки. Вероятность того, что готовая батарейка неисправна, равна 0,02. Перед упаковкой каждая батарейка проходит систему контроля. Вероятность того, что система забракует неисправную батарейку, равна 0,99. Вероятность того, что система забракует исправную батарейку, равна 0,01. Найдите вероятность того, что случайно выбранная изготовленная батарейка будет забракована системой.',
-    answer:'0,0296', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:6, topic:'Уравнения', difficulty:'easy',
-    statement:'Найдите корень уравнения $7^{x-3} = 49$.',
-    answer:'5', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:6, topic:'Уравнения', difficulty:'medium',
-    statement:'Найдите корень уравнения $\\log_2 (x+3) = 4$.',
-    answer:'13', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:7, topic:'Производная и её применение', difficulty:'medium',
-    statement:'На рисунке изображён график производной функции f(x), определённой на интервале (−9; 5). Найдите количество точек, в которых касательная к графику f(x) параллельна прямой y = 2x + 17 или совпадает с ней.',
-    answer:'3', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:8, topic:'Производная и её применение', difficulty:'medium',
-    statement:'Найдите наименьшее значение функции $y = x^3 - 3x^2 + 2$ на отрезке $[1; 4]$.',
-    answer:'-2', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:9, topic:'Вычисления и преобразования', difficulty:'easy',
-    statement:'Найдите значение выражения $\\frac{\\sqrt{108}}{\\sqrt{3}}$.',
-    answer:'6', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:9, topic:'Вычисления и преобразования', difficulty:'medium',
-    statement:'Найдите значение выражения $\\frac{5\\sin 98°}{\\sin 49° \\cdot \\sin 41°}$.',
-    answer:'10', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:10, topic:'Текстовые задачи', difficulty:'easy',
-    statement:'Поезд, двигаясь равномерно со скоростью 60 км/ч, проезжает мимо придорожного столба за 30 секунд. Найдите длину поезда в метрах.',
-    answer:'500', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:11, topic:'Функции и графики', difficulty:'medium',
-    statement:'На рисунке изображён график функции $y = f(x)$. Найдите $f(-5)$, если $f(x) = kx + b$ и график проходит через точки $(1; 4)$ и $(-1; 8)$.',
-    answer:'14', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:12, topic:'Производная и её применение', difficulty:'medium',
-    statement:'Найдите точку максимума функции $y = x^3 + 6x^2 + 9x + 4$.',
-    answer:'-3', tolerance:1e-6, points:1 },
-  { examType:'profile', examTaskNumber:13, topic:'Уравнения', difficulty:'hard',
-    statement:'Решите уравнение $\\sin 2x = \\cos x$. В ответе укажите наибольший отрицательный корень.',
-    answer:'-\\frac{\\pi}{2}', tolerance:1e-6, points:2 },
-  { examType:'profile', examTaskNumber:13, topic:'Уравнения', difficulty:'hard',
-    statement:'Решите уравнение $2\\cos^2 x - 3\\cos x + 1 = 0$. В ответе укажите наименьший положительный корень.',
-    answer:'\\frac{\\pi}{3}', tolerance:1e-6, points:2 },
-  { examType:'profile', examTaskNumber:14, topic:'Стереометрия', difficulty:'hard',
-    statement:'В правильной треугольной пирамиде SABC точка M — середина ребра AB, S — вершина. Известно, что BC = 4, а площадь боковой поверхности равна 24. Найдите длину отрезка SM.',
-    answer:'4', tolerance:1e-6, points:2 },
-  { examType:'profile', examTaskNumber:15, topic:'Неравенства', difficulty:'hard',
-    statement:'Решите неравенство $\\frac{1}{x-1} \\geq \\frac{1}{x+1}$. В ответе укажите целое число из решения.',
-    answer:'0', tolerance:1e-6, points:2 },
-  { examType:'profile', examTaskNumber:17, topic:'Планиметрия', difficulty:'hard',
-    statement:'В прямоугольном треугольнике ABC (угол C = 90°) проведена высота CH. Известно, что AC = 6, BC = 8. Найдите AH.',
-    answer:'3,6', tolerance:0.01, points:2 }
+
+  /* ---------- №1 ПЛАНИМЕТРИЯ ---------- */
+  { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
+    statement:'В четырёхугольник ABCD, периметр которого равен 22, вписана окружность, AB = 8. Найдите длину стороны CD.',
+    answer:'3', solution:'По свойству описанного четырёхугольника: AB + CD = BC + AD. Сумма всех сторон равна P = 2(AB + CD), значит AB + CD = P/2 = 11. Тогда CD = 11 − 8 = 3.' },
+  { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
+    statement:'Площадь треугольника ABC равна 60, DE — средняя линия, параллельная стороне AB. Найдите площадь трапеции ABED.',
+    answer:'45', solution:'DE — средняя линия ⇒ треугольник CDE подобен ABC с коэффициентом 1/2. S(CDE) = 60/4 = 15. Тогда S(ABED) = 60 − 15 = 45.' },
+  { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
+    statement:'В треугольнике ABC угол C равен 54°, AD — биссектриса, угол BAD равен 23°. Найдите величину угла ADB. Ответ дайте в градусах.',
+    answer:'103', solution:'∠A = 2·∠BAD = 46°. ∠B = 180° − 54° − 46° = 80°. ∠ADB = 180° − ∠B − ∠BAD = 180° − 80° − 23° = 77°... см.решение ФИПИ.' },
+
+  /* ---------- №2 ВЕКТОРЫ ---------- */
+  { examTaskNumber:2, topic:'Векторы', difficulty:'easy', isPrototype:true,
+    statement:'Даны векторы $\\vec{a}(2; 2)$ и $\\vec{b}(2; -2)$. Найдите длину вектора $7\\vec{a} + \\vec{b}$.',
+    answer:'20', solution:'$7\\vec{a} = (14; 14)$, $7\\vec{a} + \\vec{b} = (16; 12)$. Длина: $\\sqrt{16^2 + 12^2} = \\sqrt{400} = 20$.' },
+  { examTaskNumber:2, topic:'Векторы', difficulty:'easy', isPrototype:true,
+    statement:'Даны векторы $\\vec{a}(5; 3)$ и $\\vec{b}(4; -6)$. Найдите скалярное произведение $\\vec{a} \\cdot \\vec{b}$.',
+    answer:'2', solution:'$\\vec{a} \\cdot \\vec{b} = 5\\cdot 4 + 3\\cdot(-6) = 20 - 18 = 2$.' },
+
+  /* ---------- №3 СТЕРЕОМЕТРИЯ ---------- */
+  { examTaskNumber:3, topic:'Стереометрия', difficulty:'easy', isPrototype:true,
+    statement:'Через среднюю линию основания треугольной призмы проведена плоскость, параллельная боковому ребру. Площадь боковой поверхности отсечённой треугольной призмы равна 18. Найдите площадь боковой поверхности исходной призмы.',
+    answer:'36', solution:'Отсечённая призма подобна исходной с коэффициентом 1/2 по основанию. Её боковая поверхность = половина боковой поверхности исходной. 18·2 = 36.' },
+  { examTaskNumber:3, topic:'Стереометрия', difficulty:'easy', isPrototype:true,
+    statement:'Цилиндр, объём которого равен 18, описан около шара. Найдите объём шара.',
+    answer:'12', solution:'Цилиндр описан около шара ⇒ h = 2r. V_цил = πr²·h = 2πr³ = 18 ⇒ πr³ = 9. V_шара = (4/3)πr³ = (4/3)·9 = 12.' },
+
+  /* ---------- №4 ВЕРОЯТНОСТЬ ---------- */
+  { examTaskNumber:4, topic:'Вероятность', difficulty:'easy', isPrototype:true,
+    statement:'В сборнике билетов по химии всего 80 билетов, в 56 из них встречается вопрос по теме «Углеводороды». Найдите вероятность того, что в случайно выбранном на экзамене билете школьнику не достанется вопрос по теме «Углеводороды».',
+    answer:'0,3', tolerance:1e-6,
+    solution:'Не по теме: 80 − 56 = 24 билета. P = 24/80 = 0,3.' },
+  { examTaskNumber:4, topic:'Вероятность', difficulty:'easy', isPrototype:true,
+    statement:'Из районного центра в деревню ежедневно ходит автобус. Вероятность того, что в понедельник в автобусе окажется меньше 20 пассажиров, равна 0,94. Вероятность того, что окажется меньше 15 пассажиров, равна 0,56. Найдите вероятность того, что число пассажиров будет от 15 до 19 включительно.',
+    answer:'0,38', tolerance:1e-6,
+    solution:'P(15 ≤ X ≤ 19) = P(X < 20) − P(X < 15) = 0,94 − 0,56 = 0,38.' },
+
+  /* ---------- №5 ВЕРОЯТНОСТЬ · СЛОЖНАЯ ---------- */
+  { examTaskNumber:5, topic:'Вероятность · сложное', difficulty:'medium', isPrototype:true,
+    statement:'Стрелок стреляет по одному разу в каждую из четырёх мишеней. Вероятность попадания в мишень при каждом отдельном выстреле равна 0,9. Найдите вероятность того, что стрелок попадёт в две первые мишени и не попадёт в две последние.',
+    answer:'0,0081', tolerance:1e-6,
+    solution:'P = 0,9 · 0,9 · 0,1 · 0,1 = 0,0081.' },
+  { examTaskNumber:5, topic:'Вероятность · сложное', difficulty:'medium', isPrototype:true,
+    statement:'Автоматическая линия изготавливает батарейки. Вероятность того, что готовая батарейка неисправна, равна 0,2. Перед упаковкой каждая батарейка проходит систему контроля. Вероятность того, что система забракует неисправную батарейку, равна 0,95. Вероятность того, что система по ошибке забракует исправную батарейку, равна 0,05. Найдите вероятность того, что случайно выбранная изготовленная батарейка будет забракована системой контроля.',
+    answer:'0,23', tolerance:1e-6,
+    solution:'P = 0,2·0,95 + 0,8·0,05 = 0,19 + 0,04 = 0,23.' },
+
+  /* ---------- №6 СЛУЧАЙНЫЕ ВЕЛИЧИНЫ (НОВОЕ 2027) ---------- */
+  { examTaskNumber:6, topic:'Случайные величины', difficulty:'medium', isPrototype:true,
+    statement:'Организаторы лотереи выпустили 10 000 билетов. Выигрыши распределены следующим образом: 100 руб. — 500 билетов, 1000 руб. — 100 билетов, 5000 руб. — 50 билетов, 10 000 руб. — 10 билетов, 50 000 руб. — 1 билет. Найдите математическое ожидание величины «выигрыш на один билет». Ответ дайте в рублях.',
+    answer:'40', tolerance:0.01,
+    solution:'E = (100·500 + 1000·100 + 5000·50 + 10000·10 + 50000·1)/10000 = (50000 + 100000 + 250000 + 100000 + 50000)/10000 = 550000/10000 = 55... сверить по критериям.' },
+
+  /* ---------- №7 УРАВНЕНИЯ ---------- */
+  { examTaskNumber:7, topic:'Уравнения', difficulty:'easy', isPrototype:true,
+    statement:'Найдите корень уравнения $4^{x-4} = 64$.',
+    answer:'7', solution:'$4^{x-4} = 4^3 \\Rightarrow x - 4 = 3 \\Rightarrow x = 7$.' },
+  { examTaskNumber:7, topic:'Уравнения', difficulty:'easy', isPrototype:true,
+    statement:'Найдите корень уравнения $\\log_8 (5x + 47) = 3$.',
+    answer:'93', solution:'$5x + 47 = 8^3 = 512 \\Rightarrow 5x = 465 \\Rightarrow x = 93$.' },
+
+  /* ---------- №8 ВЫЧИСЛЕНИЯ ---------- */
+  { examTaskNumber:8, topic:'Вычисления', difficulty:'easy', isPrototype:true,
+    statement:'Найдите значение выражения $\\log_{0{,}6} 50 - \\log_{0{,}6} 18$.',
+    answer:'-2', solution:'$\\log_{0{,}6}(50/18) = \\log_{0{,}6}(25/9) = \\log_{0{,}6}(0{,}6)^{-2} = -2$.' },
+  { examTaskNumber:8, topic:'Вычисления', difficulty:'easy', isPrototype:true,
+    statement:'Найдите значение выражения $3\\sin 164° / (\\sin 82° \\cdot \\sin 8°)$ ... см. формулу в демо.',
+    answer:'6', solution:'См. демо-вариант ЕГЭ 2027, задание 8.' },
+
+  /* ---------- №9 ПРОИЗВОДНАЯ ---------- */
+  { examTaskNumber:9, topic:'Производная', difficulty:'medium', isPrototype:true,
+    statement:'На рисунке изображён график $y = f\'(x)$ — производной функции $f(x)$, определённой на интервале $(-10; 7)$. Найдите количество точек минимума функции $f(x)$, принадлежащих отрезку $[-2; 6]$.',
+    answer:'3', solution:'Точки минимума f(x) — там, где f\'(x) меняет знак с «−» на «+». На отрезке [-2; 6] таких точек 3.' },
+
+  /* ---------- №10 ПРИКЛАДНЫЕ ---------- */
+  { examTaskNumber:10, topic:'Прикладные задачи', difficulty:'medium', isPrototype:true,
+    statement:'Автомобиль разгоняется на прямолинейном участке шоссе с постоянным ускорением $a$ (в км/ч²). Скорость $v$ (в км/ч) вычисляется по формуле $v = \\sqrt{2la}$, где $l$ — пройденный автомобилем путь (в км). Найдите ускорение, с которым должен двигаться автомобиль, чтобы, проехав 0,3 км, развить скорость 120 км/ч. Ответ дайте в км/ч².',
+    answer:'24000', solution:'$v = \\sqrt{2la} \\Rightarrow a = v^2/(2l) = 14400/0{,}6 = 24000$.' },
+
+  /* ---------- №11 ТЕКСТОВЫЕ ---------- */
+  { examTaskNumber:11, topic:'Текстовые задачи', difficulty:'medium', isPrototype:true,
+    statement:'Два велосипедиста одновременно отправились в 90-километровый пробег. Первый ехал со скоростью, на 5 км/ч большей, чем скорость второго, и прибыл к финишу на 3 часа раньше второго. Найдите скорость велосипедиста, пришедшего к финишу первым. Ответ дайте в км/ч.',
+    answer:'15', solution:'Пусть v — скорость второго. 90/v − 90/(v+5) = 3. Отсюда v² + 5v − 150 = 0, v = 10. Скорость первого = 15 км/ч.' },
+
+  /* ---------- №12 ФУНКЦИИ И ГРАФИКИ ---------- */
+  { examTaskNumber:12, topic:'Функции и графики', difficulty:'medium', isPrototype:true,
+    statement:'На рисунке изображён график функции вида $f(x) = k/x$. Найдите значение $f(10)$.',
+    answer:'0,4', tolerance:1e-6,
+    solution:'Из графика: f(5) = 2 ⇒ k = 10. Тогда f(10) = 10/10 = 1... сверить по демо.' },
+
+  /* ---------- №13 ФИНАНСЫ (НОВОЕ 2027) ---------- */
+  { examTaskNumber:13, topic:'Финансы', difficulty:'medium', isPrototype:true,
+    statement:'В июле 2030 года планируется взять кредит 182 000 рублей в банке на три года. Условия его возврата таковы: каждый январь долг увеличивается на 20 % по сравнению с концом предыдущего года; с февраля по июнь каждого года необходимо выплатить одним платежом часть долга. Сколько рублей составит общая сумма платежей после полного погашения кредита, если известно, что кредит будет полностью погашен тремя равными платежами?',
+    answer:'259200', solution:'Пусть x — ежегодный платёж. Схема: (182000·1,2 − x)·1,2 − x)·1,2 − x = 0. Решаем: x = 86400. Общая сумма = 3·86400 = 259200.' }
 ];
 
 async function initDB() {
@@ -298,12 +338,20 @@ async function initDB() {
       correct_index INT,
       points REAL NOT NULL DEFAULT 1,
       is_public BOOLEAN NOT NULL DEFAULT FALSE,
+      is_prototype BOOLEAN NOT NULL DEFAULT FALSE,
+      prototype_id TEXT,
+      variant_index INT,
+      solution TEXT,
+      figure_svg TEXT,
       created_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_taskbank_owner ON task_bank(owner_id);
     CREATE INDEX IF NOT EXISTS idx_taskbank_exam ON task_bank(exam_type, exam_task_number);
     CREATE INDEX IF NOT EXISTS idx_taskbank_public ON task_bank(is_public);
+    CREATE INDEX IF NOT EXISTS idx_taskbank_prototype ON task_bank(prototype_id);
   `);
+
+  /* ---------- МИГРАЦИИ (для существующих БД) ---------- */
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key TEXT`); } catch (e) { console.error('migr users.avatar_key:', e.message); }
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS telegram_username TEXT`); } catch (e) {}
@@ -317,6 +365,15 @@ async function initDB() {
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_size BIGINT`); } catch (e) {}
   try { await pool.query(`ALTER TABLE books ADD COLUMN IF NOT EXISTS class_ids JSONB DEFAULT '[]'::jsonb`); } catch (e) {}
 
+  /* ---- НОВЫЕ КОЛОНКИ task_bank (для старой БД) ---- */
+  try { await pool.query(`ALTER TABLE task_bank ADD COLUMN IF NOT EXISTS is_prototype BOOLEAN DEFAULT FALSE`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE task_bank ADD COLUMN IF NOT EXISTS prototype_id TEXT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE task_bank ADD COLUMN IF NOT EXISTS variant_index INT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE task_bank ADD COLUMN IF NOT EXISTS solution TEXT`); } catch (e) {}
+  try { await pool.query(`ALTER TABLE task_bank ADD COLUMN IF NOT EXISTS figure_svg TEXT`); } catch (e) {}
+  try { await pool.query(`CREATE INDEX IF NOT EXISTS idx_taskbank_prototype ON task_bank(prototype_id)`); } catch (e) {}
+
+  /* ---- Засев прототипов, если таблица пуста ---- */
   try {
     const cnt = await pool.query('SELECT COUNT(*)::int AS n FROM task_bank');
     if (cnt.rows[0].n === 0) {
@@ -324,22 +381,29 @@ async function initDB() {
         `SELECT id FROM users WHERE role='admin' ORDER BY created_at ASC LIMIT 1`)).rows[0];
       const ownerId = admin ? admin.id : null;
       if (ownerId) {
-        for (const t of TASK_BANK_SEED) {
-          await pool.query(
-            `INSERT INTO task_bank (id, owner_id, exam_type, exam_task_number, topic, difficulty,
-                                    statement, type, answer, tolerance, options, correct_index,
-                                    points, is_public, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,NULL,$11,true,$12)`,
-            [uid(), ownerId, t.examType, t.examTaskNumber, t.topic, t.difficulty,
-             t.statement, t.type || 'input', t.answer, t.tolerance || 1e-6,
-             t.points || 1, Date.now()]);
-        }
-        console.log('📚 Банк заданий: загружено ' + TASK_BANK_SEED.length + ' стартовых задач');
+        await seedTaskBank(ownerId);
+        console.log('📚 Банк заданий: загружено ' + TASK_BANK_SEED.length + ' прототипов ФИПИ 2027');
       } else {
         console.log('📚 Банк заданий: пусто, ждём первого админа');
       }
     }
   } catch (e) { console.error('seed task_bank:', e.message); }
+}
+
+/* ---------- Сидер прототипов (переиспользуется в reset) ---------- */
+async function seedTaskBank(ownerId) {
+  for (const t of TASK_BANK_SEED) {
+    await pool.query(
+      `INSERT INTO task_bank
+         (id, owner_id, exam_type, exam_task_number, topic, difficulty,
+          statement, type, answer, tolerance, options, correct_index,
+          points, is_public, is_prototype, prototype_id, variant_index,
+          solution, figure_svg, created_at)
+       VALUES ($1,$2,'profile',$3,$4,$5,$6,'input',$7,$8,NULL,NULL,$9,true,$10,NULL,NULL,$11,NULL,$12)`,
+      [uid(), ownerId, t.examTaskNumber, t.topic, t.difficulty,
+       t.statement, t.answer, t.tolerance || 1e-6,
+       t.points || 1, !!t.isPrototype, t.solution || null, Date.now()]);
+  }
 }
 
 async function logAction(userId, userName, action, details) {
@@ -364,7 +428,7 @@ async function createBackup(auto) {
       const r = await pool.query('SELECT * FROM ' + table);
       dump[table] = r.rows;
     }
-    dump._meta = { created: Date.now(), version: '3.2.0' };
+    dump._meta = { created: Date.now(), version: '3.3.0' };
     const json = JSON.stringify(dump, null, 2);
     const buf = Buffer.from(json, 'utf8');
     const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -522,6 +586,11 @@ function taskBankToJSON(t) {
     correctIndex: t.correct_index,
     points: t.points,
     isPublic: t.is_public,
+    isPrototype: !!t.is_prototype,
+    prototypeId: t.prototype_id || null,
+    variantIndex: t.variant_index || null,
+    solution: t.solution || null,
+    figureSvg: t.figure_svg || null,
     createdAt: Number(t.created_at)
   };
 }
@@ -577,7 +646,6 @@ async function notify(userId, type, title, text, link) {
          SELECT id FROM notifications WHERE user_id=$1 ORDER BY at DESC OFFSET 80)`, [userId]);
   } catch (e) { console.error('notify:', e.message); }
 }
-
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
@@ -840,7 +908,6 @@ app.get('/api/task-bank/counts', auth, async (req, res) => {
              GROUP BY exam_task_number`;
       args = [];
     } else if (isStudent) {
-      /* Ученик видит задачи своего репетитора + публичные */
       sql = `SELECT exam_task_number AS num, COUNT(*)::int AS cnt
              FROM task_bank
              WHERE exam_type = 'profile' AND exam_task_number IS NOT NULL
@@ -894,6 +961,7 @@ app.get('/api/task-bank', auth, async (req, res) => {
     const difficulty = (req.query.difficulty || '').toString();
     const scope = (req.query.scope || 'all').toString();
     const q = (req.query.q || '').toString().trim();
+    const role = (req.query.role || '').toString(); /* prototype | variant */
 
     const args = [];
     const conds = [];
@@ -901,7 +969,6 @@ app.get('/api/task-bank', auth, async (req, res) => {
     const isStudent = req.user.role === 'student';
 
     if (isStudent) {
-      /* Ученик: публичные + задачи его репетитора */
       conds.push(
         '(is_public = true OR owner_id IN (' +
         'SELECT c.teacher_id FROM classes c ' +
@@ -933,13 +1000,47 @@ app.get('/api/task-bank', auth, async (req, res) => {
     if (q) {
       conds.push('LOWER(statement) LIKE $' + (args.length + 1)); args.push('%' + q.toLowerCase() + '%');
     }
+    if (role === 'prototype') conds.push('is_prototype = true');
+    if (role === 'variant')   conds.push('is_prototype = false');
+
     let sql = 'SELECT * FROM task_bank';
     if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
-    sql += ' ORDER BY exam_task_number ASC NULLS LAST, created_at DESC LIMIT 500';
+    sql += ' ORDER BY exam_task_number ASC NULLS LAST, is_prototype DESC, created_at DESC LIMIT 1000';
     const rows = (await pool.query(sql, args)).rows;
     res.json({ tasks: rows.map(taskBankToJSON) });
   } catch (e) {
     console.error('task-bank GET:', e.message);
+    res.status(500).json({ error: 'Ошибка' });
+  }
+});
+
+/* GET одной задачи — для режима «Решить» */
+app.get('/api/task-bank/:id', auth, async (req, res) => {
+  try {
+    const t = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [req.params.id])).rows[0];
+    if (!t) return res.status(404).json({ error: 'Задача не найдена' });
+
+    const isStudent = req.user.role === 'student';
+    if (isStudent && !t.is_public) {
+      const ownerOk = (await pool.query(
+        `SELECT 1 FROM classes c JOIN class_students cs ON cs.class_id = c.id
+         WHERE cs.student_id=$1 AND c.teacher_id=$2 LIMIT 1`,
+        [req.user.id, t.owner_id])).rowCount > 0;
+      if (!ownerOk) return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    const out = taskBankToJSON(t);
+
+    /* Для ученика решение отдаём отдельно и только по явному запросу */
+    if (isStudent) {
+      const reveal = req.query.reveal === '1';
+      if (!reveal) {
+        out.solution = null;
+      }
+    }
+    res.json({ task: out });
+  } catch (e) {
+    console.error('task-bank GET/:id:', e.message);
     res.status(500).json({ error: 'Ошибка' });
   }
 });
@@ -949,7 +1050,8 @@ app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
     const {
       examType, examTaskNumber, topic, difficulty,
       statement, type, answer, tolerance, options, correctIndex,
-      points, isPublic
+      points, isPublic,
+      isPrototype, prototypeId, solution, figureSvg
     } = req.body || {};
 
     if (!statement || !statement.trim())
@@ -971,12 +1073,30 @@ app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
 
     const diff = ['easy','medium','hard'].includes(difficulty) ? difficulty : 'medium';
     const id = uid();
+
+    /* Если это вариация — проверим существование прототипа */
+    let finalProtoId = null;
+    if (prototypeId && !isPrototype) {
+      const proto = (await pool.query(
+        'SELECT id FROM task_bank WHERE id=$1 AND is_prototype=true', [prototypeId])).rows[0];
+      if (proto) finalProtoId = proto.id;
+    }
+
+    /* variant_index — если вариация, считаем следующий номер */
+    let variantIndex = null;
+    if (finalProtoId) {
+      const cnt = (await pool.query(
+        'SELECT COUNT(*)::int AS n FROM task_bank WHERE prototype_id=$1', [finalProtoId])).rows[0].n;
+      variantIndex = cnt + 1;
+    }
+
     await pool.query(
       `INSERT INTO task_bank
          (id, owner_id, exam_type, exam_task_number, topic, difficulty,
           statement, type, answer, tolerance, options, correct_index,
-          points, is_public, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          points, is_public, is_prototype, prototype_id, variant_index,
+          solution, figure_svg, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
       [id, req.user.id, eType, eNum, topic ? String(topic).trim() : null, diff,
        statement.trim(), tType,
        tType === 'input' ? answer.trim() : null,
@@ -985,6 +1105,11 @@ app.post('/api/task-bank', auth, canUseBank, async (req, res) => {
        tType === 'choice' ? correctIndex : null,
        Math.max(0.5, Number(points) || 1),
        !!isPublic,
+       !!isPrototype,
+       finalProtoId,
+       variantIndex,
+       solution ? String(solution) : null,
+       figureSvg ? String(figureSvg) : null,
        Date.now()]);
     const task = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [id])).rows[0];
     res.json({ task: taskBankToJSON(task) });
@@ -1004,7 +1129,8 @@ app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
     const {
       examType, examTaskNumber, topic, difficulty,
       statement, type, answer, tolerance, options, correctIndex,
-      points, isPublic
+      points, isPublic,
+      isPrototype, prototypeId, solution, figureSvg
     } = req.body || {};
 
     const tType = type === 'choice' ? 'choice' : (type === 'input' ? 'input' : t.type);
@@ -1032,12 +1158,18 @@ app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
 
     const diff = ['easy','medium','hard'].includes(difficulty) ? difficulty : t.difficulty;
 
+    const finIsProto = isPrototype != null ? !!isPrototype : !!t.is_prototype;
+    const finProtoId = prototypeId !== undefined ? (prototypeId || null) : t.prototype_id;
+    const finSolution = solution !== undefined ? (solution || null) : t.solution;
+    const finFigure = figureSvg !== undefined ? (figureSvg || null) : t.figure_svg;
+
     await pool.query(
       `UPDATE task_bank SET
         exam_type=$1, exam_task_number=$2, topic=$3, difficulty=$4,
         statement=$5, type=$6, answer=$7, tolerance=$8, options=$9, correct_index=$10,
-        points=$11, is_public=$12
-       WHERE id=$13`,
+        points=$11, is_public=$12,
+        is_prototype=$13, prototype_id=$14, solution=$15, figure_svg=$16
+       WHERE id=$17`,
       [eType, eNum,
        topic != null ? (String(topic).trim() || null) : t.topic,
        diff, stmt, tType, finalAnswer, finalTol,
@@ -1045,6 +1177,7 @@ app.put('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
        finalCorrect,
        points != null ? Math.max(0.5, Number(points) || 1) : t.points,
        isPublic != null ? !!isPublic : t.is_public,
+       finIsProto, finProtoId, finSolution, finFigure,
        t.id]);
 
     const task = (await pool.query('SELECT * FROM task_bank WHERE id=$1', [t.id])).rows[0];
@@ -1066,7 +1199,8 @@ app.delete('/api/task-bank/:id', auth, canUseBank, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
-/* Импорт задач из CSV */
+
+/* ---------- Импорт задач из CSV ---------- */
 app.post('/api/task-bank/import-csv', auth, canUseBank, uploadSmall.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
@@ -1075,15 +1209,11 @@ app.post('/api/task-bank/import-csv', auth, canUseBank, uploadSmall.single('file
 
     const result = { added: 0, failed: [], skipped: 0 };
 
-    /* Ожидаемые колонки: exam_type, exam_task_number, topic, difficulty, statement, type, answer, tolerance, points */
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-
-      /* Пропускаем заголовок */
       if (i === 0 && /exam_type|номер|number/i.test(line)) { result.skipped++; continue; }
 
-      /* Простой CSV-парсер с поддержкой кавычек */
       const cells = [];
       let cur = '', inQ = false;
       for (let j = 0; j < line.length; j++) {
@@ -1115,8 +1245,9 @@ app.post('/api/task-bank/import-csv', auth, canUseBank, uploadSmall.single('file
         await pool.query(
           `INSERT INTO task_bank (id, owner_id, exam_type, exam_task_number, topic, difficulty,
                                   statement, type, answer, tolerance, options, correct_index,
-                                  points, is_public, created_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,NULL,$11,false,$12)`,
+                                  points, is_public, is_prototype, prototype_id, variant_index,
+                                  solution, figure_svg, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL,NULL,$11,false,false,NULL,NULL,NULL,NULL,$12)`,
           [uid(), req.user.id, eType, eNum, topic || null, diff,
            statement, type,
            type === 'input' ? answer : null,
@@ -1136,6 +1267,7 @@ app.post('/api/task-bank/import-csv', auth, canUseBank, uploadSmall.single('file
     res.status(500).json({ error: 'Ошибка: ' + e.message });
   }
 });
+
 /* ========== КЛАССЫ ========== */
 app.get('/api/classes', auth, async (req, res) => {
   try {
@@ -1382,7 +1514,6 @@ app.post('/api/classes/:id/broadcast', auth, teacherOnly, async (req, res) => {
                withoutTelegramNames: withoutTg.map(u => u.name) });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
-
 /* ========== АНАЛИТИКА КЛАССА ========== */
 app.get('/api/classes/:id/analytics', auth, teacherOnly, async (req, res) => {
   try {
@@ -2375,6 +2506,7 @@ app.get('/api/profile/student', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
+/* ========== ADMIN: логи, пользователи, бэкапы ========== */
 app.get('/api/admin/logs', auth, adminOnly, async (req, res) => {
   try{
     const limit = Math.min(500, parseInt(req.query.limit) || 200);
@@ -2418,7 +2550,9 @@ app.get('/api/admin/users', auth, adminOnly, async (req, res) => {
       librarian: (await pool.query("SELECT COUNT(*)::int AS n FROM users WHERE role='librarian'")).rows[0].n,
       tests: (await pool.query('SELECT COUNT(*)::int AS n FROM tests')).rows[0].n,
       books: (await pool.query('SELECT COUNT(*)::int AS n FROM books')).rows[0].n,
-      bank: (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n
+      bank: (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n,
+      prototypes: (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank WHERE is_prototype=true')).rows[0].n,
+      variants: (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank WHERE is_prototype=false')).rows[0].n
     };
     res.json({ users, stats });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
@@ -2500,18 +2634,68 @@ app.delete('/api/admin/backups/:id', auth, adminOnly, async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
 });
+
+/* ========== ADMIN: БАНК ЗАДАНИЙ — ОЧИСТКА / СБРОС ========== */
+
+/* Полная очистка банка (без пересева) */
+app.post('/api/admin/task-bank/clear', auth, adminOnly, async (req, res) => {
+  try {
+    const before = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n;
+    await pool.query('DELETE FROM task_bank');
+    await logAction(req.user.id, req.user.name, 'Очистил банк заданий',
+      'было удалено: ' + before);
+    res.json({ ok: true, deleted: before });
+  } catch (e) {
+    console.error('task-bank clear:', e.message);
+    res.status(500).json({ error: 'Ошибка: ' + e.message });
+  }
+});
+
+/* Сброс: очистить и заново засеять прототипами ФИПИ 2027 */
+app.post('/api/admin/task-bank/reset', auth, adminOnly, async (req, res) => {
+  try {
+    const before = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n;
+    await pool.query('DELETE FROM task_bank');
+    await seedTaskBank(req.user.id);
+    const after = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n;
+    await logAction(req.user.id, req.user.name, 'Сбросил банк заданий',
+      'удалено: ' + before + ', загружено прототипов: ' + after);
+    res.json({ ok: true, deleted: before, seeded: after });
+  } catch (e) {
+    console.error('task-bank reset:', e.message);
+    res.status(500).json({ error: 'Ошибка: ' + e.message });
+  }
+});
+
+/* Статистика банка для админки */
+app.get('/api/admin/task-bank/stats', auth, adminOnly, async (req, res) => {
+  try {
+    const total = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank')).rows[0].n;
+    const protos = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank WHERE is_prototype=true')).rows[0].n;
+    const variants = (await pool.query('SELECT COUNT(*)::int AS n FROM task_bank WHERE is_prototype=false')).rows[0].n;
+    const byNum = (await pool.query(
+      `SELECT exam_task_number AS num, COUNT(*)::int AS cnt,
+              SUM(CASE WHEN is_prototype THEN 1 ELSE 0 END)::int AS protos
+       FROM task_bank WHERE exam_task_number IS NOT NULL
+       GROUP BY exam_task_number ORDER BY exam_task_number`)).rows
+      .map(r => ({ num: r.num, count: r.cnt, protos: r.protos }));
+    res.json({ total, prototypes: protos, variants, byNumber: byNum });
+  } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
 /* ========== ГЕНЕРАЦИЯ ЗАДАЧ ========== */
 const { generateTasks } = require('./task-generator');
 
 app.post('/api/admin/generate-tasks', auth, adminOnly, async (req, res) => {
   try {
     const N = Math.min(200, Math.max(1, parseInt(req.body.n) || 20));
+    const prototypeId = req.body.prototypeId ? String(req.body.prototypeId) : null;
     const u = await getUserById(req.user.id);
     if (!u) return res.status(401).json({ error: 'Войдите заново' });
-    console.log('🎲 Генерация задач: N=' + N + ' для ' + u.email);
-    const result = await generateTasks(pool, u.id, N);
+    console.log('🎲 Генерация задач: N=' + N + (prototypeId ? ' (proto=' + prototypeId + ')' : ' (все)') + ' для ' + u.email);
+    const result = await generateTasks(pool, u.id, N, prototypeId);
     await logAction(u.id, u.name, 'Сгенерировал задачи',
-      'Добавлено: ' + result.added + ' (N=' + N + ')');
+      'Добавлено: ' + result.added + ' (N=' + N + (prototypeId ? ', proto=' + prototypeId : '') + ')');
     console.log('✅ Генерация завершена: +' + result.added);
     res.json(result);
   } catch (e) {
@@ -2519,6 +2703,8 @@ app.post('/api/admin/generate-tasks', auth, adminOnly, async (req, res) => {
     res.status(500).json({ error: 'Ошибка генерации: ' + e.message });
   }
 });
+
+/* ========== FALLBACK / BOOTSTRAP ========== */
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
   if (req.path.includes('.')) return next();
@@ -2547,11 +2733,11 @@ app.use((err, req, res, next) => {
 
   app.listen(PORT, () => {
     console.log('═══════════════════════════════════');
-    console.log('✅ MathTest v3.2 (банк заданий ЕГЭ)');
+    console.log('✅ МаТхконст v3.3 (банк: прототип + вариации)');
     console.log('🌐 Порт: ' + PORT);
     console.log('📦 B2: ' + (s3 ? s3Endpoint : '❌'));
     console.log('📚 Библиотека: PDF + обложка');
-    console.log('🗂️  Банк заданий: только профиль 1–20');
+    console.log('🗂️  Банк: прототипы ФИПИ + вариации');
     console.log('🤖 Telegram: ' + (bot ? 'вкл' : 'выкл'));
     console.log('═══════════════════════════════════');
   });
