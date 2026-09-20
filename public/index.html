@@ -554,10 +554,16 @@
       <textarea id="bankSolutionInput" rows="4" placeholder="Например: По свойству описанного четырёхугольника AB + CD = BC + AD, значит CD = P/2 − AB = 3."></textarea>
     </label>
 
-    <label style="margin-top:8px">
-      Чертёж (SVG-код, необязательно)
-      <textarea id="bankFigureSvgInput" rows="4" placeholder="<svg viewBox='0 0 200 200'>...</svg>"></textarea>
-    </label>
+        <div class="muted" style="margin-top:14px">Чертёж к задаче (необязательно)</div>
+    <div class="bank-figure-row">
+      <input type="file" id="bankFigureInput" accept="image/*,.svg" hidden>
+      <button class="ghost small" type="button" id="btnBankFigurePick">
+        <svg><use href="#i-image"/></svg> Загрузить чертёж
+      </button>
+      <span class="muted" id="bankFigureName" style="font-size:13px"></span>
+      <button class="ghost small danger" type="button" id="btnBankFigureClear" hidden>✕ Убрать</button>
+    </div>
+    <div id="bankFigurePreview" class="bank-figure-preview" hidden></div>
     <div class="row" style="margin-top:20px">
       <button class="primary" id="btnBankSave"><svg><use href="#i-save"/></svg> Сохранить</button>
       <button class="ghost" id="btnBankCancel">Отмена</button>
