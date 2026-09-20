@@ -1335,7 +1335,7 @@ async function generateVariantsForPrototype(proto){
     refreshBankStats();
   } catch (e) { toast(e.message, 'err'); }
 }
-ffunction renderBankTaskCard(t, isVariant){
+function renderBankTaskCard(t, isVariant){
   var card = document.createElement('div');
   card.className = 'bank-task' + (isVariant ? ' bank-task-variant' : '');
   if (t.isPrototype) card.classList.add('bank-task-proto-card');
