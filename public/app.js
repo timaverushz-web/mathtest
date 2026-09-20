@@ -1344,8 +1344,7 @@ function renderBankTaskCard(t, isVariant){
   var header = document.createElement('div');
   header.className = 'bank-task-header';
   var numLabel = t.examTaskNumber ? '№' + t.examTaskNumber : '—';
-  var diffPercent = {easy: 25, medium: 55, hard: 85}[t.difficulty] || 55;
-  var diffColor = {easy: 'var(--ok)', medium: 'var(--warn)', hard: 'var(--err)'}[t.difficulty] || 'var(--warn)';
+   var diffColor = {easy: 'var(--ok)', medium: 'var(--warn)', hard: 'var(--err)'}[t.difficulty] || 'var(--warn)';
   header.innerHTML =
     '<div class="bank-task-num">'+numLabel+'</div>' +
     '<div class="bank-task-header-meta">' +
@@ -1355,8 +1354,7 @@ function renderBankTaskCard(t, isVariant){
       '<span class="pill">'+(t.points||1)+' б.</span>' +
       (t.isPublic ? '<span class="pill green">публичная</span>' : '') +
     '</div>' +
-    '<div class="bank-task-diff"><span class="muted" style="font-size:11px">Сложность:</span>' +
-    '<span class="diff-badge" style="background:'+diffColor+'">'+diffPercent+'%</span></div>';
+       '<div class="bank-task-diff"><span class="diff-badge" style="background:'+diffColor+'">'+difficultyLabel(t.difficulty)+'</span></div>';
   card.appendChild(header);
 
   /* --- Условие --- */
