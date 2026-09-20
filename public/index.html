@@ -508,6 +508,16 @@
         </select>
       </label>
     </div>
+        <div class="two-col" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:8px">
+      <label class="class-pick" style="margin-top:22px">
+        <input type="checkbox" id="bankIsPrototype">
+        <span>📘 Прототип ФИПИ (эталон)</span>
+      </label>
+      <label style="margin-top:22px">
+        Prototype ID вариации
+        <input id="bankPrototypeId" placeholder="Оставьте пустым для прототипа">
+      </label>
+    </div>
     <label>Тип задания
       <select id="bankTaskType">
         <option value="input">Ввод ответа (формула / число)</option>
@@ -539,6 +549,15 @@
         <span>Публичная (видна всем)</span>
       </label>
     </div>
+        <label style="margin-top:8px">
+      Решение (LaTeX, показывается после проверки)
+      <textarea id="bankSolutionInput" rows="4" placeholder="Например: По свойству описанного четырёхугольника AB + CD = BC + AD, значит CD = P/2 − AB = 3."></textarea>
+    </label>
+
+    <label style="margin-top:8px">
+      Чертёж (SVG-код, необязательно)
+      <textarea id="bankFigureSvgInput" rows="4" placeholder="<svg viewBox='0 0 200 200'>...</svg>"></textarea>
+    </label>
     <div class="row" style="margin-top:20px">
       <button class="primary" id="btnBankSave"><svg><use href="#i-save"/></svg> Сохранить</button>
       <button class="ghost" id="btnBankCancel">Отмена</button>
@@ -547,7 +566,19 @@
   </div>
 
   <div class="exam-widgets" id="examWidgets"></div>
-
+  <!-- Админ-панель банка (только для админа) -->
+  <div class="card" id="bankAdminBox" hidden style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:18px 22px">
+    <div style="flex:1;min-width:220px">
+      <div class="muted" style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">Банк заданий · статистика</div>
+      <div id="bankStatsBox" style="font-size:15px;font-weight:600">—</div>
+    </div>
+    <button class="ghost small" id="btnResetBank" title="Удалить всё и загрузить 21 прототип ФИПИ 2027">
+      🔄 Сбросить банк
+    </button>
+    <button class="ghost small danger" id="btnClearBank" title="Удалить все задачи без пересева">
+      <svg><use href="#i-trash"/></svg> Очистить
+    </button>
+  </div>
   <div class="card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
     <input id="bankSearch" placeholder="Поиск по тексту задачи..." style="flex:1;min-width:220px;margin:0">
     <select id="bankFilterScope" style="width:auto;margin:0">
@@ -886,6 +917,49 @@
       <h3 style="margin:0;font-size:18px;font-weight:800">Выбрать задачи из банка</h3>
       <button class="ghost small" id="btnCloseBankPicker"><svg><use href="#i-x"/></svg></button>
     </div>
+    <!-- ============ SOLVE MODAL ============ -->
+<div class="modal-overlay" id="solveModal" hidden>
+  <div class="modal-card" style="max-width:820px;width:calc(100vw - 32px)">
+    <div class="modal-head" style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border-soft)">
+      <div>
+        <div id="solveTitle" style="font-size:18px;font-weight:800">Задача</div>
+        <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+          <span class="pill" id="solveDifficulty">—</span>
+          <span class="pill"><b id="solvePoints">1</b> балл</span>
+        </div>
+      </div>
+      <button class="ghost small" id="solveClose" title="Закрыть">
+        <svg><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div style="padding:24px;max-height:calc(100vh - 200px);overflow-y:auto">
+      <div id="solveStatement" class="solve-statement"></div>
+
+      <div id="solveInputBlock" style="margin-top:20px">
+        <div class="muted" style="margin-bottom:8px;font-weight:700">Ваш ответ</div>
+        <div id="solveAnswerHost"></div>
+      </div>
+
+      <div id="solveChoiceBlock" hidden style="margin-top:20px">
+        <div class="muted" style="margin-bottom:8px;font-weight:700">Выберите вариант</div>
+        <div id="solveChoiceList" class="solve-choice-list"></div>
+      </div>
+
+      <div id="solveResult" class="solve-result" hidden></div>
+
+      <div id="solveSolution" class="solve-solution" hidden></div>
+    </div>
+
+    <div style="padding:16px 24px;border-top:1px solid var(--border-soft);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="ghost small" id="solveRevealBtn" hidden>📝 Показать решение</button>
+      <button class="primary" id="solveCheckBtn">
+        <svg><use href="#i-check"/></svg> Проверить
+      </button>
+      <button class="ghost" id="solveCloseBtn">Закрыть</button>
+    </div>
+  </div>
+</div>
     <div style="padding:20px 24px 24px">
       <div class="bank-picker-filters">
         <input id="bpSearch" placeholder="Поиск по тексту..." style="flex:1;min-width:180px;margin:0">
