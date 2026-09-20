@@ -1335,51 +1335,104 @@ async function generateVariantsForPrototype(proto){
     refreshBankStats();
   } catch (e) { toast(e.message, 'err'); }
 }
-function renderBankTaskCard(t, isVariant){
-  var card=document.createElement('div');
-  card.className='bank-task' + (isVariant ? ' bank-task-variant' : '');
+ffunction renderBankTaskCard(t, isVariant){
+  var card = document.createElement('div');
+  card.className = 'bank-task' + (isVariant ? ' bank-task-variant' : '');
   if (t.isPrototype) card.classList.add('bank-task-proto-card');
 
-  var meta = [];
-  if (t.topic) meta.push('<span class="pill">'+esc(t.topic)+'</span>');
-  meta.push('<span class="pill" style="color:'+difficultyColor(t.difficulty)+';border-color:'+difficultyColor(t.difficulty)+'">'+difficultyLabel(t.difficulty)+'</span>');
-  meta.push('<span class="pill">'+(t.type==='choice'?'выбор':'ввод')+'</span>');
-  meta.push('<span class="pill">'+(t.points||1)+' б.</span>');
+  /* --- Шапка: № задания + метки + сложность --- */
+  var header = document.createElement('div');
+  header.className = 'bank-task-header';
+  var numLabel = t.examTaskNumber ? '№' + t.examTaskNumber : '—';
+  var diffPercent = {easy: 25, medium: 55, hard: 85}[t.difficulty] || 55;
+  var diffColor = {easy: 'var(--ok)', medium: 'var(--warn)', hard: 'var(--err)'}[t.difficulty] || 'var(--warn)';
+  header.innerHTML =
+    '<div class="bank-task-num">'+numLabel+'</div>' +
+    '<div class="bank-task-header-meta">' +
+      (t.topic ? '<span class="pill">'+esc(t.topic)+'</span>' : '') +
+      (t.isPrototype ? '<span class="pill blue">📘 прототип ФИПИ</span>' : '') +
+      (t.variantIndex ? '<span class="pill">вариант '+t.variantIndex+'</span>' : '') +
+      '<span class="pill">'+(t.points||1)+' б.</span>' +
+      (t.isPublic ? '<span class="pill green">публичная</span>' : '') +
+    '</div>' +
+    '<div class="bank-task-diff"><span class="muted" style="font-size:11px">Сложность:</span>' +
+    '<span class="diff-badge" style="background:'+diffColor+'">'+diffPercent+'%</span></div>';
+  card.appendChild(header);
 
-  if (t.isPrototype) meta.push('<span class="pill green">📘 прототип ФИПИ</span>');
-  else if (t.variantIndex) meta.push('<span class="pill blue">вариант '+t.variantIndex+'</span>');
-  if (t.solution) meta.push('<span class="pill" title="Есть подробное решение">📝 решение</span>');
-  if (t.figureSvg) meta.push('<span class="pill" title="Есть чертёж">🖼 чертёж</span>');
-  if (t.isPublic) meta.push('<span class="pill green"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><use href="#i-globe"/></svg> публичная</span>');
-
-  var canEdit = canEditBank() && (isAdmin() || (currentUser && t.ownerId === currentUser.id));
-
-  card.innerHTML = '<div class="bank-task-meta">'+meta.join(' ')+'</div>'+
-    '<div class="bank-task-body"></div>'+
-    '<div class="bank-task-actions"></div>';
-
-  var body = card.querySelector('.bank-task-body');
+  /* --- Условие --- */
+  var body = document.createElement('div');
+  body.className = 'bank-task-body';
   var stmt = createMathInput(t.statement, true);
   body.appendChild(stmt.el);
+  card.appendChild(body);
 
-  var actions = card.querySelector('.bank-task-actions');
+  /* --- Поле ответа + кнопки --- */
+  var answerBlock = document.createElement('div');
+  answerBlock.className = 'bank-task-answer';
 
-  /* Кнопка «Решить» — для всех */
-  var bSolve = document.createElement('button');
-  bSolve.className='primary small';
-  bSolve.innerHTML='<svg><use href="#i-edit"/></svg> Решить';
-  bSolve.onclick=function(){ openSolveModal(t); };
-  actions.appendChild(bSolve);
+  if (t.type === 'input') {
+    var inputRow = document.createElement('div');
+    inputRow.className = 'bank-task-input-row';
+    var label = document.createElement('span');
+    label.className = 'bank-task-input-label';
+    label.textContent = 'Введите ответ (число):';
+    var ansInput = document.createElement('input');
+    ansInput.type = 'text';
+    ansInput.className = 'bank-task-input';
+    ansInput.placeholder = 'Например: 5';
+    ansInput.autocomplete = 'off';
+    inputRow.appendChild(label);
+    inputRow.appendChild(ansInput);
+    answerBlock.appendChild(inputRow);
+    card._answerInput = ansInput;
+  } else {
+    var choices = document.createElement('div');
+    choices.className = 'bank-task-choices';
+    (t.options || []).forEach(function(opt, i){
+      var lab = document.createElement('label');
+      lab.className = 'bank-task-choice';
+      var rd = document.createElement('input');
+      rd.type = 'radio';
+      rd.name = 'bt_' + t.id;
+      rd.value = i;
+      lab.appendChild(rd);
+      var txt = document.createElement('span');
+      txt.textContent = opt.text || '';
+      lab.appendChild(txt);
+      choices.appendChild(lab);
+    });
+    answerBlock.appendChild(choices);
+    card._choices = choices;
+  }
 
-  if(canEdit){
-    var bEdit=document.createElement('button');bEdit.className='ghost small';
-    bEdit.innerHTML='<svg><use href="#i-edit"/></svg> Изменить';
-    bEdit.onclick=function(){openBankForm(t);};
+  /* --- Кнопки --- */
+  var btnRow = document.createElement('div');
+  btnRow.className = 'bank-task-btn-row';
 
-    var bDel=document.createElement('button');bDel.className='ghost small danger';
-    bDel.innerHTML='<svg><use href="#i-trash"/></svg> Удалить';
-    bDel.onclick=async function(){
-      if(!confirm('Удалить задачу из банка?')) return;
+  var bAnswer = document.createElement('button');
+  bAnswer.className = 'primary small';
+  bAnswer.innerHTML = '<svg><use href="#i-check"/></svg> Ответить';
+  bAnswer.onclick = function(){ checkBankTaskAnswer(card, t); };
+  btnRow.appendChild(bAnswer);
+
+  var bSolution = document.createElement('button');
+  bSolution.className = 'small';
+  bSolution.innerHTML = '📝 Решение';
+  bSolution.onclick = function(){ revealBankTaskSolution(card, t); };
+  btnRow.appendChild(bSolution);
+
+  if (canEditBank() && (isAdmin() || (currentUser && t.ownerId === currentUser.id))) {
+    var bEdit = document.createElement('button');
+    bEdit.className = 'ghost small';
+    bEdit.innerHTML = '<svg><use href="#i-edit"/></svg> Изменить';
+    bEdit.onclick = function(){ openBankForm(t); };
+    btnRow.appendChild(bEdit);
+
+    var bDel = document.createElement('button');
+    bDel.className = 'ghost small danger';
+    bDel.innerHTML = '<svg><use href="#i-trash"/></svg> Удалить';
+    bDel.onclick = async function(){
+      if(!confirm('Удалить задачу?')) return;
       try{
         await api('/task-bank/'+t.id,{method:'DELETE'});
         toast('Удалено','ok');
@@ -1387,21 +1440,109 @@ function renderBankTaskCard(t, isVariant){
         refreshExamWidgets();
       } catch(e){ toast(e.message,'err'); }
     };
-    actions.appendChild(bEdit); actions.appendChild(bDel);
+    btnRow.appendChild(bDel);
 
-    /* Кнопка «🎲 Сгенерировать вариации» — только для прототипа */
     if (t.isPrototype) {
       var bGen = document.createElement('button');
-      bGen.className='ghost small';
-      bGen.innerHTML='🎲 Сгенерировать вариации';
-      bGen.title='Создать новые задачи с другими числами по этому прототипу';
-      bGen.onclick=function(){ generateVariantsForPrototype(t); };
-      actions.appendChild(bGen);
+      bGen.className = 'ghost small';
+      bGen.innerHTML = '🎲 Генерировать';
+      bGen.title = 'Создать вариации с другими числами';
+      bGen.onclick = function(){ generateVariantsForPrototype(t); };
+      btnRow.appendChild(bGen);
     }
   }
+
+  answerBlock.appendChild(btnRow);
+
+  /* --- Результат и решение --- */
+  var res = document.createElement('div');
+  res.className = 'bank-task-result';
+  res.hidden = true;
+  card._resultEl = res;
+  answerBlock.appendChild(res);
+
+  var sol = document.createElement('div');
+  sol.className = 'bank-task-solution';
+  sol.hidden = true;
+  card._solutionEl = sol;
+  answerBlock.appendChild(sol);
+
+  card.appendChild(answerBlock);
   return card;
 }
+function bankTaskNorm(s){
+  return String(s || '').replace(/\\left|\\right/g,'')
+    .replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
+    .replace(/\s+/g,'').replace(/,/g,'.').toLowerCase();
+}
 
+function checkBankTaskAnswer(card, t){
+  var res = card._resultEl;
+  var userAns = '', ok = false, correctText = '';
+
+  if (t.type === 'input') {
+    userAns = card._answerInput ? card._answerInput.value.trim() : '';
+    if (!userAns) { toast('Введите ответ', 'warn'); return; }
+    var sn = Number(bankTaskNorm(userAns));
+    var cn = Number(bankTaskNorm(t.answer));
+    if (isFinite(sn) && isFinite(cn)) {
+      ok = Math.abs(sn - cn) <= (t.tolerance || 1e-6);
+    } else {
+      ok = bankTaskNorm(userAns) === bankTaskNorm(t.answer);
+    }
+    correctText = t.answer;
+  } else {
+    var rd = card._choices ? card._choices.querySelector('input[type=radio]:checked') : null;
+    if (!rd) { toast('Выберите вариант', 'warn'); return; }
+    ok = Number(rd.value) === Number(t.correctIndex);
+    correctText = t.options && t.options[t.correctIndex] ? t.options[t.correctIndex].text : '';
+  }
+
+  res.hidden = false;
+  if (ok) {
+    res.className = 'bank-task-result ok';
+    res.innerHTML = '<b>✓ Верно!</b> <span class="muted">+' + (t.points||1) + ' б.</span>';
+  } else {
+    res.className = 'bank-task-result err';
+    res.innerHTML = '<b>✗ Неверно.</b> Правильный ответ: <code>' + esc(correctText) + '</code>';
+  }
+
+  if (card._answerInput) card._answerInput.disabled = true;
+  if (card._choices) {
+    Array.prototype.forEach.call(card._choices.querySelectorAll('input'), function(r){ r.disabled = true; });
+  }
+}
+
+async function revealBankTaskSolution(card, t){
+  var sol = card._solutionEl;
+  if (!sol.hidden) { sol.hidden = true; return; }
+
+  sol.hidden = false;
+  sol.innerHTML = '<div class="muted">Загрузка…</div>';
+
+  var text = t.solution;
+  if (!text) {
+    try {
+      var r = await api('/task-bank/' + t.id + '?reveal=1');
+      text = r.task.solution;
+      t.solution = text;
+    } catch (e) {
+      sol.innerHTML = '<div class="err">Ошибка: ' + esc(e.message) + '</div>';
+      return;
+    }
+  }
+
+  if (!text) {
+    sol.innerHTML = '<div class="muted">Решение для этой задачи пока не добавлено.</div>';
+    return;
+  }
+
+  sol.innerHTML = '<div class="bank-task-solution-title">📝 Решение</div>';
+  var body = document.createElement('div');
+  body.className = 'bank-task-solution-body';
+  renderMixedText(body, text);
+  sol.appendChild(body);
+}
 function initBankFormFields(){
   if(bankState.statementInput) return;
   var sh=$('#bankStatementHost'), ah=$('#bankAnswerHost');
@@ -2055,21 +2196,6 @@ function initEditorFields(){
 
   var bpf=$('#btnPickFromBank'); if(bpf) bpf.onclick = openBankPicker;
   var bstb=$('#btnSaveToBank'); if(bstb) bstb.onclick = saveCurrentToBank;
-  /* --- Модалка «Решить» --- */
-  var bSolveCheck = $('#solveCheckBtn');
-  if (bSolveCheck) bSolveCheck.onclick = checkSolveAnswer;
-  var bSolveReveal = $('#solveRevealBtn');
-  if (bSolveReveal) bSolveReveal.onclick = revealSolution;
-  var bSolveClose = $('#solveClose');
-  if (bSolveClose) bSolveClose.onclick = closeSolveModal;
-  var bSolveClose2 = $('#solveCloseBtn');
-  if (bSolveClose2) bSolveClose2.onclick = closeSolveModal;
-  var solveModal = $('#solveModal');
-  if (solveModal) {
-    solveModal.addEventListener('click', function(e){
-      if (e.target === solveModal) closeSolveModal();
-    });
-  }
 
   /* --- Админские кнопки банка --- */
   var bReset = $('#btnResetBank');
