@@ -185,7 +185,8 @@ function renderMixedText(el, raw){
   });
 }
 function createMathInput(initial,readonly,onChange){
-  var wrap=document.createElement('div');wrap.className='mi-wrap';
+  var wrap=document.createElement('div');
+  wrap.className='mi-wrap' + (readonly ? ' mi-readonly' : '');
   var ta=document.createElement('textarea');ta.className='mi-input';
   ta.rows=2;ta.spellcheck=false;ta.placeholder='Например: sqrt(16), 2^2+3, sin(pi/2)';
   ta.value=initial||'';if(readonly)ta.readOnly=true;
@@ -221,7 +222,7 @@ function createMathInput(initial,readonly,onChange){
     } else prev.textContent = raw;
   }
   ta.addEventListener('input',function(){render();if(onChange)onChange(ta.value);});
-  ta.addEventListener('focus',function(){lastFocused=api;});
+   if(!readonly) ta.addEventListener('focus',function(){lastFocused=api;});
   var api={
     el:wrap,textarea:ta,
     getValue:function(){return ta.value;},
@@ -1360,15 +1361,6 @@ function renderBankTaskCard(t, isVariant){
   var body = card.querySelector('.bank-task-body');
   var stmt = createMathInput(t.statement, true);
   body.appendChild(stmt.el);
-
-  var ans = document.createElement('div');
-  ans.style.cssText='font-size:13.5px;color:var(--text-2);margin-top:8px';
-  if(t.type==='input'){
-    ans.innerHTML='<b style="color:var(--text)">Ответ:</b> <span style="font-family:ui-monospace,monospace;color:var(--accent)">'+esc(t.answer||'')+'</span>';
-  } else {
-    ans.innerHTML='<b style="color:var(--text)">Правильный вариант:</b> №'+((t.correctIndex||0)+1);
-  }
-  body.appendChild(ans);
 
   var actions = card.querySelector('.bank-task-actions');
 
