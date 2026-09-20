@@ -4,6 +4,7 @@ const jwt     = require('jsonwebtoken');
 const path    = require('path');
 const crypto  = require('crypto');
 const { Pool } = require('pg');
+const { FIGURES_BY_KEY } = require('./task-figures');
 const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const sharp = require('sharp');
@@ -141,9 +142,10 @@ async function s3Del(key) {
 const TASK_BANK_SEED = [
 
   /* ---------- №1 ПЛАНИМЕТРИЯ ---------- */
-  { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
-    statement:'В четырёхугольник ABCD, периметр которого равен 22, вписана окружность, AB = 8. Найдите длину стороны CD.',
-    answer:'3', solution:'По свойству описанного четырёхугольника: AB + CD = BC + AD. Сумма всех сторон равна P = 2(AB + CD), значит AB + CD = P/2 = 11. Тогда CD = 11 − 8 = 3.' },
+ { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
+  figureKey:'quad-inscribed-circle',
+  statement:'В четырёхугольник ABCD, периметр которого равен 22, вписана окружность, AB = 8. Найдите длину стороны CD.',
+  answer:'3', solution:'По свойству описанного четырёхугольника: AB + CD = BC + AD. Сумма всех сторон равна P = 2(AB + CD), значит AB + CD = P/2 = 11. Тогда CD = 11 − 8 = 3.' },
   { examTaskNumber:1, topic:'Планиметрия', difficulty:'easy', isPrototype:true,
     statement:'Площадь треугольника ABC равна 60, DE — средняя линия, параллельная стороне AB. Найдите площадь трапеции ABED.',
     answer:'45', solution:'DE — средняя линия ⇒ треугольник CDE подобен ABC с коэффициентом 1/2. S(CDE) = 60/4 = 15. Тогда S(ABED) = 60 − 15 = 45.' },
@@ -392,6 +394,10 @@ async function initDB() {
 /* ---------- Сидер прототипов (переиспользуется в reset) ---------- */
 async function seedTaskBank(ownerId) {
   for (const t of TASK_BANK_SEED) {
+    const figSvg = t.figureKey && FIGURES_BY_KEY[t.figureKey];
+    const finalStatement = figSvg
+      ? '<div class="task-figure">' + figSvg + '</div>\n' + t.statement
+      : t.statement;
     await pool.query(
       `INSERT INTO task_bank
          (id, owner_id, exam_type, exam_task_number, topic, difficulty,
@@ -400,7 +406,7 @@ async function seedTaskBank(ownerId) {
           solution, figure_svg, created_at)
        VALUES ($1,$2,'profile',$3,$4,$5,$6,'input',$7,$8,NULL,NULL,$9,true,$10,NULL,NULL,$11,NULL,$12)`,
       [uid(), ownerId, t.examTaskNumber, t.topic, t.difficulty,
-       t.statement, t.answer, t.tolerance || 1e-6,
+       finalStatement, t.answer, t.tolerance || 1e-6,
        t.points || 1, !!t.isPrototype, t.solution || null, Date.now()]);
   }
 }
