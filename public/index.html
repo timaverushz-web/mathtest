@@ -262,6 +262,10 @@
     <div class="landing-final reveal">
       <h2>Готовы начать подготовку?</h2>
       <p>Регистрация — email и пароль. Первая работа через 2 минуты.</p>
+            <div class="landing-qr" id="landingQrBox">
+        <img id="landingQrImg" alt="QR сайта" width="140" height="140">
+        <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">Открыть сайт на телефоне</div>
+      </div>
       <button class="primary" id="landingStart2">Записаться</button>
     </div>
 
@@ -412,8 +416,16 @@
     <div class="muted">Код:</div>
     <div id="classCodeBig" class="code-box"></div>
     <button class="small" id="btnCopyInvite"><svg><use href="#i-send"/></svg> Ссылка</button>
+        <button class="small" id="btnShowQr" type="button"><svg><use href="#i-grid"/></svg> QR</button>
     <button class="small" id="btnImportCsv"><svg><use href="#i-upload"/></svg> CSV</button>
     <input type="file" id="csvFileInput" hidden accept=".csv,text/csv">
+  </div>
+    <div class="card" id="classQrCard" hidden style="text-align:center;padding:20px 24px">
+    <h3 style="margin-bottom:4px">QR для приглашения</h3>
+    <div class="muted" style="font-size:13px;margin-bottom:14px">
+      Ученики сканируют телефоном — попадают прямо в группу «<span id="classQrName"></span>»
+    </div>
+    <div id="classQrBox" style="display:flex;flex-direction:column;align-items:center;gap:6px"></div>
   </div>
   <div class="card" id="csvResultBox" hidden>
     <h3>Результат импорта</h3>
@@ -838,6 +850,11 @@
       </div>
       <div class="muted" style="margin-bottom:18px">Авто-бэкап раз в 24 часа. Хранятся последние 7 копий.</div>
       <div id="adminBackupsList"></div>
+            <div style="margin-top:24px;padding:24px;background:var(--panel-2);border-radius:var(--radius);border:1px solid var(--border-soft)">
+        <h3 style="margin-bottom:8px">QR-код сайта</h3>
+        <div class="muted" style="margin-bottom:16px">Пригодится, чтобы показать ссылку на mathconst.ru на экране или в презентации.</div>
+        <div id="adminQrBox" style="display:flex;flex-direction:column;align-items:center;gap:8px"></div>
+      </div>
             <div style="margin-top:24px;padding:24px;background:var(--panel-2);border-radius:var(--radius);border:1px solid var(--border-soft)">
         <h3 style="margin-bottom:8px">Генератор задач ЕГЭ 2027</h3>
         <div class="muted" style="margin-bottom:16px">
