@@ -84,7 +84,20 @@ async function apiForm(path,fd,method){
   if(!r.ok){var e=new Error(data.error||'Ошибка');e.status=r.status;throw e;}
   return data;
 }
+/* Генерация URL QR-кода через публичный API qrserver.com */
+function qrUrl(data, size){
+  size = size || 220;
+  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size +
+         '&margin=8&data=' + encodeURIComponent(data);
+}
 
+function renderQrInto(hostSel, data, size, caption){
+  var host = $(hostSel);
+  if (!host) return;
+  host.innerHTML =
+    '<img src="' + qrUrl(data, size) + '" alt="QR" width="' + size + '" height="' + size + '" style="border-radius:8px;background:#fff;padding:6px">' +
+    (caption ? '<div class="muted" style="font-size:12.5px;text-align:center;margin-top:6px">' + esc(caption) + '</div>' : '');
+}
 /* HELPERS */
 function isTeacherLike(){return currentUser&&(currentUser.role==='teacher'||currentUser.role==='admin');}
 function isAdmin(){return currentUser&&currentUser.role==='admin';}
@@ -1771,6 +1784,8 @@ async function openClassView(id){
   skeleton($('#classStudents'),2);skeleton($('#classGroups'),2);skeleton($('#classTests'),2);
   var cb=$('#chatBox');if(cb)cb.style.display='none';
   $('#csvResultBox').hidden=true;
+    var qrCard = $('#classQrCard');
+  if (qrCard) qrCard.hidden = true;
   var bic=$('#btnImportCsv');if(bic)bic.hidden=!isTeacherLike();
   var bca=$('#btnClassAnalytics');if(bca)bca.hidden=!isTeacherLike();
   var bcr=$('#btnClassRating');if(bcr)bcr.hidden=false;
@@ -1795,6 +1810,9 @@ async function openClassView(id){
         toast(ok?'Ссылка скопирована':'Скопируйте вручную: '+url, ok?'ok':'warn');
       });
     };
+        /* Автоматически готовим QR приглашения */
+    var joinUrl = location.origin + location.pathname + '?join=' + r.class.code;
+    renderQrInto('#classQrBox', joinUrl, 220, 'Наведите камеру телефона');
     var stu=$('#classStudents');stu.innerHTML='';
     $('#classStuCount').textContent=r.students.length;
     if(!r.students.length){
@@ -3896,7 +3914,33 @@ function bindAll(){
 
   var bca=$('#btnClassAnalytics');if(bca)bca.onclick=openClassAnalytics;
   var bcr=$('#btnClassRating');if(bcr)bcr.onclick=openClassRating;
+  /* QR в классе — раскрыть/свернуть */
+  var bShowQr = $('#btnShowQr');
+  if (bShowQr) bShowQr.onclick = function(){
+    var card = $('#classQrCard');
+    if (!card) return;
+    card.hidden = !card.hidden;
+    var nameEl = $('#classQrName');
+    if (nameEl && $('#classTitle')) nameEl.textContent = $('#classTitle').textContent;
+    if (!card.hidden) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
 
+  /* QR сайта на лендинге */
+  (function(){
+    var img = $('#landingQrImg');
+    if (!img) return;
+    var siteUrl = location.origin + '/';
+    img.src = qrUrl(siteUrl, 140);
+  })();
+
+  /* QR сайта в админке */
+  (function(){
+    var host = $('#adminQrBox');
+    if (!host) return;
+    if (host.dataset.ready) return;
+    host.dataset.ready = '1';
+    renderQrInto('#adminQrBox', location.origin + '/', 180, 'mathconst.ru');
+  })();
   var bcb=$('#btnCreateBackup');if(bcb)bcb.onclick=createBackupNow;
   var bgt=$('#btnGenerateTasks');
   if(bgt) bgt.onclick=async function(){
