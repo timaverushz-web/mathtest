@@ -1,9 +1,11 @@
 (function(){
 'use strict';
+
 var $=function(s,r){return (r||document).querySelector(s);};
 var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 var uid=function(){return Math.random().toString(36).slice(2,10);};
+
 var fmt=function(t){
   if(!t)return '';
   var d=new Date(t),now=Date.now(),diff=Math.floor((now-t)/1000);
@@ -64,6 +66,7 @@ function toast(msg,type){
 var TOKEN_KEY='mathtest_token';
 var getToken=function(){return localStorage.getItem(TOKEN_KEY);};
 var setToken=function(t){t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY);};
+
 async function api(path,opts){
   opts=opts||{};
   var headers={'Content-Type':'application/json'};
@@ -86,25 +89,24 @@ async function apiForm(path,fd,method){
 function isTeacherLike(){return currentUser&&(currentUser.role==='teacher'||currentUser.role==='admin');}
 function isAdmin(){return currentUser&&currentUser.role==='admin';}
 function canUploadBooks(){return currentUser&&['teacher','admin','librarian'].includes(currentUser.role);}
-function canUseBank(){return !!currentUser;} /* банк открыт всем авторизованным */
-function canEditBank(){return currentUser&&['teacher','admin'].includes(currentUser.role);} /* редактирование — только репетитору */
+function canUseBank(){return !!currentUser;}
+function canEditBank(){return currentUser&&['teacher','admin'].includes(currentUser.role);}
 function roleLabel(){
   if(!currentUser)return '';
   return {'admin':'администратор','teacher':'репетитор','librarian':'библиотекарь','student':'ученик'}[currentUser.role]||currentUser.role;
 }
 function avatarUrl(id,bust){return '/api/users/'+id+'/avatar'+(bust?('?v='+bust):'');}
+
 function renderAvatar(el,user,size){
   if(!el)return;
   el.style.width=(size||28)+'px';
   el.style.height=(size||28)+'px';
   el.style.fontSize=Math.round((size||28)*0.45)+'px';
-  el.style.backgroundImage=''; /* всегда сбрасываем */
-
+  el.style.backgroundImage='';
   if(user && user.hasAvatar){
     var bust=null;
     try{ bust=localStorage.getItem('avatar_bust_'+user.id); }catch(e){}
     var url=avatarUrl(user.id,bust);
-    /* Проверяем, что картинка реально грузится */
     var probe=new Image();
     probe.onload=function(){
       el.style.backgroundImage="url('"+url+"')";
@@ -122,6 +124,7 @@ function renderAvatar(el,user,size){
 
 /* FORMULA INPUTS */
 var lastFocused=null;
+
 function textToLatex(t){
   if(!t)return'';
   t=String(t);
@@ -140,15 +143,15 @@ function textToLatex(t){
   t=t.replace(/\^(-?\d+)/g,'^{$1}').replace(/\*/g,'\\cdot ');
   return t;
 }
-  /* Рендерит текст со встроенными $...$ формулами:
-   обычный текст — как есть, формулы — через KaTeX */
+
+/* Рендерит текст со встроенными $...$ формулами и <div class="task-figure">... */
 function renderMixedText(el, raw){
   if(!el) return;
   el.innerHTML = '';
   if(!raw){ return; }
   var str = String(raw);
 
-  /* Вырезаем <div class="task-figure">…</div> в начало, как отдельный блок */
+  /* Вырезаем блок с чертежом (img или svg) — вставляем как отдельный блок */
   var figMatch = str.match(/<div class="task-figure">([\s\S]*?)<\/div>/);
   if (figMatch) {
     var figDiv = document.createElement('div');
@@ -158,7 +161,6 @@ function renderMixedText(el, raw){
     str = str.replace(figMatch[0], '').trim();
   }
 
-  /* Дальше — обычный парсинг $...$ формул */
   var parts = [];
   var re = /\$([^$]+)\$/g;
   var last = 0, m;
@@ -184,6 +186,7 @@ function renderMixedText(el, raw){
     }
   });
 }
+
 function createMathInput(initial,readonly,onChange){
   var wrap=document.createElement('div');
   wrap.className='mi-wrap' + (readonly ? ' mi-readonly' : '');
@@ -192,22 +195,20 @@ function createMathInput(initial,readonly,onChange){
   ta.value=initial||'';if(readonly)ta.readOnly=true;
   var prev=document.createElement('div');prev.className='mi-preview';
   wrap.appendChild(ta);wrap.appendChild(prev);
-       function render(){
+
+  function render(){
     var raw = ta.value;
 
-    /* Readonly — рендерим как текст с $...$ формулами */
     if(readonly){
       renderMixedText(prev, raw);
       return;
     }
 
-    /* Ввод: если есть $...$ — тоже смешанный рендер */
     if(/\$[^$]+\$/.test(raw)){
       renderMixedText(prev, raw);
       return;
     }
 
-    /* Ввод без $...$: кириллица → простой текст, иначе → KaTeX */
     var hasCyr = /[А-Яа-яЁё]/.test(raw);
     if(hasCyr){
       prev.textContent = raw;
@@ -221,8 +222,10 @@ function createMathInput(initial,readonly,onChange){
       catch(e){ prev.textContent = raw; }
     } else prev.textContent = raw;
   }
+
   ta.addEventListener('input',function(){render();if(onChange)onChange(ta.value);});
-   if(!readonly) ta.addEventListener('focus',function(){lastFocused=api;});
+  if(!readonly) ta.addEventListener('focus',function(){lastFocused=api;});
+
   var api={
     el:wrap,textarea:ta,
     getValue:function(){return ta.value;},
@@ -245,6 +248,7 @@ function createMathInput(initial,readonly,onChange){
   };
   render();return api;
 }
+
 var SYMBOLS_BASIC=[
   {label:'√',wrap:['√(',')']},{label:'ⁿ√',wrap:['root(3,',')']},
   {label:'x²',insert:'^2'},{label:'xⁿ',wrap:['^(',')']},
@@ -272,6 +276,7 @@ var SYMBOLS_ADVANCED=[
 ];
 var currentSymTab='basic';
 var currentBankSymTab='basic';
+
 function buildSymbolBar(c){
   if(!c)return;c.innerHTML='';
   var list=currentSymTab==='basic'?SYMBOLS_BASIC:SYMBOLS_ADVANCED;
@@ -287,6 +292,7 @@ function buildSymbolBar(c){
     c.appendChild(b);
   });
 }
+
 function buildBankSymbolBar(c){
   if(!c)return;c.innerHTML='';
   var list=currentBankSymTab==='basic'?SYMBOLS_BASIC:SYMBOLS_ADVANCED;
@@ -427,12 +433,10 @@ function renderExamWidgets(counts){
         '<span class="exam-widget-pts">макс ' + pts + 'б</span>' +
       '</div>';
 
-      w.onclick = (function(n){
+    w.onclick = (function(n){
       return function(){
         var sel = $('#bankFilterNum');
         if (!sel) return;
-
-        /* Проверяем: если опции с номером нет — добавляем */
         var targetVal = String(n);
         var hasOpt = false;
         for (var i = 0; i < sel.options.length; i++) {
@@ -444,7 +448,6 @@ function renderExamWidgets(counts){
           opt.textContent = '№' + n;
           sel.appendChild(opt);
         }
-
         var newVal = (parseInt(sel.value) === n) ? '0' : targetVal;
         sel.value = newVal;
         if (newVal !== '0') {
@@ -486,8 +489,7 @@ var reader = {
   uiHidden:false,
   hintShown:false
 };
-
-/* TOPBAR TABS */
+  /* TOPBAR TABS */
 function updateTopbarTabs(){
   var active='';
   if($('#view-teacher') && $('#view-teacher').classList.contains('active')) active='home';
@@ -502,7 +504,6 @@ function updateTopbarTabs(){
 window.updateTopbarTabs = updateTopbarTabs;
 
 function show(id){
-  /* Защита: не пускаем гостя на приватные экраны */
   var privateViews = [
     'view-teacher','view-student','view-taskbank','view-library','view-reader',
     'view-admin','view-dashboard','view-editor','view-class','view-analytics',
@@ -527,6 +528,7 @@ function show(id){
   else if(id==='view-profile'||id==='view-editprofile'){var p=$('[data-mnav="profile"]');if(p)p.classList.add('active');}
   if(typeof updateTopbarTabs === 'function') updateTopbarTabs();
 }
+
 function skeleton(host,lines){
   if(!host)return;lines=lines||3;
   var html='<div class="skeleton">';
@@ -540,6 +542,7 @@ function initReveal(){
   var io=new IntersectionObserver(function(entries){entries.forEach(function(en){if(en.isIntersecting){en.target.classList.add('visible');io.unobserve(en.target);}});},{threshold:.15});
   els.forEach(function(el){io.observe(el);});
 }
+
 function animateCounters(){
   var els=$$('.ld-number-value[data-count], .landing-stat .ls-value[data-count]');
   els.forEach(function(el){
@@ -561,6 +564,7 @@ function animateCounters(){
 /* USER MENU */
 function closeUserMenu(){userMenuOpen=false;var c=$('#userChip');var m=$('#userMenu');if(c)c.classList.remove('open');if(m)m.hidden=true;}
 function openUserMenu(){userMenuOpen=true;var c=$('#userChip');var m=$('#userMenu');if(c)c.classList.add('open');if(m)m.hidden=false;}
+
 function buildUserMenu(){
   var menu=$('#userMenu');if(!menu)return;
   menu.innerHTML='';
@@ -575,7 +579,7 @@ function buildUserMenu(){
   function sep(){var d=document.createElement('div');d.className='user-menu-sep';return d;}
   menu.appendChild(item('i-settings','Личный кабинет','Профиль и настройки',openProfileStats));
   if(isTeacherLike()) menu.appendChild(item('i-chart','Дашборд','Успеваемость, топ учеников',openDashboard));
-   if(currentUser) menu.appendChild(item('i-layers','Банк заданий','Задачи по номерам ЕГЭ',openTaskBank));
+  if(currentUser) menu.appendChild(item('i-layers','Банк заданий','Задачи по номерам ЕГЭ',openTaskBank));
   menu.appendChild(item('i-book','Библиотека','Учебники и пособия',openLibrary));
   if(isTeacherLike()) menu.appendChild(item('i-edit','Мои работы','Работы и группы',goTeacher));
   else if(currentUser&&currentUser.role==='student') menu.appendChild(item('i-edit','Мои работы','Доступные работы',goStudent));
@@ -589,6 +593,7 @@ function buildUserMenu(){
   menu.appendChild(sep());
   menu.appendChild(item('i-logout','Выйти из аккаунта',null,logout,true));
 }
+
 function renderTop(){
   var wrap=$('#userChipWrap');
   var tabs=$('#topbarTabs');
@@ -605,6 +610,7 @@ function renderTop(){
   renderAvatar(a,currentUser,32);
   buildUserMenu();
 }
+
 function logout(){
   setToken(null);currentUser=null;
   if(notifTimer){clearInterval(notifTimer);notifTimer=null;}
@@ -614,6 +620,7 @@ function logout(){
 
 /* NOTIFICATIONS */
 function closeNotifPanel(){notifOpen=false;var p=$('#notifPanel');if(p)p.hidden=true;}
+
 async function refreshNotifBadge(){
   if(!currentUser)return;
   try{
@@ -623,6 +630,7 @@ async function refreshNotifBadge(){
     else b.hidden=true;
   }catch(e){}
 }
+
 async function loadNotifications(){
   var list=$('#notifList');if(!list)return;
   skeleton(list,3);
@@ -655,6 +663,7 @@ async function loadNotifications(){
 
 /* GOOGLE + TELEGRAM */
 var GOOGLE_CLIENT_ID='279103327474-sp6osb2jhb92puqqvh9fmdkiv73prgk7.apps.googleusercontent.com';
+
 function initGoogleLogin(){
   if(!GOOGLE_CLIENT_ID||window.__googleReady)return;
   window.__googleReady=true;
@@ -673,6 +682,7 @@ function initGoogleLogin(){
     var s=document.createElement('script');s.id='gsi-script';s.src='https://accounts.google.com/gsi/client';s.async=true;s.defer=true;s.onload=tryRender;document.head.appendChild(s);
   } else tryRender();
 }
+
 function initTelegramLogin(){
   var wrap=document.getElementById('tgLoginWrap');
   if(!wrap||!window.TELEGRAM_BOT_USERNAME||wrap.dataset.ready)return;
@@ -690,6 +700,7 @@ function initTelegramLogin(){
   script.setAttribute('data-onauth','onTelegramAuth(user)');script.setAttribute('data-request-access','write');
   wrap.appendChild(script);
 }
+
 async function loadTelegramInfo(){
   try{var r=await api('/telegram/bot-info');if(r.username)window.TELEGRAM_BOT_USERNAME=r.username;}catch(e){}
 }
@@ -703,6 +714,7 @@ var SUPPORT_KB={
   'как работает автопроверка':'Система сравнивает ответ ученика с правильным: точное совпадение, числовое сравнение с допуском, символьное упрощение через Nerdamer.',
   'банк заданий':'Банк заданий — ваша коллекция. В конструкторе работы нажмите «Из банка», чтобы добавить готовые задачи.'
 };
+
 function supportAnswer(text){
   var t=text.toLowerCase().trim();
   for(var key in SUPPORT_KB){ if(t.indexOf(key)>=0) return SUPPORT_KB[key]; }
@@ -714,6 +726,7 @@ function supportAnswer(text){
   if(/проверк|оценк|балл/i.test(t)) return SUPPORT_KB['как работает автопроверка'];
   return 'Спасибо! Сообщение получено. Напишите на support@mathconst.ru, если срочно.';
 }
+
 function supportAddMessage(text,from){
   var box=$('#supportMessages');if(!box)return;
   var el=document.createElement('div');
@@ -722,6 +735,7 @@ function supportAddMessage(text,from){
   el.innerHTML=esc(text)+'<span class="time">'+time+'</span>';
   box.appendChild(el);box.scrollTop=box.scrollHeight;
 }
+
 function toggleSupport(){
   supportOpen=!supportOpen;
   var panel=$('#supportPanel');if(!panel)return;
@@ -732,6 +746,7 @@ function toggleSupport(){
     setTimeout(function(){var i=$('#supportInput');if(i)i.focus();},100);
   }
 }
+
 function supportSend(msg){
   var input=$('#supportInput');
   var text=(msg||(input?input.value:'')).trim();
@@ -745,6 +760,7 @@ async function goTeacher(){
   show('view-teacher');
   await Promise.all([renderTeacherSummary(),renderTeacherClasses(),renderTeacherTests()]);
 }
+
 async function renderTeacherSummary(){
   var host=$('#teacherSummary');if(!host)return;
   try{
@@ -777,6 +793,7 @@ async function renderTeacherSummary(){
     }
   }catch(e){host.innerHTML='';}
 }
+
 async function renderTeacherClasses(){
   var list=$('#classList');if(!list)return;
   skeleton(list,2);
@@ -816,6 +833,7 @@ async function renderTeacherClasses(){
     });
   }catch(e){list.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function renderTeacherTests(){
   var host=$('#testList');if(!host)return;
   skeleton(host,3);
@@ -905,14 +923,12 @@ async function openTaskBank(){
   var host=$('#bankList');
   skeleton(host, 4);
 
-  /* ВАЖНО: заполняем селект номерами 1–20 перед рендером виджетов */
   var numSel = $('#bankFilterNum');
   if(numSel){
     var curVal = parseInt(numSel.value) || 0;
     fillBankNumSelect(numSel, 'profile', curVal);
   }
 
-   /* Кнопки репетитора: новая задача + импорт */
   var bAdd=$('#btnAddBankTask');
   if(bAdd) bAdd.hidden = !canEditBank();
   var bImp=$('#btnImportBankCsv');
@@ -927,16 +943,19 @@ async function openTaskBank(){
       fillTopicSelects();
     }
   }catch(e){}
-    /* Админ-блок со статистикой и кнопками */
-  var adminBox = $('#bankAdminBox');
-  if (adminBox) {
-    if (isAdmin()) {
-      adminBox.hidden = false;
-      refreshBankStats();
-    } else {
-      adminBox.hidden = true;
+
+  try {
+    var adminBox = $('#bankAdminBox');
+    if (adminBox) {
+      if (isAdmin()) {
+        adminBox.hidden = false;
+        refreshBankStats();
+      } else {
+        adminBox.hidden = true;
+      }
     }
-  }
+  } catch(e) { console.error('bankAdminBox:', e); }
+
   await loadBankList();
 }
 
@@ -1010,7 +1029,6 @@ function renderBankList(){
     return;
   }
 
-  /* Группируем по номеру ЕГЭ */
   var byNum = {};
   bankState.list.forEach(function(t){
     var k = 'profile_' + (t.examTaskNumber || 0);
@@ -1036,11 +1054,9 @@ function renderBankList(){
                      '<span class="muted">'+group.length+' задач · '+protos.length+' прототипов · '+variants.length+' вариаций</span>';
     groupCard.appendChild(head);
 
-    /* Прототипы со своими вариациями */
     var protoMap = {};
     protos.forEach(function(p){ protoMap[p.id] = { proto: p, variants: [] }; });
 
-    /* Вариации привязываем к прототипам */
     var orphan = [];
     variants.forEach(function(v){
       if (v.prototypeId && protoMap[v.prototypeId]) protoMap[v.prototypeId].variants.push(v);
@@ -1052,7 +1068,6 @@ function renderBankList(){
       groupCard.appendChild(renderPrototypeBlock(node.proto, node.variants));
     });
 
-    /* Вариации без прототипа — просто списком */
     if (orphan.length) {
       var orphanBlock = document.createElement('div');
       orphanBlock.className = 'orphan-variants';
@@ -1073,18 +1088,16 @@ function renderPrototypeBlock(proto, variants){
   var wrap = document.createElement('div');
   wrap.className = 'proto-block';
 
-  /* Карточка прототипа */
   wrap.appendChild(renderBankTaskCard(proto, false));
 
   if (!variants.length) {
     var hint = document.createElement('div');
     hint.className = 'muted proto-empty-hint';
-    hint.textContent = 'Вариаций пока нет. Нажмите «🎲 Сгенерировать вариации» выше.';
+    hint.textContent = 'Вариаций пока нет. Нажмите «🎲 Генерировать» выше.';
     wrap.appendChild(hint);
     return wrap;
   }
 
-  /* Список вариаций (свёрнут) */
   var header = document.createElement('div');
   header.className = 'variants-header';
   var btn = document.createElement('button');
@@ -1109,243 +1122,25 @@ function renderPrototypeBlock(proto, variants){
   wrap.appendChild(list);
   return wrap;
 }
-/* ==========================================================
-   МОДАЛКА «РЕШИТЬ»
-   ========================================================== */
-var solveState = { task: null, answerInput: null, checked: false };
-
-function openSolveModal(task){
-  solveState.task = task;
-  solveState.checked = false;
-  solveState.answerInput = null;
-
-  var modal = $('#solveModal');
-  if (!modal) { toast('Модалка не найдена','err'); return; }
-  modal.hidden = false;
-
-  $('#solveTitle').textContent = 'Задача №' + (task.examTaskNumber || '—') + (task.topic ? ' · ' + task.topic : '');
-  $('#solvePoints').textContent = task.points || 1;
-  $('#solveDifficulty').textContent = difficultyLabel(task.difficulty);
-
-  /* Условие + картинка */
-  var host = $('#solveStatement');
-  host.innerHTML = '';
-  var stmt = createMathInput(task.statement, true);
-  host.appendChild(stmt.el);
-
-  /* Если у задачи есть figureSvg и он ещё не в statement — добавим */
-  if (task.figureSvg && !/task-figure/.test(task.statement || '')) {
-    var figWrap = document.createElement('div');
-    figWrap.className = 'task-figure';
-    figWrap.innerHTML = task.figureSvg;
-    host.insertBefore(figWrap, host.firstChild);
-  }
-
-  /* Поле ответа */
-  var answerHost = $('#solveAnswerHost');
-  answerHost.innerHTML = '';
-  if (task.type === 'input') {
-    solveState.answerInput = createMathInput('', false);
-    answerHost.appendChild(solveState.answerInput.el);
-    $('#solveChoiceBlock').hidden = true;
-    $('#solveInputBlock').hidden = false;
-  } else {
-    $('#solveInputBlock').hidden = true;
-    $('#solveChoiceBlock').hidden = false;
-    var cHost = $('#solveChoiceList');
-    cHost.innerHTML = '';
-    (task.options || []).forEach(function(opt, i){
-      var lab = document.createElement('label');
-      lab.className = 'solve-choice-item';
-      var rd = document.createElement('input');
-      rd.type = 'radio'; rd.name = 'solveChoice'; rd.value = i;
-      var ob = createMathInput(opt.text, true);
-      ob.el.style.flex = '1';
-      lab.appendChild(rd); lab.appendChild(ob.el);
-      cHost.appendChild(lab);
-    });
-  }
-
-  /* Скрыть результат и решение */
-  $('#solveResult').hidden = true;
-  $('#solveSolution').hidden = true;
-  $('#solveCheckBtn').disabled = false;
-  $('#solveCheckBtn').innerHTML = '<svg><use href="#i-check"/></svg> Проверить';
-
-  var revealBtn = $('#solveRevealBtn');
-  if (revealBtn) {
-    revealBtn.hidden = false;
-    revealBtn.textContent = '📝 Показать решение';
-  }
-
-  /* Фокус на поле ввода */
-  setTimeout(function(){
-    if (solveState.answerInput && solveState.answerInput.textarea) solveState.answerInput.textarea.focus();
-  }, 100);
-}
-
-function closeSolveModal(){
-  var modal = $('#solveModal');
-  if (modal) modal.hidden = true;
-  solveState.task = null;
-  solveState.answerInput = null;
-  solveState.checked = false;
-}
-
-function solveNorm(s){
-  return String(s || '').replace(/\\left|\\right/g,'')
-    .replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
-    .replace(/\s+/g,'').replace(/,/g,'.').toLowerCase();
-}
-
-function checkSolveAnswer(){
-  var t = solveState.task;
-  if (!t) return;
-
-  var userAns = '';
-  if (t.type === 'input') {
-    userAns = solveState.answerInput ? solveState.answerInput.getValue().trim() : '';
-    if (!userAns) { toast('Введите ответ', 'warn'); return; }
-  } else {
-    var rd = document.querySelector('#solveChoiceList input[name="solveChoice"]:checked');
-    if (!rd) { toast('Выберите вариант', 'warn'); return; }
-    userAns = String(rd.value);
-  }
-
-  var ok = false;
-  var correctText = '';
-  if (t.type === 'input') {
-    var sn = Number(solveNorm(userAns));
-    var cn = Number(solveNorm(t.answer));
-    if (isFinite(sn) && isFinite(cn)) {
-      ok = Math.abs(sn - cn) <= (t.tolerance || 1e-6);
-    } else {
-      ok = solveNorm(userAns) === solveNorm(t.answer);
-    }
-    correctText = t.answer;
-  } else {
-    ok = Number(userAns) === Number(t.correctIndex);
-    correctText = t.options && t.options[t.correctIndex] ? t.options[t.correctIndex].text : '';
-  }
-
-  solveState.checked = true;
-
-  var res = $('#solveResult');
-  res.hidden = false;
-  if (ok) {
-    res.className = 'solve-result ok';
-    res.innerHTML = '<div style="font-size:22px;font-weight:900">✓ Верно!</div>' +
-                    '<div class="muted" style="margin-top:8px">+'+(t.points||1)+' '+(t.points===1?'балл':'балла')+'</div>';
-  } else {
-    res.className = 'solve-result err';
-    res.innerHTML = '<div style="font-size:22px;font-weight:900">✗ Неверно</div>' +
-                    '<div class="muted" style="margin-top:10px">Правильный ответ:</div>' +
-                    '<div style="margin-top:6px"><span class="solve-correct-answer">'+esc(correctText)+'</span></div>';
-  }
-
-  /* Если верно и есть решение — сразу покажем */
-  if (ok) revealSolution();
-}
-
-async function revealSolution(){
-  var t = solveState.task;
-  if (!t) return;
-  var host = $('#solveSolution');
-  host.hidden = false;
-  host.innerHTML = '<h3 style="margin-bottom:12px">📝 Решение</h3>';
-
-  var sol = t.solution;
-  if (!sol) {
-    try {
-      var r = await api('/task-bank/' + t.id + '?reveal=1');
-      sol = r.task.solution;
-      solveState.task.solution = sol;
-    } catch (e) {
-      host.innerHTML += '<div class="err">Не удалось получить решение: ' + esc(e.message) + '</div>';
-      return;
-    }
-  }
-
-  if (!sol) {
-    host.innerHTML += '<div class="muted">Решение для этой задачи пока не добавлено.</div>';
-    return;
-  }
-
-  var body = document.createElement('div');
-  body.className = 'solve-solution-body';
-  renderMixedText(body, sol);
-  host.appendChild(body);
-}
 
 /* ==========================================================
-   АДМИН: ОЧИСТКА / СБРОС / СТАТИСТИКА БАНКА
+   КАРТОЧКА ЗАДАЧИ В СТИЛЕ UCHUS.ONLINE
+   - Шапка с №, темами, сложностью (Легко/Средне/Сложно)
+   - Условие (+ чертёж, если есть)
+   - Поле ответа или радио-варианты
+   - Кнопки «Ответить», «Решение», «Изменить», «Удалить», «🎲»
+   - Результат и решение — раскрываются в самой карточке
    ========================================================== */
-async function resetTaskBank(){
-  if (!confirm('⚠️ СБРОСИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены и загружены 21 прототип ФИПИ 2027.\nЭто необратимо.')) return;
-  if (!confirm('Точно? Все текущие задачи пропадут.')) return;
-  try {
-    var r = await api('/admin/task-bank/reset', { method: 'POST' });
-    toast('Готово: удалено ' + r.deleted + ', загружено прототипов: ' + r.seeded, 'ok');
-    refreshBankStats();
-    if ($('#view-taskbank').classList.contains('active')) {
-      await loadBankList();
-      refreshExamWidgets();
-    }
-  } catch (e) { toast(e.message, 'err'); }
-}
-
-async function clearTaskBank(){
-  if (!confirm('⚠️ ОЧИСТИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены безвозвратно (без пересева).')) return;
-  try {
-    var r = await api('/admin/task-bank/clear', { method: 'POST' });
-    toast('Удалено задач: ' + r.deleted, 'ok');
-    refreshBankStats();
-    if ($('#view-taskbank').classList.contains('active')) {
-      await loadBankList();
-      refreshExamWidgets();
-    }
-  } catch (e) { toast(e.message, 'err'); }
-}
-
-async function refreshBankStats(){
-  var el = $('#bankStatsBox');
-  if (!el) return;
-  try {
-    var r = await api('/admin/task-bank/stats');
-    el.innerHTML = '<b>' + r.total + '</b> задач · ' +
-                   '<b style="color:var(--accent)">' + r.prototypes + '</b> прототипов · ' +
-                   '<b>' + r.variants + '</b> вариаций';
-  } catch (e) { el.textContent = 'Ошибка: ' + e.message; }
-}
-
-async function generateVariantsForPrototype(proto){
-  var n = prompt('Сколько вариаций сгенерировать для этого прототипа?\n(1–200, рекомендуется 20–40)', '20');
-  if (!n) return;
-  n = parseInt(n);
-  if (!n || n < 1 || n > 200) { toast('Нужно число от 1 до 200', 'warn'); return; }
-
-  toast('Генерация... подождите 20–60 секунд', 'info');
-  try {
-    var r = await api('/admin/generate-tasks', {
-      method: 'POST',
-      body: { n: n, prototypeId: proto.id }
-    });
-    toast('Добавлено вариаций: ' + r.added + (r.failed ? ' · ошибок: ' + r.failed : ''), 'ok');
-    await loadBankList();
-    refreshExamWidgets();
-    refreshBankStats();
-  } catch (e) { toast(e.message, 'err'); }
-}
 function renderBankTaskCard(t, isVariant){
   var card = document.createElement('div');
   card.className = 'bank-task' + (isVariant ? ' bank-task-variant' : '');
   if (t.isPrototype) card.classList.add('bank-task-proto-card');
 
-  /* --- Шапка: № задания + метки + сложность --- */
+  /* --- Шапка --- */
   var header = document.createElement('div');
   header.className = 'bank-task-header';
   var numLabel = t.examTaskNumber ? '№' + t.examTaskNumber : '—';
-   var diffColor = {easy: 'var(--ok)', medium: 'var(--warn)', hard: 'var(--err)'}[t.difficulty] || 'var(--warn)';
+  var diffColor = {easy: 'var(--ok)', medium: 'var(--warn)', hard: 'var(--err)'}[t.difficulty] || 'var(--warn)';
   header.innerHTML =
     '<div class="bank-task-num">'+numLabel+'</div>' +
     '<div class="bank-task-header-meta">' +
@@ -1355,7 +1150,7 @@ function renderBankTaskCard(t, isVariant){
       '<span class="pill">'+(t.points||1)+' б.</span>' +
       (t.isPublic ? '<span class="pill green">публичная</span>' : '') +
     '</div>' +
-       '<div class="bank-task-diff"><span class="diff-badge" style="background:'+diffColor+'">'+difficultyLabel(t.difficulty)+'</span></div>';
+    '<div class="bank-task-diff"><span class="diff-badge" style="background:'+diffColor+'">'+difficultyLabel(t.difficulty)+'</span></div>';
   card.appendChild(header);
 
   /* --- Условие --- */
@@ -1469,6 +1264,7 @@ function renderBankTaskCard(t, isVariant){
   card.appendChild(answerBlock);
   return card;
 }
+
 function bankTaskNorm(s){
   return String(s || '').replace(/\\left|\\right/g,'')
     .replace(/[−–—]/g,'-').replace(/[×·]/g,'*').replace(/÷/g,'/')
@@ -1542,6 +1338,127 @@ async function revealBankTaskSolution(card, t){
   renderMixedText(body, text);
   sol.appendChild(body);
 }
+
+/* ==========================================================
+   АДМИН: ОЧИСТКА / СБРОС / СТАТИСТИКА БАНКА
+   ========================================================== */
+async function resetTaskBank(){
+  if (!confirm('⚠️ СБРОСИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены и заново загружены прототипы ФИПИ.\nЭто необратимо.')) return;
+  if (!confirm('Точно? Все текущие задачи пропадут.')) return;
+  try {
+    var r = await api('/admin/task-bank/reset', { method: 'POST' });
+    toast('Готово: удалено ' + r.deleted + ', загружено: ' + r.seeded, 'ok');
+    refreshBankStats();
+    if ($('#view-taskbank').classList.contains('active')) {
+      await loadBankList();
+      refreshExamWidgets();
+    }
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function clearTaskBank(){
+  if (!confirm('⚠️ ОЧИСТИТЬ БАНК ЗАДАНИЙ?\n\nВсе задачи будут удалены безвозвратно (без пересева).')) return;
+  try {
+    var r = await api('/admin/task-bank/clear', { method: 'POST' });
+    toast('Удалено задач: ' + r.deleted, 'ok');
+    refreshBankStats();
+    if ($('#view-taskbank').classList.contains('active')) {
+      await loadBankList();
+      refreshExamWidgets();
+    }
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function refreshBankStats(){
+  var el = $('#bankStatsBox');
+  if (!el) return;
+  try {
+    var r = await api('/admin/task-bank/stats');
+    el.innerHTML = '<b>' + r.total + '</b> задач · ' +
+                   '<b style="color:var(--accent)">' + r.prototypes + '</b> прототипов · ' +
+                   '<b>' + r.variants + '</b> вариаций';
+  } catch (e) {
+    console.warn('refreshBankStats:', e.message);
+    el.textContent = '—';
+  }
+}
+
+async function generateVariantsForPrototype(proto){
+  var n = prompt('Сколько вариаций сгенерировать для этого прототипа?\n(1–200, рекомендуется 20–40)', '20');
+  if (!n) return;
+  n = parseInt(n);
+  if (!n || n < 1 || n > 200) { toast('Нужно число от 1 до 200', 'warn'); return; }
+
+  toast('Генерация... подождите 20–60 секунд', 'info');
+  try {
+    var r = await api('/admin/generate-tasks', {
+      method: 'POST',
+      body: { n: n, prototypeId: proto.id }
+    });
+    toast('Добавлено вариаций: ' + r.added + (r.failed ? ' · ошибок: ' + r.failed : ''), 'ok');
+    await loadBankList();
+    refreshExamWidgets();
+    refreshBankStats();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ==========================================================
+   ЗАГРУЗКА ЧЕРТЕЖЕЙ К ЗАДАЧАМ
+   ========================================================== */
+function renderBankFigurePreview(){
+  var box = $('#bankFigurePreview');
+  var nameEl = $('#bankFigureName');
+  var clearBtn = $('#btnBankFigureClear');
+  if (!box) return;
+
+  if (!bankState.figureUrl) {
+    box.hidden = true;
+    box.innerHTML = '';
+    if (nameEl) nameEl.textContent = '';
+    if (clearBtn) clearBtn.hidden = true;
+    return;
+  }
+
+  box.hidden = false;
+  if (bankState.figureUrl.indexOf('inline:') === 0) {
+    box.innerHTML = bankState.figureUrl.slice(7);
+    if (nameEl) nameEl.textContent = 'SVG (встроенный)';
+  } else {
+    box.innerHTML = '<img src="' + bankState.figureUrl + '" alt="Чертёж">';
+    if (nameEl) nameEl.textContent = bankState.figureUrl.split('/').pop();
+  }
+  if (clearBtn) clearBtn.hidden = false;
+}
+
+function clearBankFigure(){
+  bankState.figureUrl = null;
+  renderBankFigurePreview();
+  var inp = $('#bankFigureInput');
+  if (inp) inp.value = '';
+}
+
+async function uploadBankFigure(file){
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    toast('Файл больше 5 МБ', 'warn');
+    return;
+  }
+  var fd = new FormData();
+  fd.append('figure', file);
+  try {
+    toast('Загрузка чертежа...', 'info');
+    var r = await apiForm('/task-bank/upload-figure', fd);
+    bankState.figureUrl = r.url;
+    renderBankFigurePreview();
+    toast('Чертёж загружен', 'ok');
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+/* ==========================================================
+   ФОРМА ЗАДАЧИ БАНКА
+   ========================================================== */
 function initBankFormFields(){
   if(bankState.statementInput) return;
   var sh=$('#bankStatementHost'), ah=$('#bankAnswerHost');
@@ -1607,7 +1524,8 @@ function openBankForm(task){
     bankAddOption(); bankAddOption();
   }
   $('#bankTaskType').onchange();
-      if ($('#bankIsPrototype')) $('#bankIsPrototype').checked = !!(task && task.isPrototype);
+
+  if ($('#bankIsPrototype')) $('#bankIsPrototype').checked = !!(task && task.isPrototype);
   if ($('#bankPrototypeId')) $('#bankPrototypeId').value = (task && task.prototypeId) || '';
   if ($('#bankSolutionInput')) $('#bankSolutionInput').value = (task && task.solution) || '';
 
@@ -1618,15 +1536,16 @@ function openBankForm(task){
   var m = stmtRaw.match(figRe);
   if (m) {
     bankState.figureUrl = m[1];
-    stmtRaw = stmtRaw.replace(/<div class="task-figure">[\s\S]*?<\/div>\s*/i, '').trim();
-    if (bankState.statementInput) bankState.statementInput.setValue(stmtRaw);
-  } else if ($('#bankFigureSvgInput') && task && task.figureSvg) {
+    var stripped = stmtRaw.replace(/<div class="task-figure">[\s\S]*?<\/div>\s*/i, '').trim();
+    if (bankState.statementInput) bankState.statementInput.setValue(stripped);
+  } else if (task && task.figureSvg) {
     /* Старый формат — SVG в отдельном поле */
     bankState.figureUrl = 'inline:' + task.figureSvg;
   }
   renderBankFigurePreview();
 
   $('#bankForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 function closeBankForm(){
   $('#bankForm').hidden = true;
@@ -1635,67 +1554,18 @@ function closeBankForm(){
   $('#bankErr').textContent = '';
   renderBankFigurePreview();
 }
-function renderBankFigurePreview(){
-  var box = $('#bankFigurePreview');
-  var nameEl = $('#bankFigureName');
-  var clearBtn = $('#btnBankFigureClear');
-  if (!box) return;
 
-  if (!bankState.figureUrl) {
-    box.hidden = true;
-    box.innerHTML = '';
-    if (nameEl) nameEl.textContent = '';
-    if (clearBtn) clearBtn.hidden = true;
-    return;
-  }
-
-  box.hidden = false;
-  if (bankState.figureUrl.indexOf('inline:') === 0) {
-    box.innerHTML = bankState.figureUrl.slice(7);
-    if (nameEl) nameEl.textContent = 'SVG (встроенный)';
-  } else {
-    box.innerHTML = '<img src="' + bankState.figureUrl + '" alt="Чертёж">';
-    if (nameEl) nameEl.textContent = bankState.figureUrl.split('/').pop();
-  }
-  if (clearBtn) clearBtn.hidden = false;
-}
-
-function clearBankFigure(){
-  bankState.figureUrl = null;
-  renderBankFigurePreview();
-  var inp = $('#bankFigureInput');
-  if (inp) inp.value = '';
-}
-
-async function uploadBankFigure(file){
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    toast('Файл больше 5 МБ', 'warn');
-    return;
-  }
-  var fd = new FormData();
-  fd.append('figure', file);
-  try {
-    toast('Загрузка чертежа...', 'info');
-    var r = await apiForm('/task-bank/upload-figure', fd);
-    bankState.figureUrl = r.url;
-    renderBankFigurePreview();
-    toast('Чертёж загружен', 'ok');
-  } catch (e) {
-    toast(e.message, 'err');
-  }
-}
 async function saveBankTask(){
   var err=$('#bankErr'); if(err) err.textContent='';
   var statement = bankState.statementInput ? bankState.statementInput.getValue().trim() : '';
   if(!statement){ err.textContent='Введите условие задачи'; return; }
   var type = $('#bankTaskType').value;
-      /* Вшиваем чертёж прямо в statement */
+
+  /* Вшиваем чертёж прямо в statement */
   var finalStatement = statement;
   if (bankState.figureUrl) {
-    let figureHtml;
+    var figureHtml;
     if (bankState.figureUrl.indexOf('inline:') === 0) {
-      /* Старый SVG-контент */
       figureHtml = bankState.figureUrl.slice(7);
     } else {
       figureHtml = '<img src="' + bankState.figureUrl + '" alt="Чертёж">';
@@ -1752,6 +1622,7 @@ async function saveBankTask(){
   finally{ btn.disabled = false; }
 }
 
+/* --- БАНК: ПИКЕР (выбор задач в работу) --- */
 async function openBankPicker(){
   if(!canUseBank()) return;
   bankState.pickerSelected = {};
@@ -1891,11 +1762,10 @@ async function saveCurrentToBank(){
   }
   try{
     await api('/task-bank',{ method:'POST', body: body });
-    toast('Сохранено в банк. Можно уточнить номер ЕГЭ в разделе «Банк заданий».','ok');
+    toast('Сохранено в банк','ok');
   }catch(e){ toast(e.message,'err'); }
 }
-
-/* CLASS VIEW */
+  /* CLASS VIEW */
 async function openClassView(id){
   currentClassId=id;show('view-class');
   skeleton($('#classStudents'),2);skeleton($('#classGroups'),2);skeleton($('#classTests'),2);
@@ -1993,7 +1863,6 @@ async function openClassView(id){
       };
       $('#classGroups').parentNode.appendChild(bb);
     }
-       /* Карточка «Работы группы» — только для репетитора */
     var cardTests = $('#classTestsCard');
     if(cardTests) cardTests.hidden = !isTeacherLike();
 
@@ -2162,6 +2031,7 @@ async function loadChatMessages(classId, reset){
     if(reset||atBottom)box.scrollTop=box.scrollHeight;
   }catch(e){}
 }
+
 window.downloadChatFile=function(mid){
   var tk=getToken();
   fetch('/api/messages/'+mid+'/file',{headers:{Authorization:'Bearer '+tk}})
@@ -2169,6 +2039,7 @@ window.downloadChatFile=function(mid){
     .then(function(b){window.open(URL.createObjectURL(b),'_blank');})
     .catch(function(e){toast(e.message,'err');});
 };
+
 async function sendChatMessage(){
   if(!currentClassId)return;
   var text=$('#chatText').value.trim();
@@ -2183,12 +2054,14 @@ async function sendChatMessage(){
 
 /* CSV */
 function openCsvPicker(){if(!currentClassId)return;$('#csvFileInput').click();}
+
 async function uploadCsv(file){
   if(!file||!currentClassId)return;
   var fd=new FormData();fd.append('file',file);
   try{toast('Импорт...','info');var r=await apiForm('/classes/'+currentClassId+'/import-csv',fd);lastCsvResult=r;showCsvResult(r);openClassView(currentClassId);}
   catch(e){toast(e.message,'err');}
 }
+
 function showCsvResult(r){
   var box=$('#csvResultBox');if(!box)return;
   box.hidden=false;
@@ -2228,6 +2101,7 @@ function showCsvResult(r){
     host.appendChild(b3);
   }
 }
+
 function downloadPasswords(){
   if(!lastCsvResult||!lastCsvResult.added||!lastCsvResult.added.length){toast('Нет новых паролей','warn');return;}
   var rows=[['Имя','Email','Пароль']];
@@ -2279,8 +2153,8 @@ function initEditorFields(){
   if (bReset) bReset.onclick = resetTaskBank;
   var bClear = $('#btnClearBank');
   if (bClear) bClear.onclick = clearTaskBank;
-  var babs=$('#btnAddBankTask');
-    /* --- Чертёж в форме банка --- */
+
+  /* --- Чертёж в форме банка --- */
   var bFigPick = $('#btnBankFigurePick');
   if (bFigPick) bFigPick.onclick = function(){ var i = $('#bankFigureInput'); if (i) i.click(); };
   var bFigInput = $('#bankFigureInput');
@@ -2289,7 +2163,9 @@ function initEditorFields(){
   };
   var bFigClear = $('#btnBankFigureClear');
   if (bFigClear) bFigClear.onclick = clearBankFigure;
-    var bImp=$('#btnImportBankCsv');
+
+  var babs=$('#btnAddBankTask');
+  var bImp=$('#btnImportBankCsv');
   if(bImp) bImp.onclick = function(){ var f=$('#bankCsvInput'); if(f) f.click(); };
   var bcsv=$('#bankCsvInput');
   if(bcsv) bcsv.onchange = async function(){
@@ -2354,6 +2230,7 @@ function initEditorFields(){
     });
   }
 }
+
 function addOption(){
   var ol=$('#optionsList');if(!ol)return;
   var row=document.createElement('div');row.className='option-row';
@@ -2364,6 +2241,7 @@ function addOption(){
   row.appendChild(r);row.appendChild(mi.el);row.appendChild(d);
   ol.appendChild(row);
 }
+
 async function renderClassPicker(){
   var host=$('#classPicker');if(!host)return;
   host.innerHTML='';
@@ -2386,6 +2264,7 @@ async function renderClassPicker(){
     renderGroupPicker();
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
+
 async function renderGroupPicker(){
   var host=$('#classPicker');if(!host)return;
   $$('.group-picker-block',host).forEach(function(el){el.remove();});
@@ -2418,12 +2297,14 @@ async function renderGroupPicker(){
     });
   }catch(e){}
 }
+
 function toLocalDatetime(ts){
   if(!ts)return '';
   var d=new Date(ts);
   var pad=function(n){return String(n).padStart(2,'0');};
   return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
 }
+
 async function openEditor(test){
   initEditorFields();
   editingTestId=test?test.id:null;
@@ -2443,6 +2324,7 @@ async function openEditor(test){
   await renderClassPicker();
   renderDraft();show('view-editor');
 }
+
 function renderDraft(){
   var host=$('#draftList');if(!host)return;
   host.innerHTML='';$('#taskCount').textContent=draftTasks.length;
@@ -2460,6 +2342,7 @@ function renderDraft(){
     host.appendChild(d);
   });
 }
+
 function addTask(){
   var type=$('#taskType').value;
   var statement=stmtInput.getValue().trim();
@@ -2482,6 +2365,7 @@ function addTask(){
   $('#optionsList').innerHTML='';addOption();addOption();
   renderDraft();toast('Задание добавлено','ok');
 }
+
 async function saveTest(){
   var title=$('#testTitle').value.trim()||'Без названия';
   if(!draftTasks.length){toast('Добавьте задание','warn');return;}
@@ -2511,6 +2395,7 @@ async function goStudent(){
   show('view-student');
   await Promise.all([renderStudentSummary(),renderStudentTests(),renderStudentClasses(),renderStudentSchedule()]);
 }
+
 async function renderStudentSummary(){
   var host=$('#studentSummary');if(!host)return;
   try{
@@ -2527,6 +2412,7 @@ async function renderStudentSummary(){
     });
   }catch(e){host.innerHTML='';}
 }
+
 async function renderStudentSchedule(){
   var host=$('#scheduleBlock');if(!host)return;
   try{
@@ -2556,6 +2442,7 @@ async function renderStudentSchedule(){
     block.appendChild(list);host.appendChild(block);
   }catch(e){host.innerHTML='';}
 }
+
 async function renderStudentTests(){
   var host=$('#studentList');if(!host)return;
   skeleton(host,3);
@@ -2594,6 +2481,7 @@ async function renderStudentTests(){
     });
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function renderStudentClasses(){
   var host=$('#myClasses');if(!host)return;
   skeleton(host,2);
@@ -2608,14 +2496,12 @@ async function renderStudentClasses(){
         '<div class="name"><div style="font-weight:600">'+esc(c.name)+'</div>'+
         '<div class="muted">Репетитор: '+esc(c.teacherName)+gH+'</div></div>';
 
-      /* Кнопка «Открыть» — заходим в группу: чат + работы */
       var bOpen=document.createElement('button');
       bOpen.className='primary small';
       bOpen.innerHTML='<svg><use href="#i-arrow-right"/></svg> Открыть';
       bOpen.onclick=function(){ openClassView(c.id); };
       el.appendChild(bOpen);
 
-      /* Кнопка «Покинуть» — с подтверждением */
       var b=document.createElement('button');
       b.className='ghost small danger';
       b.textContent='Покинуть';
@@ -2633,6 +2519,7 @@ async function renderStudentClasses(){
     });
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
+
 async function joinClass(){
   var je=$('#joinErr');if(je)je.textContent='';
   var c=$('#joinCode').value.trim().toUpperCase();
@@ -2646,6 +2533,7 @@ function draftKey(tid){return 'mathtest_draft_'+currentUser.id+'_'+tid;}
 function saveDraft(tid,data){try{localStorage.setItem(draftKey(tid),JSON.stringify(data));}catch(e){}}
 function loadDraft(tid){try{var raw=localStorage.getItem(draftKey(tid));return raw?JSON.parse(raw):null;}catch(e){return null;}}
 function clearDraft(tid){try{localStorage.removeItem(draftKey(tid));}catch(e){}}
+
 function scheduleDraftSave(){
   if(!currentTest)return;
   clearTimeout(draftTimer);
@@ -2677,6 +2565,7 @@ function updateTakeSlider(){
     });
   }
 }
+
 function renderTakeTask(){
   if(!currentTest)return;
   var host=$('#takeBody');host.innerHTML='';
@@ -2728,6 +2617,7 @@ function renderTakeTask(){
   }
   nav.appendChild(bPrev);nav.appendChild(bNext);card.appendChild(nav);host.appendChild(card);
 }
+
 function updateTimer(){
   if(!testDeadline)return;
   var left=Math.max(0,testDeadline-Date.now());
@@ -2739,6 +2629,7 @@ function updateTimer(){
   el.className='timer'+(pct<10?' critical':(pct<25?' warning':''));
   if(left<=0){clearInterval(timerInterval);timerInterval=null;toast('Время вышло','warn');setTimeout(submitTest,500);}
 }
+
 function openTest(test){
   currentTest=test;answerInputs=[];choicePicks=[];takeCurrentTask=0;
   $('#takeTitle').textContent=test.title;
@@ -2771,6 +2662,7 @@ function openTest(test){
   }
   show('view-take');
 }
+
 async function submitTest(){
   if(!currentTest)return;
   if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
@@ -2787,6 +2679,7 @@ async function submitTest(){
     showResult(currentTest,r);
   }catch(e){toast(e.message,'err');}
 }
+
 function showResult(test,r){
   var card=$('#resultCard');
   var score=r.score,max=r.max;
@@ -2872,6 +2765,7 @@ async function showSubmissions(test){
     });
   }catch(e){body.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function exportCsv(){
   if(!currentSubmissionTest)return;
   try{
@@ -2883,6 +2777,7 @@ async function exportCsv(){
     document.body.appendChild(a);a.click();a.remove();toast('CSV скачан','ok');
   }catch(e){toast(e.message,'err');}
 }
+
 async function showAnalytics(){
   if(!currentSubmissionTest)return;
   $('#subsTitle').textContent='Аналитика';
@@ -2908,6 +2803,7 @@ async function showAnalytics(){
     back.onclick=function(){showSubmissions(currentSubmissionTest);};body.appendChild(back);
   }catch(e){body.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function openSubmissionDetail(subId,testId){
   try{
     var r=await api('/submissions/'+subId);
@@ -3017,8 +2913,7 @@ async function openDashboard(){
     twoCol.appendChild(bottomCard);host.appendChild(twoCol);
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
-
-/* LIBRARY */
+  /* LIBRARY */
 async function openLibrary(){
   show('view-library');
   var host=$('#bookList');skeleton(host,4);
@@ -3033,7 +2928,9 @@ async function openLibrary(){
   }catch(e){}
   await searchBooks();
 }
+
 function bookCoverUrl(id){return '/api/books/'+id+'/cover';}
+
 function renderBookCard(b){
   var card=document.createElement('div');card.className='book-card';
   var coverStyle='',coverContent='';
@@ -3063,6 +2960,7 @@ function renderBookCard(b){
   card.onclick=function(){openReader(b.id);};
   return card;
 }
+
 function renderBookRow(b){
   var el=document.createElement('div');el.className='book-list-row';
   var coverStyle='',coverContent='';
@@ -3086,6 +2984,7 @@ function renderBookRow(b){
   el.onclick=function(){openReader(b.id);};
   return el;
 }
+
 async function searchBooks(){
   var host=$('#bookList');if(!host)return;
   skeleton(host,3);
@@ -3096,7 +2995,7 @@ async function searchBooks(){
     var params='?q='+encodeURIComponent(q)+'&classId='+encodeURIComponent(cid)+'&sort='+encodeURIComponent(sort);
     var r=await api('/books'+params);
     host.innerHTML='';
-        if(!r.books.length){
+    if(!r.books.length){
       if(q || cid){
         host.innerHTML='<div class="card"><div class="empty">'+
           '<div class="icon">🔍</div>'+
@@ -3130,6 +3029,7 @@ async function searchBooks(){
     } else r.books.forEach(function(b){host.appendChild(renderBookRow(b));});
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function renderBookClassPicker(){
   var host=$('#bookClassPicker');if(!host)return;
   try{
@@ -3152,6 +3052,7 @@ async function renderBookClassPicker(){
     });
   }catch(e){}
 }
+
 function bindCoverDrop(){
   var drop=$('#bookCoverDrop'),input=$('#bookCover'),preview=$('#bookCoverPreview'),clearBtn=$('#bookCoverClear');
   if(!drop||!input||!preview)return;
@@ -3166,6 +3067,7 @@ function bindCoverDrop(){
   drop.ondrop=function(e){e.preventDefault();drop.classList.remove('drag');var f=e.dataTransfer.files[0];if(!f)return;if(!/^image\//.test(f.type)){toast('Только изображения','warn');return;}if(f.size>5*1024*1024){toast('Файл больше 5 МБ','warn');return;}try{var dt=new DataTransfer();dt.items.add(f);input.files=dt.files;}catch(err){}showPreview(f);};
   if(clearBtn)clearBtn.onclick=function(e){e.stopPropagation();window.__bookCoverReset();};
 }
+
 function bindPdfDrop(){
   var drop=$('#bookPdfDrop'),input=$('#bookPdf'),preview=$('#bookPdfPreview'),meta=$('#bookPdfMeta'),clearBtn=$('#bookPdfClear');
   if(!drop||!input)return;
@@ -3191,6 +3093,7 @@ function bindPdfDrop(){
   drop.ondrop=function(e){e.preventDefault();drop.classList.remove('drag');var f=e.dataTransfer.files[0];if(!f)return;try{var dt=new DataTransfer();dt.items.add(f);input.files=dt.files;}catch(err){}setFile(f);};
   if(clearBtn)clearBtn.onclick=function(e){e.stopPropagation();window.__bookPdfReset();};
 }
+
 function clearBookForm(){
   ['bookTitle','bookAuthor','bookSubject','bookDescription'].forEach(function(id){var el=$('#'+id);if(el)el.value='';});
   $('#bookErr').textContent='';editingBookId=null;
@@ -3198,6 +3101,7 @@ function clearBookForm(){
   if(window.__bookPdfReset)window.__bookPdfReset();
   $('#bookFormTitle').textContent='Новая книга';
 }
+
 async function editBook(id){
   try{
     var r=await api('/books/'+id);
@@ -3214,6 +3118,7 @@ async function editBook(id){
     if(b.hasPdf && window.__bookPdfShowExisting)window.__bookPdfShowExisting(b.title+'.pdf',b.pdfSize);
   }catch(e){toast(e.message,'err');}
 }
+
 async function saveBook(){
   var err=$('#bookErr');if(err)err.textContent='';
   var title=$('#bookTitle').value.trim();
@@ -3260,6 +3165,7 @@ function readerClose(){
 }
 function activeSlot(){return reader.activeSlot==='A'?$('#readerSlotA'):$('#readerSlotB');}
 function inactiveSlot(){return reader.activeSlot==='A'?$('#readerSlotB'):$('#readerSlotA');}
+
 async function renderPdfToCanvas(pageNum, maxW, maxH){
   if(reader.cache[pageNum]) return reader.cache[pageNum];
   var page=await reader.pdf.getPage(pageNum);
@@ -3278,6 +3184,7 @@ async function renderPdfToCanvas(pageNum, maxW, maxH){
   reader.cache[pageNum]=canvas;
   return canvas;
 }
+
 async function renderSpreadToSlot(slotEl, leftPage){
   slotEl.innerHTML='';
   var stage=$('#readerStage');
@@ -3299,6 +3206,7 @@ async function renderSpreadToSlot(slotEl, leftPage){
   }
   slotEl.appendChild(wrap);
 }
+
 function updateReaderIndicator(){
   var ind=$('#readerPageIndicator');
   var step=readerStep();
@@ -3314,6 +3222,7 @@ function updateReaderIndicator(){
   var nextBtn=$('#readerNext');
   if(nextBtn) nextBtn.disabled=(reader.currentPage + step > reader.totalPages);
 }
+
 async function renderCurrentPage(){
   var slot=activeSlot();
   if(!slot) return;
@@ -3326,6 +3235,7 @@ async function renderCurrentPage(){
   }catch(e){ console.error('render spread:', e); }
   if(loading)loading.hidden=true;
 }
+
 async function goToPage(target, direction){
   if(!reader.pdf || reader.animating) return;
   var step=readerStep();
@@ -3362,6 +3272,7 @@ async function goToPage(target, direction){
     reader.animating=false;
   }, 340);
 }
+
 function updateReaderZoomLabel(){
   var el=$('#readerZoomVal');
   if(el) el.textContent=Math.round(reader.zoom*100)+'%';
@@ -3375,6 +3286,7 @@ function readerZoom(delta){
   var slot=activeSlot(); if(slot) slot.innerHTML='';
   renderCurrentPage();
 }
+
 async function resolveOutlineDest(dest){
   if(!dest || !reader.pdf) return -1;
   try{
@@ -3390,6 +3302,7 @@ async function resolveOutlineDest(dest){
     return (typeof idx === 'number' && idx >= 0) ? idx : -1;
   }catch(e){ console.warn('outline dest:', e.message); return -1; }
 }
+
 async function renderReaderToc(){
   var host=$('#readerTocList');if(!host)return;
   host.innerHTML='<div class="muted" style="padding:20px;text-align:center;font-size:13px">Загрузка оглавления…</div>';
@@ -3426,6 +3339,7 @@ async function renderReaderToc(){
     host.appendChild(btn);
   });
 }
+
 async function openReader(bookId){
   show('view-reader');
   readerClose();
@@ -3490,6 +3404,7 @@ async function openReader(bookId){
     $('#readerSlotA').innerHTML='<div class="card err" style="margin:40px auto;max-width:600px">'+esc(e.message||'Ошибка загрузки PDF')+'</div>';
   }
 }
+
 function renderReaderBookmarks(bms){
   var host=$('#readerBookmarksList');if(!host)return;
   host.innerHTML='';
@@ -3508,6 +3423,7 @@ function renderReaderBookmarks(bms){
     host.appendChild(el);
   });
 }
+
 async function addBookmarkFromReader(){
   if(!reader.bookId)return;
   var page=reader.currentPage||1;
@@ -3516,6 +3432,7 @@ async function addBookmarkFromReader(){
   try{await api('/books/'+reader.bookId+'/bookmarks',{method:'POST',body:{position:page,note:note||null}});toast('Закладка добавлена','ok');openReader(reader.bookId);}
   catch(e){toast(e.message,'err');}
 }
+
 function toggleReaderUI(){
   reader.uiHidden=!reader.uiHidden;
   ['#readerTopbar','#readerProgress'].forEach(function(sel){
@@ -3530,10 +3447,12 @@ function toggleReaderUI(){
 async function openAdmin(){
   if(!isAdmin())return;
   show('view-admin');
-  skeleton($('#adminStats'),3);skeleton($('#adminUsersList'),4);
-  await loadAdminUsers();
-  refreshBankStats();
+  try { skeleton($('#adminStats'),3); } catch(e){}
+  try { skeleton($('#adminUsersList'),4); } catch(e){}
+  try { await loadAdminUsers(); } catch(e){ console.error('loadAdminUsers:', e); }
+  try { refreshBankStats(); } catch(e){ console.error('refreshBankStats:', e); }
 }
+
 async function loadAdminLogs(){
   var host=$('#adminLogsList');if(!host)return;skeleton(host,5);
   try{
@@ -3549,6 +3468,7 @@ async function loadAdminLogs(){
     });
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
+
 async function loadBackups(){
   var host=$('#adminBackupsList');if(!host)return;skeleton(host,3);
   try{
@@ -3576,12 +3496,14 @@ async function loadBackups(){
     });
   }catch(e){host.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
+
 async function createBackupNow(){
   var btn=$('#btnCreateBackup');if(!btn)return;btn.disabled=true;
   try{await api('/admin/backups/create',{method:'POST'});toast('Бэкап создан','ok');loadBackups();}
   catch(e){toast(e.message,'err');}
   finally{btn.disabled=false;}
 }
+
 async function loadAdminUsers(){
   try{
     var q=$('#adminSearch').value.trim();
@@ -3719,6 +3641,7 @@ async function openProfileStats(){
     }
   }catch(e){host.innerHTML='<div class="card err">'+esc(e.message)+'</div>';}
 }
+
 async function renderProfileTelegram(){
   var box=$('#profTgBox');if(!box)return;
   box.innerHTML='<div class="muted">Проверка…</div>';
@@ -3741,6 +3664,7 @@ async function renderProfileTelegram(){
     }
   }catch(e){box.innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
+
 async function openEditProfile(){
   if(!currentUser)return;
   show('view-editprofile');
@@ -3761,6 +3685,7 @@ async function openEditProfile(){
     if(bdel) bdel.hidden = !user.hasAvatar;
   }catch(e){toast(e.message,'err');}
 }
+
 async function saveProfile(){
   var err=$('#editErr');if(err)err.textContent='';
   var name=$('#editName').value.trim();
@@ -3778,6 +3703,7 @@ async function saveProfile(){
   }catch(e){if(err)err.textContent=e.message;toast(e.message,'err');}
   finally{btn.disabled=false;}
 }
+
 async function uploadAvatarFile(file){
   if(!file)return;
   if(file.size>5*1024*1024){toast('Файл больше 5 МБ','warn');return;}
@@ -3801,6 +3727,7 @@ async function uploadAvatarFile(file){
     toast('Аватар обновлён','ok');
   }catch(e){toast(e.message,'err');}
 }
+
 async function deleteAvatarFile(){
   if(!currentUser)return;
   if(!confirm('Удалить аватар?'))return;
@@ -3833,7 +3760,6 @@ function enterApp(user){
 
 /* BIND ALL */
 function bindAll(){
-  /* Табы в топбаре */
   $$('#topbarTabs .tt-btn').forEach(function(btn){
     btn.onclick=function(){
       var tab=btn.dataset.tab;
@@ -3843,7 +3769,7 @@ function bindAll(){
         else if(currentUser.role==='teacher'||currentUser.role==='admin') goTeacher();
         else openLibrary();
       }
-            else if(tab==='bank'){
+      else if(tab==='bank'){
         openTaskBank();
       }
       else if(tab==='library'){
@@ -3972,7 +3898,7 @@ function bindAll(){
   var bcr=$('#btnClassRating');if(bcr)bcr.onclick=openClassRating;
 
   var bcb=$('#btnCreateBackup');if(bcb)bcb.onclick=createBackupNow;
-    var bgt=$('#btnGenerateTasks');
+  var bgt=$('#btnGenerateTasks');
   if(bgt) bgt.onclick=async function(){
     var N = parseInt($('#genTasksN').value) || 30;
     if(N < 1 || N > 200){ toast('Число должно быть от 1 до 200', 'warn'); return; }
@@ -4005,7 +3931,7 @@ function bindAll(){
   var bSearch=$('#bookSearch');if(bSearch){var st=null;bSearch.oninput=function(){clearTimeout(st);st=setTimeout(searchBooks,250);};}
   var bcf2=$('#bookClassFilter');if(bcf2)bcf2.onchange=searchBooks;
   var bsort=$('#bookSort');if(bsort)bsort.onchange=searchBooks;
-   var bbv=$('#btnBookView');
+  var bbv=$('#btnBookView');
   if(bbv)bbv.onclick=function(){
     bookView=(bookView==='grid')?'list':'grid';
     bbv.innerHTML=(bookView==='grid')
@@ -4112,9 +4038,7 @@ function bindAll(){
         else if(currentUser.role==='teacher'||currentUser.role==='admin')goTeacher();
         else openLibrary();
       }
-           else if(k==='bank'){
-        openTaskBank();
-      }
+      else if(k==='bank'){openTaskBank();}
       else if(k==='library')openLibrary();
       else if(k==='profile')openProfileStats();
     };
@@ -4146,10 +4070,11 @@ async function bootstrap(){
       else if(currentUser.role==='librarian')openLibrary();
       else show('view-landing');
     }catch(e){setToken(null);show('view-landing');}
-    } else show('view-landing');
-  renderTop(); /* на случай гостя — скрывает табы */
+  } else show('view-landing');
+  renderTop();
   initReveal();animateCounters();initGoogleLogin();initTelegramLogin();bindAll();registerSW();
 }
+
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootstrap);
 else bootstrap();
 
